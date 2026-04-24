@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.1](https://github.com/duonrun/cli/releases/tag/0.1.1) (2026-01-29)
+## [0.1.1](https://github.com/duoncode/cli/releases/tag/0.1.1) (2026-01-29)
 
 ### Changed
 
@@ -11,7 +11,7 @@
   stability (`minimum-stability: dev` with `prefer-stable`) to allow installing
   newer Psalm builds.
 
-## [0.1.0](https://github.com/duonrun/cli/releases/tag/0.1.0) (2026-01-28)
+## [0.1.0](https://github.com/duoncode/cli/releases/tag/0.1.0) (2026-01-28)
 
 Initial version.
 
