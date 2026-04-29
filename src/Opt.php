@@ -9,7 +9,7 @@ namespace Duon\Cli;
  */
 final class Opt
 {
-	protected array $values;
+	private array $values;
 
 	public function __construct(?string $value = null)
 	{

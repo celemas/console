@@ -17,7 +17,7 @@ use ValueError;
  */
 final class Opts
 {
-	protected readonly array $opts;
+	private readonly array $opts;
 
 	public function __construct()
 	{
@@ -71,7 +71,7 @@ final class Opts
 		return $default;
 	}
 
-	protected static function getOpts(): array
+	private static function getOpts(): array
 	{
 		$opts = [];
 		$key = null;
@@ -104,7 +104,7 @@ final class Opts
 		return $opts;
 	}
 
-	protected function validate(string $key): void
+	private function validate(string $key): void
 	{
 		if (!isset($this->opts[$key])) {
 			throw new ValueError("Unknown option: {$key}");

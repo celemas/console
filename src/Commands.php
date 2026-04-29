@@ -9,7 +9,7 @@ namespace Duon\Cli;
  */
 final class Commands
 {
-	protected array $commands = [];
+	private array $commands = [];
 
 	public function __construct(Command|array $commands = [])
 	{
@@ -36,7 +36,7 @@ final class Commands
 		return $this->commands;
 	}
 
-	protected function addCommand(Command $command): void
+	private function addCommand(Command $command): void
 	{
 		$this->commands[] = $command;
 	}

@@ -17,12 +17,12 @@ final class Runner
 	protected const NOTFOUND = 2;
 
 	// The commands ordered by group and name
-	protected array $toc = [];
+	private array $toc = [];
 
 	// The commands indexed by name only
-	protected array $list = [];
-	protected Output $output;
-	protected int $longestName = 0;
+	private array $list = [];
+	private Output $output;
+	private int $longestName = 0;
 
 	public function __construct(
 		Commands $commands,
@@ -172,13 +172,13 @@ final class Runner
 		}
 	}
 
-	protected function echoGroup(string $title): void
+	private function echoGroup(string $title): void
 	{
 		$g = $this->output->color($title, 'brown');
 		$this->output->echo("\n{$g}\n");
 	}
 
-	protected function echoCommand(string $prefix, string $name, string $desc): void
+	private function echoCommand(string $prefix, string $name, string $desc): void
 	{
 		$prefix = $prefix ? $prefix . ':' : '';
 		$name = $this->output->color($name, 'green');
@@ -189,7 +189,7 @@ final class Runner
 		$this->output->echoln("  {$prefixedName}{$desc}");
 	}
 
-	protected function showAmbiguousMessage(string $cmd): int
+	private function showAmbiguousMessage(string $cmd): int
 	{
 		$this->output->echo("Ambiguous command. Please add the group name:\n\n");
 		asort($this->list[$cmd]);
@@ -203,7 +203,7 @@ final class Runner
 		return 1;
 	}
 
-	protected function getCommand(string $cmd): Command
+	private function getCommand(string $cmd): Command
 	{
 		if (isset($this->list[$cmd])) {
 			if (count($this->list[$cmd]) === 1) {
@@ -224,7 +224,7 @@ final class Runner
 		throw new ValueError('Command not found', self::NOTFOUND);
 	}
 
-	protected function runCommand(Command $command, bool $isHelpCall): int|string
+	private function runCommand(Command $command, bool $isHelpCall): int|string
 	{
 		if ($isHelpCall) {
 			$command->output($this->output)->help();

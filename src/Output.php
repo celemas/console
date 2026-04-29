@@ -6,8 +6,8 @@ namespace Duon\Cli;
 
 final class Output
 {
-	protected mixed $stream;
-	protected array $fg = [
+	private mixed $stream;
+	private array $fg = [
 		'black' => [0, 30],
 		'gray' => [1, 30],
 		'grey' => [1, 30],
@@ -29,7 +29,7 @@ final class Output
 		'lightgrey' => [0, 37],
 		'white' => [1, 37],
 	];
-	protected array $bg = [
+	private array $bg = [
 		'black' => 40,
 		'red' => 41,
 		'green' => 42,
@@ -59,7 +59,7 @@ final class Output
 		);
 	}
 
-	protected function write(string $text): void
+	private function write(string $text): void
 	{
 		fwrite($this->getStream(), $text);
 		fflush($this->stream);
@@ -117,7 +117,7 @@ final class Output
 		}, $lines));
 	}
 
-	protected function formatText(string $text, string $colorCode, string|int $backgroundCode): string
+	private function formatText(string $text, string $colorCode, string|int $backgroundCode): string
 	{
 		if ($colorCode && $backgroundCode) {
 			return "\033[{$colorCode};{$backgroundCode}m{$text}\033[0m";
@@ -134,7 +134,7 @@ final class Output
 		return $text;
 	}
 
-	protected function getStream(): mixed
+	private function getStream(): mixed
 	{
 		if (!isset($this->stream)) {
 			$this->stream = fopen($this->target, 'w');
@@ -143,7 +143,7 @@ final class Output
 		return $this->stream;
 	}
 
-	protected function hasColorSupport(): bool
+	private function hasColorSupport(): bool
 	{
 		if (getenv('NO_COLOR') !== false) {
 			return false;
