@@ -112,7 +112,7 @@ final class Output
 
 		$lines = explode("\n", wordwrap($text, $width, break: "\n"));
 
-		return implode("\n", array_map(static fn ($line) => $spaces . $line, $lines));
+		return implode("\n", array_map(static fn($line) => $spaces . $line, $lines));
 	}
 
 	private function formatText(string $text, string $colorCode, string|int $backgroundCode): string

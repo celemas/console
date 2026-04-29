@@ -223,8 +223,7 @@ final class Runner
 			[$group, $name] = explode(':', $cmd);
 
 			if (
-				array_key_exists($group, $this->toc)
-				&& array_key_exists($name, $this->toc[$group]['commands'])
+				array_key_exists($group, $this->toc) && array_key_exists($name, $this->toc[$group]['commands'])
 			) {
 				return $this->toc[$group]['commands'][$name];
 			}
