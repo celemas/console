@@ -127,15 +127,21 @@ final class Runner
 	public function run(): int|string
 	{
 		try {
-			if (isset($_SERVER['argv'][1])) {
-				$cmd = strtolower($_SERVER['argv'][1]);
+			$argv = $_SERVER['argv'] ?? [];
+
+			$arg = $argv[1] ?? null;
+
+			if ($arg !== null) {
+				$cmd = strtolower($arg);
 				$isHelpCall = false;
 
 				if ($cmd === 'help') {
 					$isHelpCall = true;
 
-					if (isset($_SERVER['argv'][2])) {
-						$cmd = strtolower($_SERVER['argv'][2]);
+					$arg = $argv[2] ?? null;
+
+					if ($arg !== null) {
+						$cmd = strtolower($arg);
 					} else {
 						return $this->showHelp();
 					}
@@ -204,7 +210,7 @@ final class Runner
 
 	private function getCommand(string $cmd): Command
 	{
-		if (isset($this->list[$cmd])) {
+		if (array_key_exists($cmd, $this->list)) {
 			if (count($this->list[$cmd]) === 1) {
 				return $this->list[$cmd][0];
 			}
@@ -214,7 +220,10 @@ final class Runner
 			if (str_contains($cmd, ':')) {
 				[$group, $name] = explode(':', $cmd);
 
-				if (isset($this->toc[$group]['commands'][$name])) {
+				if (
+					array_key_exists($group, $this->toc)
+					&& array_key_exists($name, $this->toc[$group]['commands'])
+				) {
 					return $this->toc[$group]['commands'][$name];
 				}
 			}
