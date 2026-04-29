@@ -1,5 +1,27 @@
 # Changelog
 
+## [Unreleased](https://github.com/duoncode/cli/compare/0.1.1...HEAD)
+
+### Breaking
+
+- Renamed the aggregate Composer script from `all` to `ci` and removed the
+  `benchmark` and automatic config-sync scripts.
+
+### Added
+
+- Added `composer lint` with Mago formatting and lint checks.
+
+### Changed
+
+- Switched development tooling to `duon/dev` 3.x, `.dist` PHPUnit/Psalm configs,
+  and `.coverage` coverage output.
+
+### Fixed
+
+- Fixed package homepage metadata to point to `duon.sh/cli`.
+- Fixed command metadata handling so `0` prefixes, groups, and descriptions are
+  not treated as missing.
+
 ## [0.1.1](https://github.com/duoncode/cli/releases/tag/0.1.1) (2026-01-29)
 
 ### Changed
