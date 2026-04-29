@@ -45,7 +45,7 @@ final class Runner
 			} else {
 				$group = $command->group() ?: 'General';
 				$groups[$prefix] = [
-					'title' => empty($prefix) ? 'General' : $group,
+					'title' => $prefix === '' ? 'General' : $group,
 					'commands' => [$name => $command],
 				];
 			}

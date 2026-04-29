@@ -31,7 +31,7 @@ abstract class Command
 
 	public function prefix(): string
 	{
-		return empty($this->prefix) ? strtolower($this->group) : $this->prefix;
+		return $this->prefix === '' ? strtolower($this->group) : $this->prefix;
 	}
 
 	public function description(): string
@@ -126,7 +126,7 @@ abstract class Command
 		$prefix = $this->prefix();
 		$desc = $this->description;
 
-		if (!empty($desc)) {
+		if ($desc !== '') {
 			$label = $this->color('Description:', 'brown') . "\n";
 			$this->echo("{$label}  {$desc}\n\n");
 		}
