@@ -43,7 +43,8 @@ final class Runner
 			if (array_key_exists($prefix, $groups)) {
 				$groups[$prefix]['commands'][$name] = $command;
 			} else {
-				$group = $command->group() ?: 'General';
+				$group = $command->group();
+				$group = $group === '' ? 'General' : $group;
 				$groups[$prefix] = [
 					'title' => $prefix === '' ? 'General' : $group,
 					'commands' => [$name => $command],
