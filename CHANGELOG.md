@@ -1,10 +1,16 @@
 # Changelog
 
-## [Unreleased](https://github.com/duoncode/cli/compare/0.1.2...HEAD)
+## [Unreleased](https://github.com/celemas/cli/compare/0.2.0...HEAD)
 
 No notable changes since the last release.
 
-## [0.1.2](https://github.com/duoncode/cli/releases/tag/0.1.2) (2026-04-29)
+## [0.2.0](https://github.com/celemas/cli/releases/tag/0.2.0) (2026-05-10)
+
+### Breaking Changes
+
+- Rename package metadata, root namespace, repository URLs, homepage, and contact email to Celemas.
+
+## [0.1.2](https://github.com/celemas/cli/releases/tag/0.1.2) (2026-04-29)
 
 ### Breaking
 
@@ -20,10 +26,10 @@ No notable changes since the last release.
 
 ### Fixed
 
-- Fixed package homepage metadata to point to `duon.sh/cli`.
+- Fixed package homepage metadata to point to `duon.dev/cli`.
 - Fixed command metadata handling so `0` prefixes, groups, and descriptions are not treated as missing.
 
-## [0.1.1](https://github.com/duoncode/cli/releases/tag/0.1.1) (2026-01-29)
+## [0.1.1](https://github.com/celemas/cli/releases/tag/0.1.1) (2026-01-29)
 
 ### Changed
 
@@ -31,7 +37,7 @@ No notable changes since the last release.
 - Breaking: Removed the `composer github` script; CI now runs the equivalent commands directly.
 - Switched development tool dependencies to `duon/dev` and relaxed Composer stability (`minimum-stability: dev` with `prefer-stable`) to allow installing newer Psalm builds.
 
-## [0.1.0](https://github.com/duoncode/cli/releases/tag/0.1.0) (2026-01-28)
+## [0.1.0](https://github.com/celemas/cli/releases/tag/0.1.0) (2026-01-28)
 
 Initial version.
 
