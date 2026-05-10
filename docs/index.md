@@ -1,13 +1,13 @@
 ---
 title: Introduction
 ---
-Duon Cli is a command line interface helper like
+Celemas Cli is a command line interface helper like
 [Laravel's Artisan](https://laravel.com/docs/9.x/artisan) with way less magic.
 
 ## Installation
 
 ```bash
-composer require duon/cli
+composer require celemas/cli
 ```
 
 ## Quick Start
@@ -15,7 +15,7 @@ composer require duon/cli
 Create a Command:
 
 ```php
-use Duon\Cli\Command;
+use Celemas\Cli\Command;
 
 class MyCommand extends Command {
     /**
@@ -135,7 +135,7 @@ Create a runner script, e. g. `run.php` or simply `run`:
 
 require __DIR__ . '/vendor/autoload.php';
 
-use Duon\Cli\{Runner, Commands};
+use Celemas\Cli\{Runner, Commands};
 use MyCommand;
 
 $commands = new Commands([new MyCommand()]);
