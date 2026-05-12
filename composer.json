@@ -39,8 +39,8 @@
 		],
 		"docs:format": "npx prettier@3.6.2 --write --config ./docs/.prettierrc README.md CHANGELOG.md LICENSE.md docs/",
 		"docs:lint": "npx markdownlint-cli2@0.22.1 --config ./vendor/celemas/dev/config/markdownlint.jsonc README.md CHANGELOG.md LICENSE.md docs/",
-		"coverage:test": "php -d xdebug.mode=coverage ./vendor/bin/phpunit --testdox --path-coverage --coverage-text --coverage-php=.coverage/cover.php --colors=always",
-		"coverage:analyze": "./vendor/bin/coverlyzer .coverage/cover.php",
+		"coverage:test": "php -d xdebug.mode=coverage ./vendor/bin/phpunit --testdox --path-coverage --colors=always",
+		"coverage:analyze": "./vendor/bin/coverlyzer .coverage/coverage.php",
 		"coverage": [
 			"composer coverage:test",
 			"composer coverage:analyze"
