@@ -1,8 +1,8 @@
 ---
 title: Introduction
 ---
-Celemas Cli is a command line interface helper like
-[Laravel's Artisan](https://laravel.com/docs/9.x/artisan) with way less magic.
+
+Celemas Cli is a command line interface helper like [Laravel's Artisan](https://laravel.com/docs/9.x/artisan) with way less magic.
 
 ## Installation
 
@@ -48,13 +48,13 @@ class MyCommand extends Command {
     public function run(): int
     {
         $this->echo("Run my command\n");
-        
+
         // Output helpers with color support
         $this->info("Informational message");
         $this->success("Success message");
         $this->warn("Warning message");
         $this->error("Error message");
-        
+
         // echoln adds a newline automatically
         $this->echoln("Message with automatic newline");
 
@@ -79,28 +79,20 @@ class MyCommand extends Command {
 
 ### Output Methods
 
-- `echo(string $message, string $color = '', string $background = '')`
-  Output text
-- `echoln(string $message, string $color = '', string $background = '')`
-  Output text with newline
+- `echo(string $message, string $color = '', string $background = '')` - Output text
+- `echoln(string $message, string $color = '', string $background = '')` - Output text with newline
 - `info(string $message)` - Output informational message
 - `success(string $message)` - Output success message (green)
 - `warn(string $message)` - Output warning message (yellow)
 - `error(string $message)` - Output error message (red)
-- `color(string $text, string $color, string $background = '')`
-  Return colored text
-- `indent(string $text, int $indent, ?int $max = null)`
-  Indent and wrap text
+- `color(string $text, string $color, string $background = '')` Return colored text
+- `indent(string $text, int $indent, ?int $max = null)` Indent and wrap text
 
 ### Available Colors
 
-Foreground: `black`, `gray`/`grey`, `red`, `lightred`, `green`,
-`lightgreen`, `brown`, `yellow`, `blue`, `lightblue`, `purple`,
-`lightpurple`, `magenta`, `lightmagenta`, `cyan`, `lightcyan`,
-`lightgray`/`lightgrey`, `white`
+Foreground: `black`, `gray`/`grey`, `red`, `lightred`, `green`, `lightgreen`, `brown`, `yellow`, `blue`, `lightblue`, `purple`, `lightpurple`, `magenta`, `lightmagenta`, `cyan`, `lightcyan`, `lightgray`/`lightgrey`, `white`
 
-Background: `black`, `red`, `green`, `yellow`, `blue`, `purple`,
-`magenta`, `cyan`, `gray`/`grey`, `white`
+Background: `black`, `red`, `green`, `yellow`, `blue`, `purple`, `magenta`, `cyan`, `gray`/`grey`, `white`
 
 ### Command-Line Options
 
@@ -121,8 +113,7 @@ Use the `Opts` class to parse command-line options in your commands.
 
 ### Debug Mode
 
-Enable debug mode in the Runner to display full stack traces when
-commands throw exceptions:
+Enable debug mode in the Runner to display full stack traces when commands throw exceptions:
 
 ```php
 $runner = new Runner($commands, debug: true);
