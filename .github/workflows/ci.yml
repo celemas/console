@@ -31,11 +31,16 @@ jobs:
           npm_config_yes: 'true'
 
       - name: Run tests with coverage
-        run: composer coverage:test
+        run: composer coverage:test -- --coverage-clover=coverage.xml
 
       - name: Analyze coverage
         run: composer coverage:analyze
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+
       - name: Run static type checks
         run: composer types -- --output-format=github --shepherd
-
