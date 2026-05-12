@@ -9,15 +9,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup PHP extensions
+      - name: Setup PHP
         uses: shivammathur/setup-php@44454db4f0199b8b9685a5d763dc37cbf79108e1 # v2
         with:
           php-version: '8.5'
-          extensions: pcov, dom, mbstring, simplexml, tokenizer, ctype, xml
-          coverage: pcov
-
-      - name: Disable Xdebug
-        run: sudo phpdismod xdebug
+          extensions: dom, mbstring, simplexml, tokenizer, ctype, xml
+          coverage: xdebug
 
       - name: Checkout repo
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -25,11 +22,20 @@ jobs:
       - name: Install packages with composer
         run: composer install
 
-      - name: Run tests, static type checker and linter
-        run: |
-          ./vendor/bin/mago fmt --check
-          ./vendor/bin/mago lint
-          php -d pcov.enabled=1 ./vendor/bin/phpunit --testdox --coverage-text --coverage-php=coverage/cover.php --colors=always
-          ./vendor/bin/coverlyzer coverage/cover.php
-          ./vendor/bin/psalm --output-format=github --shepherd
+      - name: Run PHP lint checks
+        run: composer lint
+
+      - name: Run Markdown lint checks
+        run: composer docs:lint
+        env:
+          npm_config_yes: 'true'
+
+      - name: Run tests with coverage
+        run: composer coverage:test
+
+      - name: Analyze coverage
+        run: composer coverage:analyze
+
+      - name: Run static type checks
+        run: composer types -- --output-format=github --shepherd
 
