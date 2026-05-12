@@ -3,6 +3,7 @@
 <!-- prettier-ignore-start -->
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE.md)
 [![CI](https://github.com/celemas/cli/actions/workflows/ci.yml/badge.svg)](https://github.com/celemas/cli/actions)
+[![codecov](https://codecov.io/gh/celemas/cli/graph/badge.svg?token=F4OZ6EVXKI)](https://codecov.io/gh/celemas/cli)
 [![Psalm coverage](https://shepherd.dev/github/celemas/cli/coverage.svg?)](https://shepherd.dev/github/celemas/cli)
 [![Psalm level](https://shepherd.dev/github/celemas/cli/level.svg?)](https://celemas.dev/cli)
 <!-- prettier-ignore-end -->
