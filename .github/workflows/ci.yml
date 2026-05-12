@@ -2,11 +2,10 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+  pull_request:
 
 jobs:
-  test:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - name: Setup PHP
@@ -41,6 +40,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./.coverage/coverage.xml
+          fail_ci_if_error: true
 
       - name: Run static type checks
         run: composer types -- --output-format=github --shepherd
