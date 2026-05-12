@@ -1,10 +1,11 @@
 # Celemas Cli
 
-[![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE.md)  
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/4b33c04781b04209b9d1f8d50f5f3c1a)](https://app.codacy.com/gh/celemas/cli/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)  
-[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/4b33c04781b04209b9d1f8d50f5f3c1a)](https://app.codacy.com/gh/celemas/cli/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)  
-[![Psalm coverage](https://shepherd.dev/github/celemas/cli/coverage.svg?)](https://shepherd.dev/github/celemas/cli)  
+<!-- prettier-ignore-start -->
+[![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE.md)
+[![CI](https://github.com/celemas/cli/actions/workflows/ci.yml/badge.svg)](https://github.com/celemas/cli/actions)
+[![Psalm coverage](https://shepherd.dev/github/celemas/cli/coverage.svg?)](https://shepherd.dev/github/celemas/cli)
 [![Psalm level](https://shepherd.dev/github/celemas/cli/level.svg?)](https://celemas.dev/cli)
+<!-- prettier-ignore-end -->
 
 A command line interface helper.
 
