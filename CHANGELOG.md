@@ -26,7 +26,7 @@ No notable changes since the last release.
 
 ### Fixed
 
-- Fixed package homepage metadata to point to `duon.dev/cli`.
+- Fixed package homepage metadata to point to `duon.sh/cli`.
 - Fixed command metadata handling so `0` prefixes, groups, and descriptions are not treated as missing.
 
 ## [0.1.1](https://github.com/celemas/cli/releases/tag/0.1.1) (2026-01-29)
