@@ -32,7 +32,7 @@ final class Runner
 		$this->orderCommands($commands);
 	}
 
-	public function orderCommands(Commands $commands): void
+	private function orderCommands(Commands $commands): void
 	{
 		$groups = [];
 
@@ -57,6 +57,8 @@ final class Runner
 			$this->longestName = $len > $this->longestName ? $len : $this->longestName;
 		}
 
+		$this->longestName = max($this->longestName, strlen('commands'));
+
 		ksort($groups);
 
 		foreach ($groups as $name => $group) {
@@ -78,7 +80,15 @@ final class Runner
 		$this->echoCommand('', 'commands', 'Lists all available commands');
 		$this->echoCommand('', 'help', 'Displays this overview');
 
-		foreach ($this->toc as $group) {
+		foreach ($this->toc['']['commands'] ?? [] as $name => $command) {
+			$this->echoCommand($command->prefix(), $name, $command->description());
+		}
+
+		foreach ($this->toc as $prefix => $group) {
+			if ($prefix === '') {
+				continue;
+			}
+
 			$this->echoGroup($group['title']);
 
 			foreach ($group['commands'] as $name => $command) {
@@ -187,12 +197,13 @@ final class Runner
 	private function echoCommand(string $prefix, string $name, string $desc): void
 	{
 		$prefix = $prefix ? $prefix . ':' : '';
-		$name = $this->output->color($name, 'green');
+		$plain = $prefix . $name;
+		$colored = $prefix . $this->output->color($name, 'green');
 
-		// The added magic number takes colorization into
-		// account as it lengthens the string.
-		$prefixedName = str_pad($prefix . $name, $this->longestName + 13);
-		$this->output->echoln("  {$prefixedName}{$desc}");
+		// Pad on the visible length so columns align whether or not
+		// color escapes are present.
+		$pad = str_repeat(' ', max(2, $this->longestName + 2 - strlen($plain)));
+		$this->output->echoln("  {$colored}{$pad}{$desc}");
 	}
 
 	private function showAmbiguousMessage(string $cmd): int
@@ -220,7 +231,10 @@ final class Runner
 		}
 
 		if (str_contains($cmd, ':')) {
-			[$group, $name] = explode(':', $cmd);
+			/** @var array{0: string, 1: string} $parts */
+			$parts = explode(':', $cmd, limit: 2);
+			$group = $parts[0];
+			$name = $parts[1];
 
 			if (
 				array_key_exists($group, $this->toc) && array_key_exists($name, $this->toc[$group]['commands'])

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Celemas\Cli\Tests;
 
+use Celemas\Cli\Commands;
 use Celemas\Cli\Runner;
 
 class RunnerTest extends TestCase
@@ -107,6 +108,30 @@ class RunnerTest extends TestCase
 
 		$this->expectOutputRegex('/Command not found/');
 		$runner->run();
+	}
+
+	public function testRunCommandWithExtraColonsNotFound(): void
+	{
+		$_SERVER['argv'] = ['run', 'foo:stuff:extra'];
+		$runner = $this->getRunner();
+
+		$this->expectOutputRegex('/Command not found/');
+		$runner->run();
+	}
+
+	public function testUngroupedCommandsShareSingleGeneralHeader(): void
+	{
+		$_SERVER['argv'] = ['run'];
+		$runner = new Runner(new Commands([new Fixtures\Plain(), new Fixtures\BarStuff()]));
+
+		ob_start();
+		$runner->run();
+		$raw = (string) ob_get_clean();
+		$out = (string) preg_replace('/\033\[[0-9;]*m/', replacement: '', subject: $raw);
+
+		$this->assertSame(1, substr_count($out, needle: 'General'));
+		$this->assertMatchesRegularExpression('/General.*commands.*help.*plain/s', $out);
+		$this->assertStringContainsString('bar:stuff', $out);
 	}
 
 	public function testRunFailingCommand(): void
