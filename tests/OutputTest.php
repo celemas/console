@@ -8,6 +8,12 @@ use Celemas\Cli\Output;
 
 class OutputTest extends TestCase
 {
+	protected function tearDown(): void
+	{
+		putenv('COLUMNS');
+		parent::tearDown();
+	}
+
 	public function testForegroundColors(): void
 	{
 		putenv('FORCE_COLOR=1');
@@ -81,6 +87,7 @@ class OutputTest extends TestCase
 
 	public function testIndent(): void
 	{
+		putenv('COLUMNS');
 		$output = new Output('php://output');
 		$lorem =
 			'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam '
@@ -92,5 +99,19 @@ class OutputTest extends TestCase
 
 		$this->assertSame('    Lorem ipsum dolor sit amet, consetetur', $split[0]);
 		$this->assertSame('    At vero eos et accusam et justo duo', $split[4]);
+	}
+
+	public function testIndentUsesColumnsEnvAndCaches(): void
+	{
+		putenv('COLUMNS=40');
+		$output = new Output('php://output');
+		$text = 'Lorem ipsum dolor sit amet consetetur sadipscing';
+
+		$first = explode("\n", $output->indent($text, 4));
+		// The second call is served from the cached width.
+		$second = explode("\n", $output->indent($text, 4));
+
+		$this->assertSame($first, $second);
+		$this->assertSame('    Lorem ipsum dolor sit amet', $first[0]);
 	}
 }

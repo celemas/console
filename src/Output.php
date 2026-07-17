@@ -7,6 +7,7 @@ namespace Celemas\Cli;
 final class Output
 {
 	private mixed $stream = null;
+	private ?int $width = null;
 	private array $fg = [
 		'black' => [0, 30],
 		'gray' => [1, 30],
@@ -92,19 +93,7 @@ final class Output
 		?int $max = null,
 	): string {
 		$spaces = str_repeat(' ', $indent);
-
-		/** @psalm-suppress ForbiddenCode */
-		$width = shell_exec('tput cols');
-
-		if ($width === null) {
-			// Need a way to force $width to be null in a sane way
-			// @codeCoverageIgnoreStart
-			$width = 80;
-
-			// @codeCoverageIgnoreEnd
-		}
-
-		$width = (int) $width - $indent;
+		$width = $this->terminalWidth() - $indent;
 
 		if ($max !== null && $max < $width) {
 			$width = $max;
@@ -113,6 +102,29 @@ final class Output
 		$lines = explode("\n", wordwrap($text, $width, break: "\n"));
 
 		return implode("\n", array_map(static fn($line) => $spaces . $line, $lines));
+	}
+
+	private function terminalWidth(): int
+	{
+		if ($this->width !== null) {
+			return $this->width;
+		}
+
+		$columns = (int) getenv('COLUMNS');
+
+		if ($columns < 1) {
+			/** @psalm-suppress ForbiddenCode */
+			$columns = (int) shell_exec('tput cols');
+		}
+
+		if ($columns < 1) {
+			// @codeCoverageIgnoreStart
+			$columns = 80;
+
+			// @codeCoverageIgnoreEnd
+		}
+
+		return $this->width = $columns;
 	}
 
 	private function formatText(string $text, string $colorCode, string|int $backgroundCode): string
