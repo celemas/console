@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Celemas\Cli;
 
+use OutOfRangeException;
+
 /**
  * @api
  */
@@ -23,7 +25,7 @@ final class Opt
 
 	public function get(int $index = 0): string
 	{
-		return $this->values[$index];
+		return $this->values[$index] ?? throw new OutOfRangeException("No value at index {$index}");
 	}
 
 	public function all(): array
