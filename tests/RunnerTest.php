@@ -242,4 +242,21 @@ class RunnerTest extends TestCase
 		$this->expectOutputString('Hello, World');
 		$runner->run();
 	}
+
+	public function testHelpOptionRendersEqualsNotation(): void
+	{
+		$_SERVER['argv'] = ['run', 'help', 'variants'];
+		$runner = new Runner(new Commands([new Fixtures\HelpVariants()]));
+
+		ob_start();
+		$runner->run();
+		$raw = (string) ob_get_clean();
+		$out = (string) preg_replace('/\033\[[0-9;]*m/', replacement: '', subject: $raw);
+
+		$this->assertStringContainsString('-v, --verbose', $out);
+		$this->assertStringContainsString('--prune', $out);
+		$this->assertStringContainsString('-h=<host>, --host=<host>', $out);
+		$this->assertStringContainsString('--release=<tag>', $out);
+		$this->assertStringContainsString('-w[=<file>], --watch[=<file>]', $out);
+	}
 }

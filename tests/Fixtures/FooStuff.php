@@ -33,6 +33,6 @@ class FooStuff extends Command
 			. 'aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo '
 			. 'dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus '
 			. 'est Lorem ipsum dolor sit amet.';
-		$this->helpOption('-s, --stuff <stuff>', $desc);
+		$this->helpOption('--stuff', $desc, short: '-s', value: 'stuff');
 	}
 }

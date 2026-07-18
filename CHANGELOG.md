@@ -7,6 +7,7 @@
 - Commands now receive parsed arguments and must return an exit code: `run(Args $args): int`. `string` returns are gone; use the new `Command::SUCCESS` / `Command::FAILURE` constants and call `exit($runner->run())`.
 - Replaced the `Opts`/`Opt` classes with a single injected `Args` object. Options use `--key=value` (repeatable); a bare `--flag` or `-h` is a boolean flag; every other token is a positional. The previous `--key value` space syntax is no longer supported.
 - `Runner::run()` now returns `int` instead of `int|string`, and its constructor takes an `errorOutput` target before the `debug` flag.
+- `Command::helpOption()` takes structured parts — `helpOption(string $long, string $description, string $short = '', string $value = '', bool $optionalValue = false)` — and renders the `--opt=<value>` notation itself, instead of a pre-formatted option string.
 - Made `Runner::orderCommands()` private.
 
 ### Added

@@ -131,8 +131,29 @@ abstract class Command
 		$this->echo("{$usage}\n");
 	}
 
-	protected function helpOption(string $option, string $description): void
-	{
+	/**
+	 * Render one option in the help "Options:" block.
+	 *
+	 * Pass the flag names and, for value-taking options, a `value` label; the
+	 * `--opt=<value>` notation is rendered here so it cannot drift from the
+	 * `=`-only parser. Omit `value` for a boolean flag; set `optionalValue`
+	 * for a flag whose value is optional (`--opt[=<value>]`).
+	 */
+	protected function helpOption(
+		string $long,
+		string $description,
+		string $short = '',
+		string $value = '',
+		bool $optionalValue = false,
+	): void {
+		$suffix = match (true) {
+			$value === '' => '',
+			$optionalValue => "[=<{$value}>]",
+			default => "=<{$value}>",
+		};
+
+		$option = $short === '' ? $long . $suffix : "{$short}{$suffix}, {$long}{$suffix}";
+
 		$this->echo('    ' . $this->color($option, 'green') . "\n");
 		$this->echo($this->indent($description, 8, 80) . "\n");
 	}

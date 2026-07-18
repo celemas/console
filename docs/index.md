@@ -75,8 +75,10 @@ class MyCommand extends Command {
     public function help(): void
     {
         $this->helpHeader(withOptions: true);
-        $this->helpOption('-s, --stuff <stuff>', 'Description of --stuff');
-        $this->helpOption('-v, --verbose', 'Enable verbose output');
+        // Renders "-s=<stuff>, --stuff=<stuff>"
+        $this->helpOption('--stuff', 'Description of --stuff', short: '-s', value: 'stuff');
+        // Renders "-v, --verbose"
+        $this->helpOption('--verbose', 'Enable verbose output', short: '-v');
     }
 }
 ```
