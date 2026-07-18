@@ -2,12 +2,12 @@
 title: Introduction
 ---
 
-Celemas Console is a command line interface helper like [Laravel's Artisan](https://laravel.com/docs/9.x/artisan) with way less magic.
+Celema Console is a command line interface helper like [Laravel's Artisan](https://laravel.com/docs/9.x/artisan) with way less magic.
 
 ## Installation
 
 ```bash
-composer require celemas/console
+composer require celema/console
 ```
 
 ## Quick Start
@@ -15,7 +15,7 @@ composer require celemas/console
 Create a Command:
 
 ```php
-use Celemas\Console\{Args, Command};
+use Celema\Console\{Args, Command};
 
 class MyCommand extends Command {
     /**
@@ -129,8 +129,7 @@ A positional cannot start with `-` — such a token is read as a flag.
 - `help` - Display help for all commands or a specific command
 - `commands` - List all command names (useful for shell autocomplete)
 
-The runner reserves no flags, so `--help`/`-h` (and every other flag) belong
-to your command; use `php run help <command>` for a command's help screen.
+The runner reserves no flags, so `--help`/`-h` (and every other flag) belong to your command; use `php run help <command>` for a command's help screen.
 
 ### Debug Mode
 
@@ -147,7 +146,7 @@ Create a runner script, e. g. `run.php` or simply `run`:
 
 require __DIR__ . '/vendor/autoload.php';
 
-use Celemas\Console\{Runner, Commands};
+use Celema\Console\{Runner, Commands};
 use MyCommand;
 
 $commands = new Commands([new MyCommand()]);
