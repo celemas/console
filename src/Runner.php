@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Celemas\Console;
+namespace Celema\Console;
 
 use Throwable;
 use ValueError;

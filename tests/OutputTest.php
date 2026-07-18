@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Celemas\Console\Tests;
+namespace Celema\Console\Tests;
 
-use Celemas\Console\Output;
+use Celema\Console\Output;
 
 class OutputTest extends TestCase
 {

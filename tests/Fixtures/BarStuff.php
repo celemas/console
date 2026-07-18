@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Celemas\Console\Tests\Fixtures;
+namespace Celema\Console\Tests\Fixtures;
 
-use Celemas\Console\Args;
-use Celemas\Console\Command;
+use Celema\Console\Args;
+use Celema\Console\Command;
 
 class BarStuff extends Command
 {

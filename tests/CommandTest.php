@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Celemas\Console\Tests;
+namespace Celema\Console\Tests;
 
-use Celemas\Console\Output;
-use Celemas\Console\Tests\Fixtures\Erring;
-use Celemas\Console\Tests\Fixtures\FooStuff;
+use Celema\Console\Output;
+use Celema\Console\Tests\Fixtures\Erring;
+use Celema\Console\Tests\Fixtures\FooStuff;
 use RuntimeException;
 
 class CommandTest extends TestCase

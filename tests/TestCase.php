@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Celemas\Console\Tests;
+namespace Celema\Console\Tests;
 
-use Celemas\Console\Commands;
-use Celemas\Console\Runner;
+use Celema\Console\Commands;
+use Celema\Console\Runner;
 use PHPUnit\Framework\TestCase as BaseTestCase;
 
 /**

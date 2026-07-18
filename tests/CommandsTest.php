@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Celemas\Console\Tests;
+namespace Celema\Console\Tests;
 
-use Celemas\Console\Commands;
-use Celemas\Console\Tests\Fixtures\BarStuff;
-use Celemas\Console\Tests\Fixtures\Erring;
-use Celemas\Console\Tests\Fixtures\FooDrivel;
-use Celemas\Console\Tests\Fixtures\FooStuff;
+use Celema\Console\Commands;
+use Celema\Console\Tests\Fixtures\BarStuff;
+use Celema\Console\Tests\Fixtures\Erring;
+use Celema\Console\Tests\Fixtures\FooDrivel;
+use Celema\Console\Tests\Fixtures\FooStuff;
 
 class CommandsTest extends TestCase
 {
