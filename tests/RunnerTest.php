@@ -108,6 +108,36 @@ class RunnerTest extends TestCase
 		$this->assertSame('Hi, World', $out->output());
 	}
 
+	public function testRejectHelpCommandRegistration(): void
+	{
+		$commands = new Commands();
+		$commands->add('help', 'User help', static fn(Args $args, Io $io): int => 0);
+
+		$this->expectException(ValueError::class);
+		$this->expectExceptionMessage("Command name 'help' is reserved");
+
+		new Runner($commands);
+	}
+
+	public function testRejectCommandsCommandRegistration(): void
+	{
+		$commands = new Commands();
+		$commands->add('commands', 'User command list', static fn(Args $args, Io $io): int => 0);
+
+		$this->expectException(ValueError::class);
+		$this->expectExceptionMessage("Command name 'commands' is reserved");
+
+		new Runner($commands);
+	}
+
+	public function testRejectDuplicateCommandRegistration(): void
+	{
+		$this->expectException(ValueError::class);
+		$this->expectExceptionMessage("Duplicate command 'plain'");
+
+		new Runner(new Commands([new Fixtures\Plain(), new Fixtures\Plain()]));
+	}
+
 	public function testShowHelpWhenCalledWithoutCommand(): void
 	{
 		$_SERVER['argv'] = ['run'];

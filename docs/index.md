@@ -200,6 +200,8 @@ Commands declaring no options — including closures — accept arbitrary option
 - `help` - Display help for all commands or a specific command
 - `commands` - List all command names (useful for shell autocomplete)
 
+The unprefixed names `help` and `commands` are reserved, and duplicate full command names are rejected when constructing the runner.
+
 The runner reserves no flags, so `--help`/`-h` (and every other flag) belong to your command; use `php run help <command>` for a command's help screen.
 
 A command that wants to answer `--help` itself can render the same screen with the `Help` renderer. If the command declares `#[Opt]` attributes, `--help` must be declared too, or option validation rejects it first:

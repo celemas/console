@@ -51,6 +51,10 @@ final class Runner
 		foreach ($commands->entries() as $entry) {
 			$meta = $entry->meta;
 
+			if ($meta->prefix === '' && ($meta->name === 'help' || $meta->name === 'commands')) {
+				throw new ValueError("Command name '{$meta->name}' is reserved");
+			}
+
 			if (!array_key_exists($meta->prefix, $groups)) {
 				$groups[$meta->prefix] = [
 					'title' => $meta->title(),
@@ -58,8 +62,11 @@ final class Runner
 				];
 			}
 
-			$groups[$meta->prefix]['commands'][$meta->name] = $entry;
+			if (array_key_exists($meta->name, $groups[$meta->prefix]['commands'])) {
+				throw new ValueError("Duplicate command '{$meta->full()}'");
+			}
 
+			$groups[$meta->prefix]['commands'][$meta->name] = $entry;
 			$this->list[$meta->name][] = $entry;
 
 			$len = strlen($meta->full());
