@@ -12,6 +12,7 @@
 - `Commands::get()` was replaced by `Commands::entries()`, which returns internal registration entries consumed by the `Runner`.
 - `Io::color()` and the color parameters of the echo helpers now throw a `ValueError` for an unknown color or background name instead of silently printing the text unstyled — also when colors are disabled, so typos surface in tests. The protected `Io::hasColorSupport()` now takes the stream to decide for.
 - The runner now validates provided options against a command's declared `#[Opt]` attributes: an unknown option, a value on a boolean flag, or a missing required value aborts with exit code 1 (with a "Did you mean" suggestion for near misses, and a pointer to `help <command>` for an undeclared `--help`/`-h`). Commands declaring no options — including closures — keep accepting arbitrary options. A command that intercepts `--help` itself must declare it, for example `#[Opt('--help', 'Show this help', short: '-h')]`.
+- Short option names declared by `#[Opt]` are normalized to their long name before command invocation. Commands should read the long name; mixed repeated forms retain their command-line order.
 
 ### Added
 

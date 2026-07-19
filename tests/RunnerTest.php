@@ -11,6 +11,7 @@ use Celema\Console\Io;
 use Celema\Console\Runner;
 use Celema\Console\Tests\Fixtures\Greet;
 use Celema\Console\Tests\Fixtures\HelpVariants;
+use Celema\Console\Tests\Fixtures\OptionAliases;
 use ValueError;
 
 class RunnerTest extends TestCase
@@ -77,6 +78,16 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(0, $code);
 		$this->assertSame('', $errors);
+	}
+
+	public function testNormalizesShortOptionsToLongNames(): void
+	{
+		$_SERVER['argv'] = ['run', 'aliases', '-v', '--watch=a', '-w=b', '--watch=c'];
+		$out = new BufferedIo();
+		$code = new Runner(new Commands(new OptionAliases()), $out)->run();
+
+		$this->assertSame(0, $code);
+		$this->assertSame('[true,false,["a","b","c"],[]]', $out->output());
 	}
 
 	public function testOptionalValueAcceptsAValue(): void

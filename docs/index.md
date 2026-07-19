@@ -168,7 +168,7 @@ $args->has('--force');           // true
 $args->names();                  // names of all provided options
 ```
 
-A positional cannot start with `-` — such a token is read as a flag.
+A positional cannot start with `-` — such a token is read as a flag. When `#[Opt]` declares a short name, the runner normalizes it to the long name before invoking the command. Repeated short and long forms retain their original order, and command code only needs to read the long name.
 
 ### Option Validation
 

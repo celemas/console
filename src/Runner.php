@@ -171,7 +171,7 @@ final class Runner
 				return $this->showCommands();
 			}
 
-			$args = new Args(array_slice($argv, offset: 2));
+			$tokens = array_slice($argv, offset: 2);
 
 			try {
 				$entry = $this->getCommand($cmd);
@@ -187,6 +187,8 @@ final class Runner
 				return $this->showCommandHelp($entry);
 			}
 
+			$args = new Args($this->normalizeOptions($entry, $tokens));
+
 			return $this->runCommand($entry, $args);
 		} catch (Throwable $e) {
 			$this->io->echoErr("Error while running command '");
@@ -200,6 +202,36 @@ final class Runner
 
 			return 1;
 		}
+	}
+
+	/**
+	 * @param list<string> $tokens
+	 * @return list<string>
+	 */
+	private function normalizeOptions(Entry $entry, array $tokens): array
+	{
+		$aliases = [];
+
+		foreach ($entry->opts() as $opt) {
+			if ($opt->short !== '') {
+				$aliases[$opt->short] = $opt->long;
+			}
+		}
+
+		$normalized = [];
+
+		foreach ($tokens as $token) {
+			$separator = strpos(haystack: $token, needle: '=');
+			$name = $separator === false
+				? $token
+				: substr(string: $token, offset: 0, length: $separator);
+			$long = $aliases[$name] ?? null;
+			$normalized[] = $long === null
+				? $token
+				: $long . ($separator === false ? '' : substr(string: $token, offset: $separator));
+		}
+
+		return $normalized;
 	}
 
 	private function runCommand(Entry $entry, Args $args): int
