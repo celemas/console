@@ -8,7 +8,6 @@ use Celema\Console\Args;
 use Celema\Console\Commands;
 use Celema\Console\Io;
 use Celema\Console\Tests\Fixtures\BarStuff;
-use Celema\Console\Tests\Fixtures\FooDrivel;
 use Celema\Console\Tests\Fixtures\FooStuff;
 use Celema\Console\Tests\Fixtures\Greet;
 use Celema\Console\Tests\Fixtures\Plain;
@@ -45,16 +44,14 @@ class CommandsTest extends TestCase
 		$this->assertSame($bar, $commands->entries()[1]->command());
 	}
 
-	public function testAddNestedArray(): void
+	public function testRejectNestedArray(): void
 	{
-		$foo = new FooStuff();
-		$bar = new BarStuff();
-		$drivel = new FooDrivel();
-		$commands = new Commands([$foo]);
-		$commands->add([[$bar], $drivel]);
+		$commands = new Commands(new FooStuff());
 
-		$this->assertSame($bar, $commands->entries()[1]->command());
-		$this->assertSame($drivel, $commands->entries()[2]->command());
+		$this->expectException(ValueError::class);
+		$this->expectExceptionMessage('Invalid command registration');
+
+		$commands->add([[new BarStuff()]]);
 	}
 
 	public function testAddCommands(): void

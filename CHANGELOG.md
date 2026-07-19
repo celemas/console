@@ -14,6 +14,7 @@
 - The runner now validates provided options against a command's declared `#[Opt]` attributes: an unknown option, a value on a boolean flag, or a missing required value aborts with exit code 1 (with a "Did you mean" suggestion for near misses, and a pointer to `help <command>` for an undeclared `--help`/`-h`). Commands declaring no options — including closures — keep accepting arbitrary options. A command that intercepts `--help` itself must declare it, for example `#[Opt('--help', 'Show this help', short: '-h')]`.
 - Short option names declared by `#[Opt]` are normalized to their long name before command invocation. Commands should read the long name; mixed repeated forms retain their command-line order.
 - Runner construction now rejects duplicate full command names and unprefixed commands named `help` or `commands`, which are reserved for the built-ins.
+- `Commands` no longer accepts recursively nested registration arrays. Use one flat array or compose `Commands` instances.
 
 ### Added
 

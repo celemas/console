@@ -96,7 +96,7 @@ final class Commands
 				continue;
 			}
 
-			if (!is_array($item) && !is_object($item) && !is_string($item)) {
+			if (!is_object($item) && !is_string($item)) {
 				throw new ValueError('Invalid command registration');
 			}
 
