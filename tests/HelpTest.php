@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Celema\Console\Tests;
 
 use Celema\Console\Help;
-use Celema\Console\Output;
+use Celema\Console\Io;
 use Celema\Console\Tests\Fixtures\HelpVariants;
 use Celema\Console\Tests\Fixtures\Plain;
 
@@ -14,7 +14,7 @@ class HelpTest extends TestCase
 	public function testShowForRendersOptionsFromAttributes(): void
 	{
 		$_SERVER['argv'] = ['run', 'help:variants', '--help'];
-		$help = new Help(new Output('php://output'));
+		$help = new Help(new Io('php://output'));
 
 		ob_start();
 		$help->showFor(new HelpVariants());
@@ -32,7 +32,7 @@ class HelpTest extends TestCase
 	public function testShowForClassWithoutOptions(): void
 	{
 		$_SERVER['argv'] = ['run'];
-		$help = new Help(new Output('php://output'));
+		$help = new Help(new Io('php://output'));
 
 		ob_start();
 		$help->showFor(Plain::class);

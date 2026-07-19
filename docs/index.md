@@ -12,10 +12,10 @@ composer require celema/console
 
 ## Quick Start
 
-A command is a plain class with a `#[Command]` attribute and an `__invoke()` method receiving the parsed arguments and the output:
+A command is a plain class with a `#[Command]` attribute and an `__invoke()` method receiving the parsed arguments and the terminal `Io`:
 
 ```php
-use Celema\Console\{Arg, Args, Command, Opt, Output};
+use Celema\Console\{Arg, Args, Command, Opt, Io};
 
 // The first argument is the name by which the command is invoked from the
 // command line. An optional `grp:` prefix namespaces the command and groups
@@ -31,9 +31,9 @@ use Celema\Console\{Arg, Args, Command, Opt, Output};
 #[Opt('--verbose', 'Enable verbose output', short: '-v')]
 class MyCommand
 {
-    public function __invoke(Args $args, Output $out): int
+    public function __invoke(Args $args, Io $io): int
     {
-        $out->echo("Run my command\n");
+        $io->echo("Run my command\n");
 
         // Read options and positionals from the injected Args
         $name = $args->positional(0, 'world');   // first positional, or default
@@ -41,13 +41,13 @@ class MyCommand
         $force = $args->has('--force');          // boolean flag
 
         // Output helpers with color support (warn/error go to STDERR)
-        $out->info('Informational message');
-        $out->success('Success message');
-        $out->warn('Warning message');
-        $out->error('Error message');
+        $io->info('Informational message');
+        $io->success('Success message');
+        $io->warn('Warning message');
+        $io->error('Error message');
 
         // echoln adds a newline automatically
-        $out->echoln('Message with automatic newline');
+        $io->echoln('Message with automatic newline');
 
         return 0;
     }
@@ -63,7 +63,7 @@ The constructor is yours: take whatever dependencies the command needs and regis
 `Commands` accepts instances, class-strings, lazy factories, and named closures:
 
 ```php
-use Celema\Console\{Args, Commands, Output};
+use Celema\Console\{Args, Commands, Io};
 
 $commands = new Commands([
     new MyCommand(),                          // instance
@@ -72,7 +72,7 @@ $commands = new Commands([
 ]);
 
 // A closure as a lightweight one-off command
-$commands->add('cache:clear', 'Clears the cache', function (Args $args, Output $out): int {
+$commands->add('cache:clear', 'Clears the cache', function (Args $args, Io $io): int {
     // ...
     return 0;
 });
@@ -82,30 +82,30 @@ Class-based commands carry their metadata in the `#[Command]` attribute, which i
 
 A command returning no value (such as a `void` closure) maps to exit code 0.
 
-### Output Methods
+### Io Methods
 
 - `echo(string $message, string $color = '', string $background = '')` - Output text
 - `ask(string $question, string $default = '', bool $hidden = false)` - Prompt for one line of input; `hidden` turns off terminal echo, e.g. for passwords
 - `confirm(string $question, bool $default = false)` - Ask a yes/no question, rendered as `[y/N]` or `[Y/n]`
 - `echoln(string $message, string $color = '', string $background = '')` - Output text with newline
-- `info(string $message)` - Output informational message
-- `success(string $message)` - Output success message (green)
-- `warn(string $message)` - Output warning message (yellow, to STDERR)
-- `error(string $message)` - Output error message (red, to STDERR)
+- `info(string $message)` - Output an informational message
+- `success(string $message)` - Output a success message (green)
+- `warn(string $message)` - Output a warning message (yellow, to STDERR)
+- `error(string $message)` - Output an error message (red, to STDERR)
 - `color(string $text, string $color, string $background = '')` Return colored text
 - `indent(string $text, int $indent, ?int $max = null)` Indent and wrap text
 
 ### Prompts
 
-`Output` also reads: `ask()` prompts for one line of input, `confirm()` for a yes/no answer.
+`Io` also reads: `ask()` prompts for one line of input, `confirm()` for a yes/no answer.
 
 ```php
-public function __invoke(Args $args, Output $out): int
+public function __invoke(Args $args, Io $io): int
 {
-    $name = $out->ask('Migration name:', default: 'unnamed');
-    $password = $out->ask('Password:', hidden: true);
+    $name = $io->ask('Migration name:', default: 'unnamed');
+    $password = $io->ask('Password:', hidden: true);
 
-    if (!$out->confirm('Apply the migrations?')) {
+    if (!$io->confirm('Apply the migrations?')) {
         return 1;
     }
 
@@ -116,24 +116,24 @@ public function __invoke(Args $args, Output $out): int
 - An empty answer (or end of input) yields the default.
 - `hidden` disables terminal echo while typing — for passwords. Without a terminal (piped input, tests) the line is simply read as is.
 - `confirm()` renders the default as `[y/N]` or `[Y/n]`; an answer starting with `y`/`Y` means yes, an empty one means the default, anything else no.
-- The input stream is the third `Output` constructor argument, `php://stdin` by default.
+- The input stream is the third `Io` constructor argument, `php://stdin` by default.
 
 ### Testing Commands
 
-`BufferedOutput` captures both streams in memory and disables colors, so assertions need no escape-code stripping. Its constructor accepts prompt answers, one line each:
+`BufferedIo` captures both streams in memory and disables colors, so assertions need no escape-code stripping. Its constructor accepts prompt answers, one line each:
 
 ```php
-use Celema\Console\BufferedOutput;
+use Celema\Console\BufferedIo;
 
-$out = new BufferedOutput("yes\n");
-$exitCode = new MyCommand()($args, $out);
+$io = new BufferedIo("yes\n");
+$exitCode = new MyCommand()($args, $io);
 
 $this->assertSame(0, $exitCode);
-$this->assertStringContainsString('done', $out->output());
-$this->assertSame('', $out->errorOutput());
+$this->assertStringContainsString('done', $io->output());
+$this->assertSame('', $io->errorOutput());
 ```
 
-The `Runner` also accepts a ready `Output` instance in place of its output target string, so full runs can be captured the same way: `new Runner($commands, $out)`.
+The `Runner` also accepts a ready `Io` instance in place of its output target string, so full runs can be captured the same way: `new Runner($commands, $io)`.
 
 ### Available Colors
 
@@ -143,7 +143,7 @@ Background: `black`, `red`, `green`, `yellow`, `blue`, `purple`, `magenta`, `cya
 
 ### Command-Line Arguments
 
-The Runner parses the command's arguments and passes them to `__invoke(Args $args, Output $out)`:
+The Runner parses the command's arguments and passes them to `__invoke(Args $args, Io $io)`:
 
 ```bash
 php run mycommand up --conn=sqlite --force
@@ -204,15 +204,15 @@ The runner reserves no flags, so `--help`/`-h` (and every other flag) belong to 
 A command that wants to answer `--help` itself can render the same screen with the `Help` renderer. If the command declares `#[Opt]` attributes, `--help` must be declared too, or option validation rejects it first:
 
 ```php
-use Celema\Console\{Args, Help, Opt, Output};
+use Celema\Console\{Args, Help, Opt, Io};
 
 #[Opt('--help', 'Show this help', short: '-h')]
 // ... the command's other options ...
 
-public function __invoke(Args $args, Output $out): int
+public function __invoke(Args $args, Io $io): int
 {
     if ($args->has('--help') || $args->has('-h')) {
-        new Help($out)->showFor($this);
+        new Help($io)->showFor($this);
 
         return 0;
     }

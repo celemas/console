@@ -4,23 +4,24 @@
 
 ### Breaking Changes
 
-- Removed the abstract `Command` base class. Commands are now plain classes marked with a `#[Command('prefix:name', 'description')]` attribute and invoked via `__invoke(Args $args, Output $out): int`. The `name`, `group`, `prefix`, and `description` properties are gone; an optional `group` attribute argument overrides the displayed group title, which otherwise derives from the capitalized prefix.
+- Removed the abstract `Command` base class. Commands are now plain classes marked with a `#[Command('prefix:name', 'description')]` attribute and invoked via `__invoke(Args $args, Io $io): int`. The `name`, `group`, `prefix`, and `description` properties are gone; an optional `group` attribute argument overrides the displayed group title, which otherwise derives from the capitalized prefix.
 - Removed `Command::SUCCESS` / `Command::FAILURE`; return plain `0` / `1`.
+- Renamed `Output` to `Io` — the object reads (prompts) as well as writes — and the conventional command signature to `__invoke(Args $args, Io $io)`.
 - Removed the `help()`/`helpHeader()`/`helpOption()` help API. Declare options with repeatable class-level `#[Opt]` attributes; the runner renders the help screen from the attributes.
-- Moved the message helpers `info()`, `success()`, `warn()`, and `error()` from `Command` to `Output`, which commands now receive as their second `__invoke()` parameter. `Command::script()` is gone; read `$_SERVER['argv'][0]` if needed.
+- Moved the message helpers `info()`, `success()`, `warn()`, and `error()` from `Command` to `Io`, which commands now receive as their second `__invoke()` parameter. `Command::script()` is gone; read `$_SERVER['argv'][0]` if needed.
 - `Commands::get()` was replaced by `Commands::entries()`, which returns internal registration entries consumed by the `Runner`.
 - The runner now validates provided options against a command's declared `#[Opt]` attributes: an unknown option, a value on a boolean flag, or a missing required value aborts with exit code 1 (with a "Did you mean" suggestion for near misses, and a pointer to `help <command>` for an undeclared `--help`/`-h`). Commands declaring no options — including closures — keep accepting arbitrary options. A command that intercepts `--help` itself must declare it, for example `#[Opt('--help', 'Show this help', short: '-h')]`.
 
 ### Added
 
 - Commands can be registered as class-strings (zero-argument constructor) and as lazy factories keyed by class-string: `[Expensive::class => fn() => ...]`. Metadata is read from the attribute without instantiation, so building the help overview constructs no commands.
-- Closures can be registered as lightweight commands: `$commands->add('cache:clear', 'Clears the cache', fn(Args $args, Output $out): int => ...)`.
-- Added the `Help` renderer. The runner uses it for `help <command>`, and commands that intercept a `--help` flag themselves can render the same screen with `new Help($out)->showFor($this)`.
+- Closures can be registered as lightweight commands: `$commands->add('cache:clear', 'Clears the cache', fn(Args $args, Io $io): int => ...)`.
+- Added the `Help` renderer. The runner uses it for `help <command>`, and commands that intercept a `--help` flag themselves can render the same screen with `new Help($io)->showFor($this)`.
 - Added `Args::names()` returning the names of all provided options.
 - Added the repeatable class-level `#[Arg('name', 'description', optional: ...)]` attribute describing positional arguments: they render in the usage line (`<name>` / `[<name>]`) and as an "Arguments:" section of the command help.
 - Added a `default` field on `#[Opt]`, rendered as `[default: ...]` after the option description.
-- Added interactive prompts on `Output`: `ask(string $question, string $default = '', bool $hidden = false)` reads one line from the input stream (`hidden` disables terminal echo, for example for passwords), and `confirm(string $question, bool $default = false)` asks a yes/no question. `Output` takes the input target as a new third constructor argument (default `php://stdin`); `BufferedOutput` accepts an `$input` string feeding the prompts, one line each.
-- Added `BufferedOutput` for tests: it captures regular and error output in memory (`output()` / `errorOutput()`) and disables colors, so assertions need no escape-code stripping. `Runner` now also accepts a ready `Output` instance in place of the output target string.
+- Added interactive prompts on `Io`: `ask(string $question, string $default = '', bool $hidden = false)` reads one line from the input stream (`hidden` disables terminal echo, for example for passwords), and `confirm(string $question, bool $default = false)` asks a yes/no question. `Io` takes the input target as a new third constructor argument (default `php://stdin`); `BufferedIo` accepts an `$input` string feeding the prompts, one line each.
+- Added `BufferedIo` for tests: it captures regular and error output in memory (`output()` / `errorOutput()`) and disables colors, so assertions need no escape-code stripping. `Runner` now also accepts a ready `Io` instance in place of the output target string.
 
 ## [0.3.0](https://codeberg.org/celema/console/src/tag/0.3.0) (2026-07-18)
 

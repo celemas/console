@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Celema\Console\Tests;
 
-use Celema\Console\BufferedOutput;
+use Celema\Console\BufferedIo;
 use Celema\Console\Commands;
 use Celema\Console\Runner;
 use Celema\Console\Tests\Fixtures\Plain;
 
-class BufferedOutputTest extends TestCase
+class BufferedIoTest extends TestCase
 {
 	public function testCapturesOutputAndErrorsSeparately(): void
 	{
-		$out = new BufferedOutput();
+		$out = new BufferedIo();
 		$out->echo('to stdout');
 		$out->echoErr('to stderr');
 
@@ -23,7 +23,7 @@ class BufferedOutputTest extends TestCase
 
 	public function testReadingKeepsCapturing(): void
 	{
-		$out = new BufferedOutput();
+		$out = new BufferedIo();
 		$out->echo('first');
 
 		$this->assertSame('first', $out->output());
@@ -38,7 +38,7 @@ class BufferedOutputTest extends TestCase
 		putenv('FORCE_COLOR=1');
 
 		try {
-			$out = new BufferedOutput();
+			$out = new BufferedIo();
 			$out->success('done');
 			$out->error('failed');
 
@@ -53,7 +53,7 @@ class BufferedOutputTest extends TestCase
 	public function testRunnerAcceptsAnOutputInstance(): void
 	{
 		$_SERVER['argv'] = ['run', 'plain'];
-		$out = new BufferedOutput();
+		$out = new BufferedIo();
 		$runner = new Runner(new Commands([new Plain()]), $out);
 
 		$this->assertSame(0, $runner->run());

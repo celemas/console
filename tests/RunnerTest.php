@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Celema\Console\Tests;
 
 use Celema\Console\Args;
-use Celema\Console\BufferedOutput;
+use Celema\Console\BufferedIo;
 use Celema\Console\Commands;
-use Celema\Console\Output;
+use Celema\Console\Io;
 use Celema\Console\Runner;
 use Celema\Console\Tests\Fixtures\Greet;
 use Celema\Console\Tests\Fixtures\HelpVariants;
@@ -17,7 +17,7 @@ class RunnerTest extends TestCase
 	private function runVariants(string ...$args): array
 	{
 		$_SERVER['argv'] = ['run', 'help:variants', ...$args];
-		$out = new BufferedOutput();
+		$out = new BufferedIo();
 		$runner = new Runner(new Commands([new HelpVariants()]), $out);
 
 		return [$runner->run(), $out->errorOutput()];
@@ -89,7 +89,7 @@ class RunnerTest extends TestCase
 	public function testCommandWithoutDeclaredOptionsAcceptsAnything(): void
 	{
 		$_SERVER['argv'] = ['run', 'greet', '--greeting=Hi', '--whatever'];
-		$out = new BufferedOutput();
+		$out = new BufferedIo();
 		$runner = new Runner(new Commands([new Greet()]), $out);
 
 		$this->assertSame(0, $runner->run());
@@ -346,7 +346,7 @@ class RunnerTest extends TestCase
 		$commands->add(
 			'cache:clear',
 			'Clears the cache',
-			static function (Args $args, Output $out): void {
+			static function (Args $args, Io $out): void {
 				$out->echo('cleared ' . (string) $args->positional(0));
 			},
 		);
@@ -365,7 +365,7 @@ class RunnerTest extends TestCase
 	{
 		$_SERVER['argv'] = ['run'];
 		$commands = new Commands();
-		$commands->add('cache:clear', 'Clears the cache', static fn(Args $args, Output $out): int => 0);
+		$commands->add('cache:clear', 'Clears the cache', static fn(Args $args, Io $out): int => 0);
 		$runner = new Runner($commands);
 
 		$this->expectOutputRegex('/Cache.*cache:.*clear.*Clears the cache/s');

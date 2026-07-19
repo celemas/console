@@ -15,7 +15,7 @@ namespace Celema\Console;
 final class Help
 {
 	public function __construct(
-		private readonly Output $output,
+		private readonly Io $io,
 	) {}
 
 	/**
@@ -27,17 +27,17 @@ final class Help
 		$script = $_SERVER['argv'][0] ?? '';
 
 		if ($meta->description !== '') {
-			$label = $this->output->color('Description:', 'brown') . "\n";
-			$this->output->echo("{$label}  {$meta->description}\n\n");
+			$label = $this->io->color('Description:', 'brown') . "\n";
+			$this->io->echo("{$label}  {$meta->description}\n\n");
 		}
 
-		$usage = $this->output->color('Usage:', 'brown') . "\n  php {$script} {$meta->full()}";
+		$usage = $this->io->color('Usage:', 'brown') . "\n  php {$script} {$meta->full()}";
 
 		foreach ($arguments as $argument) {
 			$usage .= $argument->optional ? " [<{$argument->name}>]" : " <{$argument->name}>";
 		}
 
-		$this->output->echo($usage . ($opts === [] ? "\n" : " [options]\n"));
+		$this->io->echo($usage . ($opts === [] ? "\n" : " [options]\n"));
 		$this->showArguments($arguments);
 		$this->showOptions($opts);
 	}
@@ -49,11 +49,11 @@ final class Help
 			return;
 		}
 
-		$this->output->echo("\n" . $this->output->color('Arguments:', 'brown') . "\n");
+		$this->io->echo("\n" . $this->io->color('Arguments:', 'brown') . "\n");
 
 		foreach ($arguments as $argument) {
-			$this->output->echo('    ' . $this->output->color("<{$argument->name}>", 'green') . "\n");
-			$this->output->echo($this->output->indent($argument->description, 8, 80) . "\n");
+			$this->io->echo('    ' . $this->io->color("<{$argument->name}>", 'green') . "\n");
+			$this->io->echo($this->io->indent($argument->description, 8, 80) . "\n");
 		}
 	}
 
@@ -64,7 +64,7 @@ final class Help
 			return;
 		}
 
-		$this->output->echo("\n" . $this->output->color('Options:', 'brown') . "\n");
+		$this->io->echo("\n" . $this->io->color('Options:', 'brown') . "\n");
 
 		foreach ($opts as $opt) {
 			$suffix = match (true) {
@@ -81,8 +81,8 @@ final class Help
 				? $opt->description
 				: "{$opt->description} [default: {$opt->default}]";
 
-			$this->output->echo('    ' . $this->output->color($option, 'green') . "\n");
-			$this->output->echo($this->output->indent($description, 8, 80) . "\n");
+			$this->io->echo('    ' . $this->io->color($option, 'green') . "\n");
+			$this->io->echo($this->io->indent($description, 8, 80) . "\n");
 		}
 	}
 

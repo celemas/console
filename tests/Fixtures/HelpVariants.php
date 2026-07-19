@@ -7,8 +7,8 @@ namespace Celema\Console\Tests\Fixtures;
 use Celema\Console\Arg;
 use Celema\Console\Args;
 use Celema\Console\Command;
+use Celema\Console\Io;
 use Celema\Console\Opt;
-use Celema\Console\Output;
 
 #[Command('help:variants', 'Exercises help option rendering')]
 #[Arg('file', 'The file to process')]
@@ -20,7 +20,7 @@ use Celema\Console\Output;
 #[Opt('--watch', 'Optionally watch files', short: '-w', value: 'file', optionalValue: true)]
 class HelpVariants
 {
-	public function __invoke(Args $args, Output $output): int
+	public function __invoke(Args $args, Io $output): int
 	{
 		return 0;
 	}

@@ -7,7 +7,7 @@ namespace Celema\Console;
 use Override;
 
 /**
- * An Output that captures everything in memory instead of writing to the
+ * An Io that captures everything in memory instead of writing to the
  * terminal.
  *
  * Made for command tests: pass it to the command (or the Runner) and assert
@@ -17,7 +17,7 @@ use Override;
  *
  * @api
  */
-final class BufferedOutput extends Output
+final class BufferedIo extends Io
 {
 	private mixed $inputBuffer = null;
 

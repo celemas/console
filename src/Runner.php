@@ -27,20 +27,20 @@ final class Runner
 	 * @var array<string, list<Entry>>
 	 */
 	private array $list = [];
-	private Output $output;
+	private Io $io;
 	private int $longestName = 0;
 
 	/**
-	 * An Output instance given as `$output` is used as is; `$errorOutput`
+	 * An Io instance given as `$output` is used as is; `$errorOutput`
 	 * then has no effect.
 	 */
 	public function __construct(
 		Commands $commands,
-		string|Output $output = 'php://output',
+		string|Io $output = 'php://output',
 		string $errorOutput = 'php://stderr',
 		private bool $debug = false,
 	) {
-		$this->output = is_string($output) ? new Output($output, $errorOutput) : $output;
+		$this->io = is_string($output) ? new Io($output, $errorOutput) : $output;
 		$this->orderCommands($commands);
 	}
 
@@ -81,10 +81,10 @@ final class Runner
 	public function showHelp(): int
 	{
 		$script = $_SERVER['argv'][0] ?? '';
-		$this->output->echo($this->output->color('Usage:', 'brown') . "\n");
-		$this->output->echo("  php {$script} [prefix:]command [arguments]\n\n");
-		$this->output->echo("Prefixes are optional if the command is unambiguous.\n\n");
-		$this->output->echo("Available commands:\n");
+		$this->io->echo($this->io->color('Usage:', 'brown') . "\n");
+		$this->io->echo("  php {$script} [prefix:]command [arguments]\n\n");
+		$this->io->echo("Prefixes are optional if the command is unambiguous.\n\n");
+		$this->io->echo("Available commands:\n");
 		$this->echoGroup('General');
 		$this->echoCommand('', 'commands', 'Lists all available commands');
 		$this->echoCommand('', 'help', 'Displays this overview');
@@ -136,7 +136,7 @@ final class Runner
 
 		foreach ($list as $name => $count) {
 			if ($count === 1) {
-				$this->output->echo("{$name}\n");
+				$this->io->echo("{$name}\n");
 			}
 		}
 
@@ -189,13 +189,13 @@ final class Runner
 				throw $e;
 			}
 		} catch (Throwable $e) {
-			$this->output->echoErr("Error while running command '");
-			$this->output->echoErr($_SERVER['argv'][1] ?? '<no command given>');
-			$this->output->echoErr("':\n\n" . $e->getMessage() . "\n");
+			$this->io->echoErr("Error while running command '");
+			$this->io->echoErr($_SERVER['argv'][1] ?? '<no command given>');
+			$this->io->echoErr("':\n\n" . $e->getMessage() . "\n");
 
 			if ($this->debug) {
-				$this->output->echolnErr("\nTraceback:", 'yellow');
-				$this->output->echolnErr($e->getTraceAsString());
+				$this->io->echolnErr("\nTraceback:", 'yellow');
+				$this->io->echolnErr($e->getTraceAsString());
 			}
 
 			return 1;
@@ -211,7 +211,7 @@ final class Runner
 			throw new ValueError("Command '{$entry->meta->full()}' is not callable");
 		}
 
-		$result = $command($args, $this->output);
+		$result = $command($args, $this->io);
 
 		return is_int($result) ? $result : 0;
 	}
@@ -285,38 +285,38 @@ final class Runner
 
 	private function showCommandHelp(Entry $entry): int
 	{
-		new Help($this->output)->show($entry->meta, $entry->opts(), $entry->args());
+		new Help($this->io)->show($entry->meta, $entry->opts(), $entry->args());
 
 		return 0;
 	}
 
 	private function echoGroup(string $title): void
 	{
-		$g = $this->output->color($title, 'brown');
-		$this->output->echo("\n{$g}\n");
+		$g = $this->io->color($title, 'brown');
+		$this->io->echo("\n{$g}\n");
 	}
 
 	private function echoCommand(string $prefix, string $name, string $desc): void
 	{
 		$prefix = $prefix ? $prefix . ':' : '';
 		$plain = $prefix . $name;
-		$colored = $prefix . $this->output->color($name, 'green');
+		$colored = $prefix . $this->io->color($name, 'green');
 
 		// Pad on the visible length so columns align whether or not
 		// color escapes are present.
 		$pad = str_repeat(' ', max(2, $this->longestName + 2 - strlen($plain)));
-		$this->output->echoln("  {$colored}{$pad}{$desc}");
+		$this->io->echoln("  {$colored}{$pad}{$desc}");
 	}
 
 	private function showAmbiguousMessage(string $cmd): int
 	{
-		$this->output->echoErr("Ambiguous command. Please add the group name:\n\n");
+		$this->io->echoErr("Ambiguous command. Please add the group name:\n\n");
 		$entries = $this->list[$cmd];
 		usort($entries, static fn(Entry $a, Entry $b): int => strcmp($a->meta->full(), $b->meta->full()));
 
 		foreach ($entries as $entry) {
-			$prefix = $this->output->color($entry->meta->prefix, 'brown');
-			$this->output->echolnErr("  {$prefix}:{$entry->meta->name}");
+			$prefix = $this->io->color($entry->meta->prefix, 'brown');
+			$this->io->echolnErr("  {$prefix}:{$entry->meta->name}");
 		}
 
 		return 1;

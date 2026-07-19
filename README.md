@@ -22,9 +22,9 @@ A command line interface helper.
 - Command help with `php run help <command>`
 - Built-in `commands` command for shell autocomplete
 - `--key=value` options (repeatable) and boolean `--flag` / `-h` flags
-- Output helpers: `info()`, `success()`, `warn()`, `error()`, `echoln()` (warnings and errors go to STDERR)
+- Io helpers for output: `info()`, `success()`, `warn()`, `error()`, `echoln()` (warnings and errors go to STDERR)
 - Interactive prompts: `ask()` (optionally with hidden input) and `confirm()`
-- `BufferedOutput` for testing commands without output buffering or escape-code stripping
+- `BufferedIo` for testing commands without output buffering or escape-code stripping
 - Text indentation and wrapping with `indent()`
 - Debug mode for detailed error traces
 - 100% test coverage
@@ -40,17 +40,17 @@ composer require celema/console
 A command is a plain invokable class with a `#[Command]` attribute:
 
 ```php
-use Celema\Console\{Args, Command, Opt, Output};
+use Celema\Console\{Args, Command, Opt, Io};
 
 #[Command('grp:mycommand', 'This is my command')]
 #[Opt('--force', 'Skip the safety net')]
 class MyCommand
 {
-    public function __invoke(Args $args, Output $out): int
+    public function __invoke(Args $args, Io $io): int
     {
         $name = $args->positional(0, 'world');
-        $out->info("Running my command for {$name}");
-        $out->success('Command completed!');
+        $io->info("Running my command for {$name}");
+        $io->success('Command completed!');
 
         return 0;
     }

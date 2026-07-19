@@ -7,7 +7,7 @@ namespace Celema\Console;
 /**
  * @api
  */
-class Output
+class Io
 {
 	private mixed $stream = null;
 	private mixed $errorStream = null;

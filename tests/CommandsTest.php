@@ -6,7 +6,7 @@ namespace Celema\Console\Tests;
 
 use Celema\Console\Args;
 use Celema\Console\Commands;
-use Celema\Console\Output;
+use Celema\Console\Io;
 use Celema\Console\Tests\Fixtures\BarStuff;
 use Celema\Console\Tests\Fixtures\FooDrivel;
 use Celema\Console\Tests\Fixtures\FooStuff;
@@ -101,7 +101,7 @@ class CommandsTest extends TestCase
 	public function testAddNamedClosure(): void
 	{
 		$commands = new Commands();
-		$commands->add('cache:clear', 'Clears the cache', static fn(Args $args, Output $out): int => 0);
+		$commands->add('cache:clear', 'Clears the cache', static fn(Args $args, Io $out): int => 0);
 		$entry = $commands->entries()[0];
 
 		$this->assertSame('cache:clear', $entry->meta->full());
@@ -138,7 +138,7 @@ class CommandsTest extends TestCase
 		$this->expectException(ValueError::class);
 		$this->expectExceptionMessage('requires a name and description');
 
-		new Commands(static fn(Args $args, Output $out): int => 0);
+		new Commands(static fn(Args $args, Io $out): int => 0);
 	}
 
 	public function testAddClosureWithoutNameFails(): void
@@ -148,7 +148,7 @@ class CommandsTest extends TestCase
 		$this->expectException(ValueError::class);
 		$this->expectExceptionMessage('requires a name');
 
-		$commands->add([], command: static fn(Args $args, Output $out): int => 0);
+		$commands->add([], command: static fn(Args $args, Io $out): int => 0);
 	}
 
 	public function testAddInvalidItemFails(): void

@@ -18,7 +18,7 @@ use ValueError;
  *         Simple::class,
  *         Expensive::class => fn() => new Expensive($db),
  *     ]);
- *     $commands->add('cache:clear', 'Clears the cache', fn(Args $args, Output $out): int => ...);
+ *     $commands->add('cache:clear', 'Clears the cache', fn(Args $args, Io $io): int => ...);
  *
  * Class-based commands carry their metadata in a #[Command] attribute;
  * named closures get theirs from the add() arguments.
