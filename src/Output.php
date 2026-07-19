@@ -11,6 +11,7 @@ class Output
 {
 	private mixed $stream = null;
 	private mixed $errorStream = null;
+	private mixed $inputStream = null;
 	private ?int $width = null;
 	private array $fg = [
 		'black' => [0, 30],
@@ -51,6 +52,7 @@ class Output
 	public function __construct(
 		protected readonly string $target = 'php://output',
 		protected readonly string $errorTarget = 'php://stderr',
+		protected readonly string $inputTarget = 'php://stdin',
 	) {}
 
 	public function echo(string $text, string $color = '', string $background = ''): void
@@ -91,6 +93,60 @@ class Output
 	public function error(string $message): void
 	{
 		$this->echolnErr($message, 'red');
+	}
+
+	/**
+	 * Prints the question and reads one line from the input stream.
+	 *
+	 * A trimmed empty answer (or end of input) yields the default. With
+	 * `hidden` the terminal echo is switched off while typing, for example
+	 * for passwords; without a terminal the input is simply read as is.
+	 */
+	public function ask(string $question, string $default = '', bool $hidden = false): string
+	{
+		$this->echo($question . ' ');
+		$answer = trim($this->readline($hidden));
+
+		return $answer === '' ? $default : $answer;
+	}
+
+	/**
+	 * Asks a yes/no question and returns the answer as bool.
+	 *
+	 * An empty answer yields the default; an answer starting with `y` or
+	 * `Y` means yes, anything else no.
+	 */
+	public function confirm(string $question, bool $default = false): bool
+	{
+		$answer = strtolower($this->ask($question . ($default ? ' [Y/n]' : ' [y/N]')));
+
+		if ($answer === '') {
+			return $default;
+		}
+
+		return str_starts_with($answer, 'y');
+	}
+
+	private function readline(bool $hidden): string
+	{
+		$stream = $this->stdin();
+
+		if ($hidden && stream_isatty($stream)) {
+			// @codeCoverageIgnoreStart
+			/** @psalm-suppress ForbiddenCode */
+			shell_exec('stty -echo');
+			$line = (string) fgets($stream);
+
+			/** @psalm-suppress ForbiddenCode */
+			shell_exec('stty echo');
+			$this->echo(PHP_EOL);
+
+			return $line;
+
+			// @codeCoverageIgnoreEnd
+		}
+
+		return (string) fgets($stream);
 	}
 
 	private function styled(string $text, string $color, string $background): string
@@ -190,6 +246,11 @@ class Output
 	protected function stderr(): mixed
 	{
 		return $this->errorStream ??= fopen($this->errorTarget, mode: 'w');
+	}
+
+	protected function stdin(): mixed
+	{
+		return $this->inputStream ??= fopen($this->inputTarget, mode: 'r');
 	}
 
 	protected function hasColorSupport(): bool

@@ -15,6 +15,7 @@
 - Commands can be registered as class-strings (zero-argument constructor) and as lazy factories keyed by class-string: `[Expensive::class => fn() => ...]`. Metadata is read from the attribute without instantiation, so building the help overview constructs no commands.
 - Closures can be registered as lightweight commands: `$commands->add('cache:clear', 'Clears the cache', fn(Args $args, Output $out): int => ...)`.
 - Added the `Help` renderer. The runner uses it for `help <command>`, and commands that intercept a `--help` flag themselves can render the same screen with `new Help($out)->showFor($this)`.
+- Added interactive prompts on `Output`: `ask(string $question, string $default = '', bool $hidden = false)` reads one line from the input stream (`hidden` disables terminal echo, for example for passwords), and `confirm(string $question, bool $default = false)` asks a yes/no question. `Output` takes the input target as a new third constructor argument (default `php://stdin`); `BufferedOutput` accepts an `$input` string feeding the prompts, one line each.
 - Added `BufferedOutput` for tests: it captures regular and error output in memory (`output()` / `errorOutput()`) and disables colors, so assertions need no escape-code stripping. `Runner` now also accepts a ready `Output` instance in place of the output target string.
 
 ## [0.3.0](https://codeberg.org/celema/console/src/tag/0.3.0) (2026-07-18)

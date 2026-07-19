@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Celema\Console\Tests;
 
+use Celema\Console\BufferedOutput;
 use Celema\Console\Output;
 
 class OutputTest extends TestCase
@@ -171,5 +172,83 @@ class OutputTest extends TestCase
 		$this->assertSame('', $stdout);
 		$this->assertStringContainsString('boom', $contents);
 		$this->assertStringContainsString('bang', $contents);
+	}
+
+	public function testAskReadsFromTheInputTarget(): void
+	{
+		$in = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
+		file_put_contents($in, data: "Charly\n");
+		$output = new Output('php://output', inputTarget: $in);
+
+		ob_start();
+		$answer = $output->ask('Name?');
+		ob_end_clean();
+		unlink($in);
+
+		$this->assertSame('Charly', $answer);
+	}
+
+	public function testAskReturnsTheTrimmedAnswer(): void
+	{
+		$out = new BufferedOutput("  Charly  \n");
+
+		$this->assertSame('Charly', $out->ask('Name?'));
+		$this->assertSame('Name? ', $out->output());
+	}
+
+	public function testAskFallsBackToTheDefault(): void
+	{
+		$out = new BufferedOutput("\n");
+
+		$this->assertSame('World', $out->ask('Name?', default: 'World'));
+	}
+
+	public function testAskFallsBackToTheDefaultOnEndOfInput(): void
+	{
+		$out = new BufferedOutput();
+
+		$this->assertSame('World', $out->ask('Name?', default: 'World'));
+	}
+
+	public function testAskHiddenReadsPlainlyWithoutTerminal(): void
+	{
+		$out = new BufferedOutput("secret\n");
+
+		$this->assertSame('secret', $out->ask('Password?', hidden: true));
+	}
+
+	public function testAskReadsOneLinePerPrompt(): void
+	{
+		$out = new BufferedOutput("Charly\ny\n");
+
+		$this->assertSame('Charly', $out->ask('Name?'));
+		$this->assertTrue($out->confirm('Sure?'));
+	}
+
+	public function testConfirmAnswers(): void
+	{
+		$this->assertTrue(new BufferedOutput("y\n")->confirm('Sure?'));
+		$this->assertTrue(new BufferedOutput("YES\n")->confirm('Sure?'));
+		$this->assertFalse(new BufferedOutput("n\n")->confirm('Sure?'));
+		$this->assertFalse(new BufferedOutput("whatever\n")->confirm('Sure?'));
+	}
+
+	public function testConfirmFallsBackToTheDefault(): void
+	{
+		$this->assertFalse(new BufferedOutput("\n")->confirm('Sure?'));
+		$this->assertTrue(new BufferedOutput("\n")->confirm('Sure?', default: true));
+	}
+
+	public function testConfirmRendersTheDefaultInThePrompt(): void
+	{
+		$out = new BufferedOutput("\n");
+		$out->confirm('Sure?');
+
+		$this->assertSame('Sure? [y/N] ', $out->output());
+
+		$out = new BufferedOutput("\n");
+		$out->confirm('Sure?', default: true);
+
+		$this->assertSame('Sure? [Y/n] ', $out->output());
 	}
 }
