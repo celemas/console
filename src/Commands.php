@@ -28,22 +28,17 @@ final class Commands
 
 		if ($commands instanceof Commands) {
 			foreach ($commands->get() as $command) {
-				$this->addCommand($command);
+				$this->commands[] = $command;
 			}
 
 			return;
 		}
 
-		$this->addCommand($commands);
+		$this->commands[] = $commands;
 	}
 
 	public function get(): array
 	{
 		return $this->commands;
-	}
-
-	private function addCommand(Command $command): void
-	{
-		$this->commands[] = $command;
 	}
 }

@@ -12,8 +12,7 @@ use ValueError;
  */
 final class Runner
 {
-	protected const AMBIGUOUS = 1;
-	protected const NOTFOUND = 2;
+	private const AMBIGUOUS = 1;
 
 	// The commands ordered by group and name
 	private array $toc = [];
@@ -167,7 +166,15 @@ final class Runner
 			$args = new Args(array_slice($argv, offset: 2));
 
 			try {
-				return $this->runCommand($this->getCommand($cmd), $isHelpCall, $args);
+				$command = $this->getCommand($cmd)->output($this->output);
+
+				if ($isHelpCall) {
+					$command->help();
+
+					return 0;
+				}
+
+				return $command->run($args);
 			} catch (ValueError $e) {
 				if ($e->getCode() === self::AMBIGUOUS) {
 					return $this->showAmbiguousMessage($cmd);
@@ -244,17 +251,6 @@ final class Runner
 			}
 		}
 
-		throw new ValueError('Command not found', self::NOTFOUND);
-	}
-
-	private function runCommand(Command $command, bool $isHelpCall, Args $args): int
-	{
-		if ($isHelpCall) {
-			$command->output($this->output)->help();
-
-			return 0;
-		}
-
-		return $command->output($this->output)->run($args);
+		throw new ValueError('Command not found');
 	}
 }
