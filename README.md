@@ -13,7 +13,8 @@ A command line interface helper.
 ## Features
 
 - Commands are plain classes marked with a `#[Command]` attribute — no base class, free constructors
-- Automatic help generation from `#[Command]` and `#[Opt]` attributes
+- Automatic help generation from `#[Command]`, `#[Arg]`, and `#[Opt]` attributes
+- Declared options are validated: unknown or malformed options abort with a "Did you mean" suggestion
 - Parsed options and positional arguments via an injected `Args` object
 - Lazy command construction: factories run only for the invoked command
 - Closures as lightweight one-off commands
@@ -22,6 +23,8 @@ A command line interface helper.
 - Built-in `commands` command for shell autocomplete
 - `--key=value` options (repeatable) and boolean `--flag` / `-h` flags
 - Output helpers: `info()`, `success()`, `warn()`, `error()`, `echoln()` (warnings and errors go to STDERR)
+- Interactive prompts: `ask()` (optionally with hidden input) and `confirm()`
+- `BufferedOutput` for testing commands without output buffering or escape-code stripping
 - Text indentation and wrapping with `indent()`
 - Debug mode for detailed error traces
 - 100% test coverage
