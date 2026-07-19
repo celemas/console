@@ -11,6 +11,7 @@ use Celema\Console\Io;
 use Celema\Console\Runner;
 use Celema\Console\Tests\Fixtures\Greet;
 use Celema\Console\Tests\Fixtures\HelpVariants;
+use ValueError;
 
 class RunnerTest extends TestCase
 {
@@ -237,6 +238,25 @@ class RunnerTest extends TestCase
 
 		$this->expectOutputRegex("/Error while.*'err:err'.*Red herring/s");
 		$runner->run();
+	}
+
+	public function testCommandValueErrorIsNotTreatedAsAmbiguous(): void
+	{
+		$_SERVER['argv'] = ['run', 'boom'];
+		$commands = new Commands();
+		$commands->add(
+			'boom',
+			'Fails with a ValueError',
+			static function (Args $args, Io $io): void {
+				throw new ValueError('Command failure', 1);
+			},
+		);
+		$out = new BufferedIo();
+		$code = new Runner($commands, $out)->run();
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString('Command failure', $out->errorOutput());
+		$this->assertStringNotContainsString('Ambiguous command', $out->errorOutput());
 	}
 
 	public function testRunFailingCommandWithDebug(): void

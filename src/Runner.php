@@ -175,12 +175,6 @@ final class Runner
 
 			try {
 				$entry = $this->getCommand($cmd);
-
-				if ($isHelpCall) {
-					return $this->showCommandHelp($entry);
-				}
-
-				return $this->runCommand($entry, $args);
 			} catch (ValueError $e) {
 				if ($e->getCode() === self::AMBIGUOUS) {
 					return $this->showAmbiguousMessage($cmd);
@@ -188,6 +182,12 @@ final class Runner
 
 				throw $e;
 			}
+
+			if ($isHelpCall) {
+				return $this->showCommandHelp($entry);
+			}
+
+			return $this->runCommand($entry, $args);
 		} catch (Throwable $e) {
 			$this->io->echoErr("Error while running command '");
 			$this->io->echoErr($_SERVER['argv'][1] ?? '<no command given>');
