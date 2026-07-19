@@ -239,9 +239,12 @@ class Io
 
 		$columns = (int) getenv('COLUMNS');
 
-		if ($columns < 1) {
+		if ($columns < 1 && stream_isatty($this->stdout())) {
+			// @codeCoverageIgnoreStart
 			/** @psalm-suppress ForbiddenCode */
 			$columns = (int) shell_exec('tput cols');
+
+			// @codeCoverageIgnoreEnd
 		}
 
 		if ($columns < 1) {
@@ -317,13 +320,11 @@ class Io
 			return $force !== '0' && strtolower($force) !== 'false';
 		}
 
-		if (getenv('COLORTERM') !== false) {
-			return true;
-		}
+		$terminal = stream_isatty($stream);
 
 		// Windows
 		// @codeCoverageIgnoreStart
-		if (DIRECTORY_SEPARATOR === '\\') {
+		if (DIRECTORY_SEPARATOR === '\\' && $terminal) {
 			if (function_exists('sapi_windows_vt100_support')) {
 				return sapi_windows_vt100_support($stream);
 			}
@@ -337,6 +338,6 @@ class Io
 
 		// @codeCoverageIgnoreEnd
 
-		return stream_isatty($stream);
+		return $terminal;
 	}
 }

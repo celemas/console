@@ -145,7 +145,7 @@ Background: `black`, `red`, `green`, `yellow`, `blue`, `purple`, `magenta`, `cya
 
 An unknown color name throws a `ValueError` — also when colors are disabled, so a typo surfaces in tests instead of printing unstyled text in production.
 
-Whether codes are actually emitted is decided per stream: a non-empty `NO_COLOR` disables colors, `FORCE_COLOR` forces them on (`FORCE_COLOR=0` or `false` forces them off), `COLORTERM` implies support, and otherwise codes are only written when the stream is a terminal. Redirecting one stream to a file never garbles it while the other stays colored.
+Whether codes are actually emitted is decided per stream: a non-empty `NO_COLOR` disables colors, `FORCE_COLOR` forces them on (`FORCE_COLOR=0` or `false` forces them off), and otherwise codes are only written when the stream is a terminal. `COLORTERM` alone does not color redirected output, so redirecting one stream to a file never garbles it while the other stays colored.
 
 ### Command-Line Arguments
 

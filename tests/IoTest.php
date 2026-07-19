@@ -102,16 +102,20 @@ class IoTest extends TestCase
 		putenv('FORCE_COLOR');
 	}
 
-	public function testColorTermEnablesColors(): void
+	public function testColorTermDoesNotColorRedirectedStreams(): void
 	{
 		putenv('NO_COLOR');
 		putenv('FORCE_COLOR');
 		$colorterm = getenv('COLORTERM');
 		putenv('COLORTERM=truecolor');
+		$out = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
 
 		try {
-			$this->assertSame("\033[0;31mtest\033[0m", new Io('php://output')->color('test', 'red'));
+			new Io($out)->success('done');
+
+			$this->assertSame("done\n", file_get_contents($out));
 		} finally {
+			unlink($out);
 			putenv($colorterm === false ? 'COLORTERM' : "COLORTERM={$colorterm}");
 		}
 	}
@@ -120,27 +124,18 @@ class IoTest extends TestCase
 	{
 		putenv('NO_COLOR');
 		putenv('FORCE_COLOR');
-		$colorterm = getenv('COLORTERM');
-		putenv('COLORTERM');
+		$out = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
+		$err = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
+		$io = new Io($out, $err);
+		$io->echoln('regular', 'red');
+		$io->echolnErr('error', 'red');
+		$stdout = (string) file_get_contents($out);
+		$stderr = (string) file_get_contents($err);
+		unlink($out);
+		unlink($err);
 
-		try {
-			$out = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
-			$err = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
-			$io = new Io($out, $err);
-			$io->echoln('regular', 'red');
-			$io->echolnErr('error', 'red');
-			$stdout = (string) file_get_contents($out);
-			$stderr = (string) file_get_contents($err);
-			unlink($out);
-			unlink($err);
-
-			$this->assertSame("regular\n", $stdout);
-			$this->assertSame("error\n", $stderr);
-		} finally {
-			if ($colorterm !== false) {
-				putenv("COLORTERM={$colorterm}");
-			}
-		}
+		$this->assertSame("regular\n", $stdout);
+		$this->assertSame("error\n", $stderr);
 	}
 
 	public function testBackgroundColors(): void
