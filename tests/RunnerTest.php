@@ -5,12 +5,97 @@ declare(strict_types=1);
 namespace Celema\Console\Tests;
 
 use Celema\Console\Args;
+use Celema\Console\BufferedOutput;
 use Celema\Console\Commands;
 use Celema\Console\Output;
 use Celema\Console\Runner;
+use Celema\Console\Tests\Fixtures\Greet;
+use Celema\Console\Tests\Fixtures\HelpVariants;
 
 class RunnerTest extends TestCase
 {
+	private function runVariants(string ...$args): array
+	{
+		$_SERVER['argv'] = ['run', 'help:variants', ...$args];
+		$out = new BufferedOutput();
+		$runner = new Runner(new Commands([new HelpVariants()]), $out);
+
+		return [$runner->run(), $out->errorOutput()];
+	}
+
+	public function testRejectUnknownOptionWithSuggestion(): void
+	{
+		[$code, $errors] = $this->runVariants('--verbos');
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString(
+			"Unknown option '--verbos'. Did you mean '--verbose'?",
+			$errors,
+		);
+	}
+
+	public function testRejectUnknownOptionWithoutSuggestion(): void
+	{
+		[$code, $errors] = $this->runVariants('--completely-different');
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString("Unknown option '--completely-different'", $errors);
+		$this->assertStringNotContainsString('Did you mean', $errors);
+	}
+
+	public function testUndeclaredHelpFlagHintsAtTheHelpCommand(): void
+	{
+		[$code, $errors] = $this->runVariants('--help');
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString(
+			"Unknown option '--help'. Use 'php run help help:variants' to show the command's help",
+			$errors,
+		);
+	}
+
+	public function testRejectValueOnBooleanOption(): void
+	{
+		[$code, $errors] = $this->runVariants('--prune=now');
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString("Option '--prune' does not accept a value", $errors);
+	}
+
+	public function testRejectMissingRequiredOptionValue(): void
+	{
+		[$code, $errors] = $this->runVariants('--host');
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString("Option '--host' requires a value: --host=<host>", $errors);
+	}
+
+	public function testAcceptDeclaredOptions(): void
+	{
+		[$code, $errors] = $this->runVariants('-v', '--host=localhost', '--watch', 'file.txt');
+
+		$this->assertSame(0, $code);
+		$this->assertSame('', $errors);
+	}
+
+	public function testOptionalValueAcceptsAValue(): void
+	{
+		[$code, $errors] = $this->runVariants('--watch=src');
+
+		$this->assertSame(0, $code);
+		$this->assertSame('', $errors);
+	}
+
+	public function testCommandWithoutDeclaredOptionsAcceptsAnything(): void
+	{
+		$_SERVER['argv'] = ['run', 'greet', '--greeting=Hi', '--whatever'];
+		$out = new BufferedOutput();
+		$runner = new Runner(new Commands([new Greet()]), $out);
+
+		$this->assertSame(0, $runner->run());
+		$this->assertSame('Hi, World', $out->output());
+	}
+
 	public function testShowHelpWhenCalledWithoutCommand(): void
 	{
 		$_SERVER['argv'] = ['run'];

@@ -53,6 +53,16 @@ final class Args
 		return array_key_exists($key, $this->options);
 	}
 
+	/**
+	 * The names of all provided options, in first-seen order.
+	 *
+	 * @return list<string>
+	 */
+	public function names(): array
+	{
+		return array_keys($this->options);
+	}
+
 	public function opt(string $key, string $default = ''): string
 	{
 		return $this->options[$key][0] ?? $default;

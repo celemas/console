@@ -204,6 +204,7 @@ final class Runner
 
 	private function runCommand(Entry $entry, Args $args): int
 	{
+		$this->validate($entry, $args);
 		$command = $entry->command();
 
 		if (!is_callable($command)) {
@@ -213,6 +214,73 @@ final class Runner
 		$result = $command($args, $this->output);
 
 		return is_int($result) ? $result : 0;
+	}
+
+	/**
+	 * Checks the provided options against the command's declared `#[Opt]`s.
+	 *
+	 * A command declaring no options accepts anything; closures always do.
+	 */
+	private function validate(Entry $entry, Args $args): void
+	{
+		$opts = $entry->opts();
+
+		if ($opts === []) {
+			return;
+		}
+
+		$declared = [];
+
+		foreach ($opts as $opt) {
+			$declared[$opt->long] = $opt;
+
+			if ($opt->short !== '') {
+				$declared[$opt->short] = $opt;
+			}
+		}
+
+		foreach ($args->names() as $name) {
+			$opt = $declared[$name] ?? null;
+
+			if ($opt === null) {
+				throw new ValueError($this->unknownOption($name, $entry->meta->full(), array_keys($declared)));
+			}
+
+			$values = $args->opts($name);
+
+			if ($opt->value === '' && $values !== []) {
+				throw new ValueError("Option '{$name}' does not accept a value");
+			}
+
+			if ($opt->value !== '' && !$opt->optionalValue && $values === []) {
+				throw new ValueError("Option '{$name}' requires a value: {$name}=<{$opt->value}>");
+			}
+		}
+	}
+
+	/** @param list<string> $declared */
+	private function unknownOption(string $name, string $full, array $declared): string
+	{
+		if ($name === '--help' || $name === '-h') {
+			$script = $_SERVER['argv'][0] ?? 'run';
+
+			return "Unknown option '{$name}'. Use 'php {$script} help {$full}' to show the command's help";
+		}
+
+		$message = "Unknown option '{$name}'";
+		$best = '';
+		$bestDistance = PHP_INT_MAX;
+
+		foreach ($declared as $candidate) {
+			$distance = levenshtein($name, $candidate);
+
+			if ($distance < $bestDistance) {
+				$bestDistance = $distance;
+				$best = $candidate;
+			}
+		}
+
+		return $bestDistance <= 3 ? "{$message}. Did you mean '{$best}'?" : $message;
 	}
 
 	private function showCommandHelp(Entry $entry): int
