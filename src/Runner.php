@@ -146,7 +146,7 @@ final class Runner
 		ksort($list);
 
 		foreach ($list as $name => $count) {
-			if ($count === 1 || isset($this->toc['']['commands'][$name])) {
+			if ($count === 1 || array_key_exists($name, $this->toc['']['commands'] ?? [])) {
 				$this->io->echo("{$name}\n");
 			}
 		}
@@ -346,8 +346,11 @@ final class Runner
 		$declared = [];
 
 		foreach ($opts as $opt) {
-			if (isset($declared[$opt->long]) || $opt->short !== '' && isset($declared[$opt->short])) {
-				$name = isset($declared[$opt->long]) ? $opt->long : $opt->short;
+			if (
+				array_key_exists($opt->long, $declared)
+				|| $opt->short !== '' && array_key_exists($opt->short, $declared)
+			) {
+				$name = array_key_exists($opt->long, $declared) ? $opt->long : $opt->short;
 
 				throw new ValueError(
 					"Command '{$entry->meta->full()}' declares the option name '{$name}' twice",
@@ -502,14 +505,14 @@ final class Runner
 			/** @var array{0: string, 1: string} $parts */
 			$parts = explode(':', $cmd, limit: 2);
 
-			if (isset($this->toc[$parts[0]]['commands'][$parts[1]])) {
+			if (array_key_exists($parts[1], $this->toc[$parts[0]]['commands'] ?? [])) {
 				return $this->toc[$parts[0]]['commands'][$parts[1]];
 			}
 
 			throw new ValueError('Command not found');
 		}
 
-		if (isset($this->toc['']['commands'][$cmd])) {
+		if (array_key_exists($cmd, $this->toc['']['commands'] ?? [])) {
 			return $this->toc['']['commands'][$cmd];
 		}
 
