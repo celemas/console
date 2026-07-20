@@ -84,6 +84,27 @@ class RunnerTest extends TestCase
 		$this->assertStringContainsString("Option '--host' requires a value: --host=<host>", $errors);
 	}
 
+	public function testRejectBareOccurrenceOfRepeatedValueOption(): void
+	{
+		[$code, $errors] = $this->runVariants('--host', '--host=localhost', 'file.txt');
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString("Option '--host' requires a value: --host=<host>", $errors);
+
+		[$code, $errors] = $this->runVariants('--host=localhost', '--host', 'file.txt');
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString("Option '--host' requires a value: --host=<host>", $errors);
+	}
+
+	public function testOptionalValueAllowsMixedRepetition(): void
+	{
+		[$code, $errors] = $this->runVariants('--watch', '--watch=src', 'file.txt');
+
+		$this->assertSame(0, $code);
+		$this->assertSame('', $errors);
+	}
+
 	public function testAcceptDeclaredOptions(): void
 	{
 		[$code, $errors] = $this->runVariants('-v', '--host=localhost', '--watch', 'file.txt');

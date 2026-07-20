@@ -374,7 +374,9 @@ final class Runner
 				throw new ValueError("Option '{$name}' does not accept a value");
 			}
 
-			if ($opt->value !== '' && !$opt->optionalValue && $values === []) {
+			// Every occurrence needs a value, also when a repetition
+			// provides one: `--host --host=x` hides a bare `--host`.
+			if ($opt->value !== '' && !$opt->optionalValue && ($values === [] || $args->bare($name))) {
 				throw new ValueError("Option '{$name}' requires a value: {$name}=<{$opt->value}>");
 			}
 		}
