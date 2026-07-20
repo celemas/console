@@ -35,6 +35,7 @@
 
 ### Fixed
 
+- On Windows, colors now actually work in cmd/PowerShell: VT100 processing is enabled on the stream instead of only queried (replacing the stale `ANSICON`/`ConEmuANSI` fallbacks), and hidden prompts and terminal-width detection no longer shell out to `stty`/`tput`, which leaked "not recognized" errors into the console. Hidden input still reads visibly on Windows.
 - Redirected streams no longer receive ANSI color codes merely because `COLORTERM` is set, and terminal-width detection no longer invokes `tput` for redirected output.
 - An output, error, or input target that cannot be opened now throws a `RuntimeException` naming the target on first use, instead of a `TypeError` on the first write.
 

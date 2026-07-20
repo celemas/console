@@ -108,8 +108,8 @@ class Io
 	 * A trimmed empty answer (or end of input) yields the default. With
 	 * `hidden` the terminal echo is switched off while typing, for example
 	 * for passwords, and the answer keeps its whitespace; only the trailing
-	 * newline is stripped. Without a terminal (or without `stty`, as on
-	 * Windows) the input is simply read as is, visibly.
+	 * newline is stripped. On Windows, or without a terminal, the input is
+	 * simply read as is, visibly.
 	 */
 	public function ask(string $question, string $default = '', bool $hidden = false): string
 	{
@@ -141,7 +141,8 @@ class Io
 	{
 		$stream = $this->stdin();
 
-		if ($hidden && stream_isatty($stream)) {
+		// No stty on Windows; shell_exec would leak its error output.
+		if ($hidden && DIRECTORY_SEPARATOR !== '\\' && stream_isatty($stream)) {
 			// @codeCoverageIgnoreStart
 			/** @psalm-suppress ForbiddenCode */
 			$previous = trim((string) shell_exec('stty -g'));
@@ -239,7 +240,8 @@ class Io
 
 		$columns = (int) getenv('COLUMNS');
 
-		if ($columns < 1 && stream_isatty($this->stdout())) {
+		// No tput on Windows; shell_exec would leak its error output.
+		if ($columns < 1 && DIRECTORY_SEPARATOR !== '\\' && stream_isatty($this->stdout())) {
 			// @codeCoverageIgnoreStart
 			/** @psalm-suppress ForbiddenCode */
 			$columns = (int) shell_exec('tput cols');
@@ -322,18 +324,11 @@ class Io
 
 		$terminal = stream_isatty($stream);
 
-		// Windows
 		// @codeCoverageIgnoreStart
 		if (DIRECTORY_SEPARATOR === '\\' && $terminal) {
-			if (function_exists('sapi_windows_vt100_support')) {
-				return sapi_windows_vt100_support($stream);
-			}
-
-			return (
-				getenv('ANSICON') !== false
-				|| getenv('ConEmuANSI') === 'ON'
-				|| getenv('TERM') === 'xterm'
-			);
+			// VT100 processing is off by default in cmd/PowerShell;
+			// enabling it reports whether the console supports it.
+			return sapi_windows_vt100_support($stream, enable: true);
 		}
 
 		// @codeCoverageIgnoreEnd

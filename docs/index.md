@@ -116,7 +116,7 @@ public function __invoke(Args $args, Io $io): int
 ```
 
 - An empty answer (or end of input) yields the default.
-- `hidden` disables terminal echo while typing — for passwords — and keeps the answer's whitespace; only the trailing newline is stripped. The previous terminal state is restored afterwards, also when reading fails. Without a terminal (piped input, tests) — or without `stty`, as on Windows — the line is simply read as is, visibly.
+- `hidden` disables terminal echo while typing — for passwords — and keeps the answer's whitespace; only the trailing newline is stripped. The previous terminal state is restored afterwards, also when reading fails. On Windows, or without a terminal (piped input, tests), the line is simply read as is, visibly.
 - `confirm()` renders the default as `[y/N]` or `[Y/n]`; an answer starting with `y`/`Y` means yes, an empty one means the default, anything else no.
 - The input stream is the third `Io` constructor argument, `php://stdin` by default.
 
