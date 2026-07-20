@@ -6,6 +6,11 @@
 
 - Removed closure commands: `Commands::add()` no longer takes a name, description, and closure. Register an anonymous class instead — attributes work inline, so one-off commands gain declared options and arguments, validation, short-option normalization, and a full help screen, none of which closures had: `$commands->add(new #[Command('cache:clear', 'Clears the cache')] class { public function __invoke(Io $io): int { ... } });`
 - Commands are strict by default: the `#[Arg]`/`#[Opt]` declarations are a command's complete interface. A command declaring no `#[Opt]`s rejects every option and one declaring no `#[Arg]`s rejects every positional — previously both were accepted unchecked. Declare everything the command reads, including options consumed by deeper machinery, and declare a variadic `#[Arg]` for open-ended positional input.
+- Command names with more than one colon are rejected: the extra colon made such a name collide with the prefixed lookup of other commands, so `foo:bar` could silently execute a registered `x:foo:bar`.
+
+### Fixed
+
+- Command resolution looks up exact full names before bare-name aliases: an unprefixed command now wins over a prefixed namesake instead of becoming unreachable behind a bogus ambiguity (whose message suggested the invalid `:name` form), and it shows in the `commands` listing again.
 
 ### Added
 

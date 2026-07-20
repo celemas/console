@@ -372,6 +372,48 @@ class RunnerTest extends TestCase
 		$runner->run();
 	}
 
+	public function testUnprefixedCommandWinsOverPrefixedNamesake(): void
+	{
+		$commands = new Commands([
+			new
+				#[Command('deploy', 'Unprefixed')]
+				class {
+					public function __invoke(Io $io): int
+					{
+						$io->echo('plain deploy');
+
+						return 0;
+					}
+				},
+			new
+				#[Command('ops:deploy', 'Prefixed')]
+				class {
+					public function __invoke(Io $io): int
+					{
+						$io->echo('ops deploy');
+
+						return 0;
+					}
+				},
+		]);
+
+		$_SERVER['argv'] = ['run', 'deploy'];
+		$out = new BufferedIo();
+		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame('plain deploy', $out->output());
+
+		$_SERVER['argv'] = ['run', 'ops:deploy'];
+		$out = new BufferedIo();
+		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame('ops deploy', $out->output());
+
+		// Both stay invocable, so both appear in the listing.
+		$_SERVER['argv'] = ['run', 'commands'];
+		$out = new BufferedIo();
+		new Runner($commands, $out)->run();
+		$this->assertSame("deploy\nops:deploy\n", $out->output());
+	}
+
 	public function testRunGroupNameCommand(): void
 	{
 		$_SERVER['argv'] = ['run', 'bar:stuff'];

@@ -66,6 +66,14 @@ class CommandTest extends TestCase
 		new Command('foo:');
 	}
 
+	public function testMultipleColonsFail(): void
+	{
+		$this->expectException(ValueError::class);
+		$this->expectExceptionMessage("Invalid command name 'x:foo:bar'");
+
+		new Command('x:foo:bar');
+	}
+
 	public function testReadAttributeFromInstance(): void
 	{
 		$meta = Command::of(new Erring());

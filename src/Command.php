@@ -11,7 +11,8 @@ use ValueError;
 /**
  * Declares a class as a console command.
  *
- * The name may carry a group prefix separated by a colon, e.g. `db:migrate`.
+ * The name may carry a group prefix separated by a single colon, e.g.
+ * `db:migrate`; further colons are rejected.
  * The prefix namespaces the command on the command line and groups it in the
  * help overview under the capitalized prefix; `group` overrides that
  * displayed title.
@@ -38,7 +39,9 @@ final class Command
 			$parts = explode(':', $lower, limit: 2);
 			[$prefix, $bare] = $parts;
 
-			if ($prefix === '') {
+			// A single colon only: a second one would collide with the
+			// prefixed lookup of another command.
+			if ($prefix === '' || str_contains($bare, ':')) {
 				throw new ValueError("Invalid command name '{$name}'");
 			}
 		}

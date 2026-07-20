@@ -121,9 +121,10 @@ final class Runner
 	/**
 	 * Displays a list of all available commands.
 	 *
-	 * With and without namespace/group. If a command appears in more than
-	 * one namespace, e. g. foo:cmd and bar:cmd, only the namespaced ones
-	 * will be displayed.
+	 * With and without namespace/group. If a bare name is shared, e. g.
+	 * by foo:cmd and bar:cmd, only the namespaced forms are displayed —
+	 * unless the bare name belongs to an unprefixed command, which always
+	 * shows since it resolves exactly.
 	 */
 	public function showCommands(): int
 	{
@@ -145,7 +146,7 @@ final class Runner
 		ksort($list);
 
 		foreach ($list as $name => $count) {
-			if ($count === 1) {
+			if ($count === 1 || isset($this->toc['']['commands'][$name])) {
 				$this->io->echo("{$name}\n");
 			}
 		}
@@ -482,25 +483,31 @@ final class Runner
 
 	private function getCommand(string $cmd): Entry
 	{
+		// Exact full names resolve first: an unprefixed command wins over
+		// its prefixed namesakes, and prefixed lookups are always exact.
+		// Only then a bare name serves as the alias of a unique prefixed
+		// command; shared by several, it is ambiguous.
+		if (str_contains($cmd, ':')) {
+			/** @var array{0: string, 1: string} $parts */
+			$parts = explode(':', $cmd, limit: 2);
+
+			if (isset($this->toc[$parts[0]]['commands'][$parts[1]])) {
+				return $this->toc[$parts[0]]['commands'][$parts[1]];
+			}
+
+			throw new ValueError('Command not found');
+		}
+
+		if (isset($this->toc['']['commands'][$cmd])) {
+			return $this->toc['']['commands'][$cmd];
+		}
+
 		if (array_key_exists($cmd, $this->list)) {
 			if (count($this->list[$cmd]) === 1) {
 				return $this->list[$cmd][0];
 			}
 
 			throw new ValueError('Ambiguous command', self::AMBIGUOUS);
-		}
-
-		if (str_contains($cmd, ':')) {
-			/** @var array{0: string, 1: string} $parts */
-			$parts = explode(':', $cmd, limit: 2);
-			$group = $parts[0];
-			$name = $parts[1];
-
-			if (
-				array_key_exists($group, $this->toc) && array_key_exists($name, $this->toc[$group]['commands'])
-			) {
-				return $this->toc[$group]['commands'][$name];
-			}
 		}
 
 		throw new ValueError('Command not found');
