@@ -126,6 +126,14 @@ class IoTest extends TestCase
 		$this->assertSame('keep <green>this</green> plain', $out->output());
 	}
 
+	public function testMessageHelpersNeutralizeControlSequences(): void
+	{
+		$out = new BufferedIo();
+		$out->error("evil \033]0;pwned\007 message");
+
+		$this->assertSame('evil ]0;pwned message' . PHP_EOL, $out->errorOutput());
+	}
+
 	public function testMessageHelpersTreatInputAsPlainText(): void
 	{
 		$out = new BufferedIo();

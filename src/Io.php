@@ -55,7 +55,8 @@ class Io
 	}
 
 	/**
-	 * Escapes markup tags so the text prints literally.
+	 * Escapes markup tags and strips control characters (keeping
+	 * newlines and tabs) so the text prints literally.
 	 */
 	public function escape(string $text): string
 	{

@@ -168,6 +168,15 @@ class MarkupTest extends TestCase
 		$this->assertSame(5, $markup->width('<foo>'));
 	}
 
+	public function testEscapeStripsControlCharacters(): void
+	{
+		$markup = new Markup();
+
+		// The control bytes are removed; the harmless payload stays text.
+		$this->assertSame(']0;eviltitle', $markup->escape("\033]0;evil\007title"));
+		$this->assertSame("keep\nlines\tandtabs", $markup->escape("keep\nlines\tand\rtabs\x7f"));
+	}
+
 	public function testEscapedTextRendersAsItsInput(): void
 	{
 		$markup = new Markup();

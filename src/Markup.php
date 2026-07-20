@@ -152,10 +152,17 @@ final class Markup
 	}
 
 	/**
-	 * Escapes known tags so the text renders literally.
+	 * Escapes known tags and strips control characters so the text
+	 * prints literally.
+	 *
+	 * Everything C0 except newline and tab is removed, DEL included, so
+	 * arbitrary text cannot inject terminal escape sequences (ESC, BEL,
+	 * carriage returns, ...).
 	 */
 	public function escape(string $text): string
 	{
+		$text = (string) preg_replace('/[\x00-\x08\x0B-\x1F\x7F]/', replacement: '', subject: $text);
+
 		return (string) preg_replace($this->split, replacement: '\\\\$0', subject: $text);
 	}
 

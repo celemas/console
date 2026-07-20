@@ -15,6 +15,7 @@
 - Command resolution looks up exact full names before bare-name aliases: an unprefixed command now wins over a prefixed namesake instead of becoming unreachable behind a bogus ambiguity (whose message suggested the invalid `:name` form), and it shows in the `commands` listing again.
 - `help <unknown>` reports the unknown target instead of blaming the `help` command itself.
 - A value-requiring option repeated with a bare occurrence (`--host --host=localhost`) is rejected: every occurrence needs a value. The merged values previously hid the bare one from validation. `Args::bare()` exposes whether an option occurred without a value.
+- `Io::escape()` also strips control characters — everything C0 except newline and tab, plus DEL — so untrusted text routed through it, the message helpers, or the runner's error reporting cannot inject terminal escape sequences (ESC, BEL, carriage-return spoofing). `echo()` and friends remain the raw markup path.
 
 ### Added
 
