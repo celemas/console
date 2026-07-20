@@ -46,8 +46,12 @@ final class Entry
 		if ($this->command === null) {
 			$command = ($this->factory)();
 
-			if (!is_object($command)) {
-				throw new ValueError("Factory for command '{$this->meta->full()}' must return an object");
+			// The metadata was read from the keyed class; an unrelated
+			// object would be described by one class and run as another.
+			if (!$command instanceof $this->class) {
+				throw new ValueError(
+					"Factory for command '{$this->meta->full()}' must return a {$this->class}",
+				);
 			}
 
 			$this->command = $command;

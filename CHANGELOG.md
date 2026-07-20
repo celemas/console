@@ -8,6 +8,7 @@
 - Commands are strict by default: the `#[Arg]`/`#[Opt]` declarations are a command's complete interface. A command declaring no `#[Opt]`s rejects every option and one declaring no `#[Arg]`s rejects every positional — previously both were accepted unchecked. Declare everything the command reads, including options consumed by deeper machinery, and declare a variadic `#[Arg]` for open-ended positional input.
 - Command names with more than one colon are rejected: the extra colon made such a name collide with the prefixed lookup of other commands, so `foo:bar` could silently execute a registered `x:foo:bar`.
 - Option declarations are validated: the long name must use the `--name` form and the short name the `-s` form (no `=`, no whitespace), and `optionalValue` requires a `value` label — all rejected when the attribute is instantiated. A command declaring the same option name or short alias twice is rejected when it runs; previously the last declaration silently won.
+- A lazy factory must return an instance of the class it is keyed by (subclasses included) instead of any object, so the help and validation metadata always describe the command that actually runs.
 
 ### Fixed
 

@@ -165,7 +165,17 @@ class CommandsTest extends TestCase
 		$commands = new Commands([Greet::class => static fn(): mixed => null]);
 
 		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage("Factory for command 'greet' must return an object");
+		$this->expectExceptionMessage("Factory for command 'greet' must return a " . Greet::class);
+
+		$commands->entries()[0]->command();
+	}
+
+	public function testFactoryReturningUnrelatedClassFails(): void
+	{
+		$commands = new Commands([Greet::class => static fn(): Plain => new Plain()]);
+
+		$this->expectException(ValueError::class);
+		$this->expectExceptionMessage("Factory for command 'greet' must return a " . Greet::class);
 
 		$commands->entries()[0]->command();
 	}
