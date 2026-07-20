@@ -57,6 +57,8 @@ class MyCommand
 }
 ```
 
+`__invoke()` must declare the return type `int` (the exit code). Its `Args` and `Io` parameters are matched by type, not position: each is optional and their order is free, but no other parameters are allowed.
+
 Options use `--key=value` (a bare `--flag` is a boolean); every other argument is a positional. Read them from the injected `Args`:
 
 ```php

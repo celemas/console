@@ -80,7 +80,7 @@ $commands->add('cache:clear', 'Clears the cache', function (Args $args, Io $io):
 
 Class-based commands carry their metadata in the `#[Command]` attribute, which is read without instantiating the class. Factories run only when their command is actually invoked — listing the help never constructs a command.
 
-A command returning no value (such as a `void` closure) maps to exit code 0. Every other command result must be an integer exit code.
+The runner validates the signature of the invoked command: `__invoke()` (or the closure) must declare the return type `int` — the exit code — and may declare any subset of `Args` and `Io` parameters in any order. They are matched by declared type, and no other parameters are allowed.
 
 ### Io Methods
 

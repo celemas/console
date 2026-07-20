@@ -254,7 +254,8 @@ final class Runner
 			throw new ValueError("Command '{$full}' is not callable");
 		}
 
-		$return = new ReflectionFunction(Closure::fromCallable($command))->getReturnType();
+		$function = new ReflectionFunction(Closure::fromCallable($command));
+		$return = $function->getReturnType();
 
 		if (
 			!$return instanceof ReflectionNamedType
@@ -265,7 +266,48 @@ final class Runner
 		}
 
 		/** @var int Guaranteed by the declared return type under strict_types */
-		return $command($args, $this->io);
+		return $command(...$this->bind($function, $full, $args));
+	}
+
+	/**
+	 * Builds the argument list from the command's parameters.
+	 *
+	 * Commands may declare any subset of Args and Io in any order;
+	 * arguments are matched by declared type. Other parameters are
+	 * rejected.
+	 *
+	 * @return list<Args|Io>
+	 */
+	private function bind(ReflectionFunction $function, string $full, Args $args): array
+	{
+		$available = [Args::class => $args, Io::class => $this->io];
+		$bound = [];
+
+		foreach ($function->getParameters() as $parameter) {
+			$type = $parameter->getType();
+			$class = $type instanceof ReflectionNamedType
+			&& !$type->allowsNull()
+			&& !$parameter->isVariadic()
+				? $type->getName()
+				: '';
+
+			if ($class !== Args::class && $class !== Io::class) {
+				throw new ValueError(
+					"Command '{$full}' parameter \${$parameter->getName()} must be declared as Args or Io",
+				);
+			}
+
+			if (!array_key_exists($class, $available)) {
+				$short = $class === Args::class ? 'Args' : 'Io';
+
+				throw new ValueError("Command '{$full}' declares more than one {$short} parameter");
+			}
+
+			$bound[] = $available[$class];
+			unset($available[$class]);
+		}
+
+		return $bound;
 	}
 
 	/**

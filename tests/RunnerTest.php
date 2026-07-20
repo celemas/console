@@ -356,6 +356,138 @@ class RunnerTest extends TestCase
 		$this->assertSame(1, $code);
 	}
 
+	public function testCommandWithIoParameterOnly(): void
+	{
+		[$code, $out] = $this->runClosure(static function (Io $io): int {
+			$io->echo('io only');
+
+			return 0;
+		});
+
+		$this->assertSame(0, $code);
+		$this->assertSame('io only', $out->output());
+	}
+
+	public function testCommandWithArgsParameterOnly(): void
+	{
+		$seen = '';
+		[$code] = $this->runClosure(static function (Args $args) use (&$seen): int {
+			$seen = (string) $args->positional(0);
+
+			return 0;
+		}, 'now');
+
+		$this->assertSame(0, $code);
+		$this->assertSame('now', $seen);
+	}
+
+	public function testCommandWithoutParameters(): void
+	{
+		[$code] = $this->runClosure(static fn(): int => 3);
+
+		$this->assertSame(3, $code);
+	}
+
+	public function testCommandWithSwappedParameters(): void
+	{
+		[$code, $out] = $this->runClosure(static function (Io $io, Args $args): int {
+			$io->echo('swapped ' . (string) $args->positional(0));
+
+			return 0;
+		}, 'now');
+
+		$this->assertSame(0, $code);
+		$this->assertSame('swapped now', $out->output());
+	}
+
+	public function testRejectUntypedParameter(): void
+	{
+		[$code, $out] = $this->runClosure(static fn($args, Io $io): int => 0);
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString(
+			"Command 'probe' parameter \$args must be declared as Args or Io",
+			$out->errorOutput(),
+		);
+	}
+
+	public function testRejectForeignParameterType(): void
+	{
+		[$code, $out] = $this->runClosure(static fn(string $name): int => 0);
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString(
+			"Command 'probe' parameter \$name must be declared as Args or Io",
+			$out->errorOutput(),
+		);
+	}
+
+	public function testRejectIoSubclassParameter(): void
+	{
+		[$code, $out] = $this->runClosure(static fn(BufferedIo $io): int => 0);
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString(
+			"Command 'probe' parameter \$io must be declared as Args or Io",
+			$out->errorOutput(),
+		);
+	}
+
+	public function testRejectNullableParameter(): void
+	{
+		[$code, $out] = $this->runClosure(static fn(?Args $args): int => 0);
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString(
+			"Command 'probe' parameter \$args must be declared as Args or Io",
+			$out->errorOutput(),
+		);
+	}
+
+	public function testRejectUnionParameter(): void
+	{
+		[$code, $out] = $this->runClosure(static fn(Args|Io $io): int => 0);
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString(
+			"Command 'probe' parameter \$io must be declared as Args or Io",
+			$out->errorOutput(),
+		);
+	}
+
+	public function testRejectVariadicParameter(): void
+	{
+		[$code, $out] = $this->runClosure(static fn(Io ...$io): int => 0);
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString(
+			"Command 'probe' parameter \$io must be declared as Args or Io",
+			$out->errorOutput(),
+		);
+	}
+
+	public function testRejectDuplicateArgsParameter(): void
+	{
+		[$code, $out] = $this->runClosure(static fn(Args $a, Args $b): int => 0);
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString(
+			"Command 'probe' declares more than one Args parameter",
+			$out->errorOutput(),
+		);
+	}
+
+	public function testRejectDuplicateIoParameter(): void
+	{
+		[$code, $out] = $this->runClosure(static fn(Io $a, Io $b): int => 0);
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString(
+			"Command 'probe' declares more than one Io parameter",
+			$out->errorOutput(),
+		);
+	}
+
 	public function testRejectNonIntReturnType(): void
 	{
 		[$code, $out] = $this->runClosure(static fn(Args $args, Io $io): bool => false);
