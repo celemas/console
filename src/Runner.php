@@ -382,9 +382,17 @@ final class Runner
 			return;
 		}
 
+		$last = count($declared) - 1;
 		$required = 0;
 
 		foreach ($declared as $index => $arg) {
+			if ($arg->variadic && $index < $last) {
+				throw new ValueError(
+					"Command '{$entry->meta->full()}' declares an argument "
+					. "after the variadic '<{$arg->name}>'",
+				);
+			}
+
 			if ($arg->optional) {
 				continue;
 			}
@@ -407,7 +415,8 @@ final class Runner
 			throw new ValueError("Missing required argument '<{$declared[$count]->name}>'");
 		}
 
-		if ($count > count($declared)) {
+		// A variadic last argument accepts the remaining positionals.
+		if (!$declared[$last]->variadic && $count > count($declared)) {
 			throw new ValueError("Unexpected argument '{$positionals[count($declared)]}'");
 		}
 	}

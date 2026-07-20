@@ -14,6 +14,10 @@ use ReflectionClass;
  * Arguments render in declaration order in the usage line — `<name>`, or
  * `[<name>]` when optional — and as entries of an "Arguments:" section.
  *
+ * A `variadic` argument must be the last one and accepts the remaining
+ * positionals: at least one, or any number when also `optional`. It
+ * renders as `<name>...`.
+ *
  * @api
  */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::IS_REPEATABLE)]
@@ -23,6 +27,7 @@ final class Arg
 		public readonly string $name,
 		public readonly string $description,
 		public readonly bool $optional = false,
+		public readonly bool $variadic = false,
 	) {}
 
 	/**

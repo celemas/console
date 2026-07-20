@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Celema\Console\Tests;
 
+use Celema\Console\Arg;
 use Celema\Console\Args;
 use Celema\Console\BufferedIo;
 use Celema\Console\Command;
@@ -148,6 +149,79 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(1, $code);
 		$this->assertStringContainsString("Unexpected argument 'extra'", $errors);
+	}
+
+	public function testVariadicArgumentCollectsRemainingPositionals(): void
+	{
+		$command = new
+			#[Command('probe', 'Variadic probe')]
+			#[Arg('files', 'The files', variadic: true)]
+			class {
+				/** @var list<string> */
+				public array $files = [];
+
+				public function __invoke(Args $args): int
+				{
+					$this->files = $args->positionals();
+
+					return 0;
+				}
+			};
+		[$code] = $this->runProbe($command, 'a.txt', 'b.txt', 'c.txt');
+
+		$this->assertSame(0, $code);
+		$this->assertSame(['a.txt', 'b.txt', 'c.txt'], $command->files);
+	}
+
+	public function testRequiredVariadicArgumentNeedsOnePositional(): void
+	{
+		[$code, $out] = $this->runProbe(new
+			#[Command('probe', 'Variadic probe')]
+			#[Arg('files', 'The files', variadic: true)]
+			class {
+				public function __invoke(): int
+				{
+					return 0;
+				}
+			});
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString("Missing required argument '<files>'", $out->errorOutput());
+	}
+
+	public function testOptionalVariadicArgumentAcceptsNoPositionals(): void
+	{
+		[$code] = $this->runProbe(new
+			#[Command('probe', 'Variadic probe')]
+			#[Arg('files', 'The files', optional: true, variadic: true)]
+			class {
+				public function __invoke(): int
+				{
+					return 0;
+				}
+			});
+
+		$this->assertSame(0, $code);
+	}
+
+	public function testRejectArgumentAfterVariadic(): void
+	{
+		[$code, $out] = $this->runProbe(new
+			#[Command('probe', 'Variadic probe')]
+			#[Arg('files', 'The files', variadic: true)]
+			#[Arg('extra', 'Too late')]
+			class {
+				public function __invoke(): int
+				{
+					return 0;
+				}
+			}, 'a.txt');
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString(
+			"Command 'probe' declares an argument after the variadic '<files>'",
+			$out->errorOutput(),
+		);
 	}
 
 	public function testRejectRequiredArgumentAfterOptional(): void

@@ -34,7 +34,7 @@ final class Help
 
 		foreach ($arguments as $argument) {
 			// Escaped: the <name> notation must not parse as markup.
-			$name = $this->io->escape("<{$argument->name}>");
+			$name = $this->io->escape("<{$argument->name}>") . ($argument->variadic ? '...' : '');
 			$usage .= $argument->optional ? " [{$name}]" : " {$name}";
 		}
 
@@ -53,7 +53,7 @@ final class Help
 		$this->io->echo("\n<yellow>Arguments:</yellow>\n");
 
 		foreach ($arguments as $argument) {
-			$name = $this->io->escape("<{$argument->name}>");
+			$name = $this->io->escape("<{$argument->name}>") . ($argument->variadic ? '...' : '');
 			$this->io->echo("    <green>{$name}</green>\n");
 
 			if ($argument->description !== '') {
