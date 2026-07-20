@@ -286,3 +286,39 @@ $ php run commands
 List all available command names (useful for shell
 autocomplete)
 ```
+
+### Shell Completion
+
+The `commands` built-in lists exactly the invocable names — full `prefix:name` forms, unprefixed names, and bare aliases only when they are unambiguous — one per line, so it doubles as the completion source.
+
+Give the runner script a shebang and make it executable, so it is invoked as `./run` instead of `php run`:
+
+```php
+#!/usr/bin/env php
+<?php
+// ...
+```
+
+```bash
+chmod +x run
+```
+
+Then register the completion in your `.zshrc`:
+
+```zsh
+_run_commands() {
+    compadd -- ${(f)"$(./run commands 2>/dev/null)"}
+}
+compdef _run_commands run
+```
+
+Or for bash:
+
+```bash
+_run_commands() {
+    COMPREPLY=($(compgen -W "$(./run commands 2>/dev/null)" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+complete -F _run_commands ./run
+```
+
+Candidates come live from the current project on each completion; with lazy factories the call boots the autoloader only, so it stays fast.
