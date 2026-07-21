@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased](https://codeberg.org/celema/console/compare/0.5.0...HEAD)
+## [Unreleased](https://codeberg.org/celema/console/compare/0.5.1...HEAD)
+
+No notable changes since the last release.
+
+## [0.5.1](https://codeberg.org/celema/console/src/tag/0.5.1) (2026-07-21)
 
 ### Fixed
 
