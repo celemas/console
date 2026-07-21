@@ -183,6 +183,27 @@ final class Markup
 	}
 
 	/**
+	 * Pads the text with spaces to the visible width `$width`; wider
+	 * text is returned unchanged. An uneven center split leans left.
+	 */
+	public function pad(string $text, int $width, Align $align): string
+	{
+		$missing = $width - $this->width($text);
+
+		if ($missing <= 0) {
+			return $text;
+		}
+
+		return match ($align) {
+			Align::Left => $text . str_repeat(' ', $missing),
+			Align::Right => str_repeat(' ', $missing) . $text,
+			Align::Center => str_repeat(' ', intdiv($missing, 2))
+				. $text
+				. str_repeat(' ', $missing - intdiv($missing, 2)),
+		};
+	}
+
+	/**
 	 * The visible width of the text: tags collapse to nothing, an
 	 * escaped tag to the tag without its backslash.
 	 */

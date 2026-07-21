@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Celema\Console\Tests;
 
+use Celema\Console\Align;
 use Celema\Console\Markup;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ValueError;
@@ -183,6 +184,23 @@ class MarkupTest extends TestCase
 		$this->assertSame(7, $markup->width('\<green>'));
 		$this->assertSame(9, $markup->width('Übersicht'));
 		$this->assertSame(5, $markup->width('<foo>'));
+	}
+
+	public function testPadsToTheVisibleWidth(): void
+	{
+		$markup = new Markup();
+
+		$this->assertSame('abc  ', $markup->pad('abc', 5, Align::Left));
+		$this->assertSame('  abc', $markup->pad('abc', 5, Align::Right));
+		$this->assertSame(' abc ', $markup->pad('abc', 5, Align::Center));
+		$this->assertSame(' ab  ', $markup->pad('ab', 5, Align::Center));
+		$this->assertSame('<green>abc</green>  ', $markup->pad('<green>abc</green>', 5, Align::Left));
+		$this->assertSame('  Süd', $markup->pad('Süd', 5, Align::Right));
+	}
+
+	public function testPadKeepsWiderText(): void
+	{
+		$this->assertSame('abcdef', new Markup()->pad('abcdef', 3, Align::Left));
 	}
 
 	public function testEscapeStripsControlCharacters(): void

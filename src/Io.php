@@ -85,6 +85,16 @@ class Io
 	}
 
 	/**
+	 * Pads the text with spaces to the visible width `$width`; markup
+	 * tags and multibyte characters don't count, wider text is
+	 * returned unchanged.
+	 */
+	public function pad(string $text, int $width, Align $align = Align::Left): string
+	{
+		return $this->markup->pad($text, $width, $align);
+	}
+
+	/**
 	 * Writes a horizontal rule: the char repeated across the terminal.
 	 *
 	 * `$max` caps the width like in `indent()`. The char may be a

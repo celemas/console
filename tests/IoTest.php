@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Celema\Console\Tests;
 
+use Celema\Console\Align;
 use Celema\Console\BufferedIo;
 use Celema\Console\Io;
 use RuntimeException;
@@ -207,6 +208,14 @@ class IoTest extends TestCase
 
 		$this->assertSame($first, $second);
 		$this->assertSame('    Lorem ipsum dolor sit amet', $first[0]);
+	}
+
+	public function testPadDefaultsToLeftAlignment(): void
+	{
+		$io = new Io('php://output');
+
+		$this->assertSame('abc  ', $io->pad('abc', 5));
+		$this->assertSame('  abc', $io->pad('abc', 5, Align::Right));
 	}
 
 	public function testRuleSpansTheTerminalWidth(): void
