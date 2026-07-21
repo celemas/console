@@ -11,8 +11,9 @@ use ValueError;
  *
  * Style tags are `<strong>`, `<em>`, `<dim>`, and `<u>`; color tags are
  * the ANSI names — `<red>`, `<bright-red>`, `<gray>` — and the same set
- * with a `bg-` prefix for backgrounds. Tags compose by nesting, the
- * innermost tag wins on conflict.
+ * with a `bg-` prefix for backgrounds. Truecolor hex tags take a
+ * lowercase six-digit code: `<#ff7313>`, `<bg-#ff7313>`. Tags compose
+ * by nesting, the innermost tag wins on conflict.
  *
  * Only exact known tags are parsed; everything else — `<info@example.com>`,
  * generics, unknown names — passes through untouched. A backslash renders
@@ -76,7 +77,7 @@ final class Markup
 
 	public function __construct()
 	{
-		$names = implode('|', array_keys(self::TAGS));
+		$names = implode('|', array_keys(self::TAGS)) . '|(?:bg-)?\#[0-9a-f]{6}';
 		$this->split = "#(\\\\?</?(?:{$names})>)#";
 		$this->tag = "#^\\\\?</?(?:{$names})>$#";
 	}
@@ -129,7 +130,7 @@ final class Markup
 					$out .= self::RESET;
 
 					foreach ($stack as $open) {
-						$out .= "\033[" . self::TAGS[$open] . 'm';
+						$out .= "\033[" . $this->sgr($open) . 'm';
 					}
 				}
 
@@ -140,7 +141,7 @@ final class Markup
 			$stack[] = $name;
 
 			if ($colors) {
-				$out .= "\033[" . self::TAGS[$name] . 'm';
+				$out .= "\033[" . $this->sgr($name) . 'm';
 			}
 		}
 
@@ -149,6 +150,21 @@ final class Markup
 		}
 
 		return $out;
+	}
+
+	/** The SGR code for a tag name: a named lookup or a truecolor hex tag. */
+	private function sgr(string $name): string
+	{
+		if (array_key_exists($name, self::TAGS)) {
+			return self::TAGS[$name];
+		}
+
+		$bg = str_starts_with($name, 'bg-');
+		$hex = substr($name, offset: $bg ? 4 : 1);
+
+		return (
+			($bg ? '48' : '38') . ';2;' . implode(';', array_map(hexdec(...), str_split($hex, length: 2)))
+		);
 	}
 
 	/**

@@ -56,6 +56,9 @@ class MarkupTest extends TestCase
 			['bg-bright-magenta', '105'],
 			['bg-bright-cyan', '106'],
 			['bg-bright-white', '107'],
+			['#ff7313', '38;2;255;115;19'],
+			['#000000', '38;2;0;0;0'],
+			['bg-#ff7313', '48;2;255;115;19'],
 		];
 	}
 
@@ -93,6 +96,18 @@ class MarkupTest extends TestCase
 			"\033[3ma \033[32mb\033[0m\033[3m c\033[0m",
 			$this->render('<em>a <green>b</green> c</em>'),
 		);
+		$this->assertSame(
+			"\033[38;2;255;115;19ma \033[32mb\033[0m\033[38;2;255;115;19m c\033[0m",
+			$this->render('<#ff7313>a <green>b</green> c</#ff7313>'),
+		);
+	}
+
+	public function testInvalidHexTagsPassThrough(): void
+	{
+		$text = 'a <#FF7313>b</#FF7313>, <#f73>c</#f73>, <#ff73134>d, <bg#ff7313>e';
+
+		$this->assertSame($text, $this->render($text));
+		$this->assertSame($text, $this->render($text, colors: false));
 	}
 
 	public function testInnermostTagWinsOnConflict(): void
@@ -154,6 +169,7 @@ class MarkupTest extends TestCase
 		$markup = new Markup();
 
 		$this->assertSame('\<green>a\</green>', $markup->escape('<green>a</green>'));
+		$this->assertSame('\<#ff7313>a\</bg-#ff7313>', $markup->escape('<#ff7313>a</bg-#ff7313>'));
 		$this->assertSame('<foo> stays', $markup->escape('<foo> stays'));
 	}
 
@@ -163,6 +179,7 @@ class MarkupTest extends TestCase
 
 		$this->assertSame(3, $markup->width('abc'));
 		$this->assertSame(3, $markup->width('<green>abc</green>'));
+		$this->assertSame(3, $markup->width('<#ff7313>abc</#ff7313>'));
 		$this->assertSame(7, $markup->width('\<green>'));
 		$this->assertSame(9, $markup->width('Übersicht'));
 		$this->assertSame(5, $markup->width('<foo>'));

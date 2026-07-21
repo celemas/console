@@ -23,7 +23,7 @@ A command line interface helper.
 - Built-in `commands` command for shell autocomplete
 - `--key=value` options (repeatable) and boolean `--flag` / `-h` flags; `--` ends option parsing
 - Io helpers for output: `info()`, `success()`, `warn()`, `error()`, `echoln()` (warnings and errors go to STDERR)
-- Inline markup for styled output: `<strong>`, `<em>`, `<dim>`, `<u>` and the ANSI colors — `<green>`, `<bright-red>`, `<bg-blue>`, ...
+- Inline markup for styled output: `<strong>`, `<em>`, `<dim>`, `<u>`, the ANSI colors — `<green>`, `<bright-red>`, `<bg-blue>`, ... — and truecolor hex tags: `<#ff7313>`, `<bg-#ff7313>`
 - Interactive prompts: `ask()` (optionally with hidden input) and `confirm()`
 - `BufferedIo` for testing commands without output buffering or escape-code stripping
 - Text indentation and wrapping with `indent()`
