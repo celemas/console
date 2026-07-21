@@ -23,7 +23,7 @@ class Io
 	private ?int $width = null;
 
 	public function __construct(
-		protected readonly string $target = 'php://output',
+		protected readonly string $target = 'php://stdout',
 		protected readonly string $errorTarget = 'php://stderr',
 		protected readonly string $inputTarget = 'php://stdin',
 	) {

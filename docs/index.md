@@ -100,7 +100,7 @@ The runner validates the signature of the invoked command: `__invoke()` must dec
 - `escape(string $text)` - Escape markup tags so the text prints literally
 - `indent(string $text, int $indent, ?int $max = null)` Indent and wrap text on its visible width; `max` caps the total line width, indent included
 
-The constructor takes the output, error, and input targets (`php://output`, `php://stderr`, and `php://stdin` by default). A target that cannot be opened raises a `RuntimeException` on first use.
+The constructor takes the output, error, and input targets (`php://stdout`, `php://stderr`, and `php://stdin` by default). A target that cannot be opened raises a `RuntimeException` on first use. Tests that capture output via output buffering can pass `php://output` instead; note that color detection reports no terminal for it.
 
 ### Prompts
 

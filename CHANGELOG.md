@@ -2,7 +2,9 @@
 
 ## [Unreleased](https://codeberg.org/celema/console/compare/0.5.0...HEAD)
 
-No notable changes since the last release.
+### Fixed
+
+- `Io` and `Runner` write to `php://stdout` by default instead of `php://output`. The output-buffer stream never reports a terminal to `stream_isatty()`, so color markup was silently stripped from standard output even in interactive terminals, while stderr stayed colored. Tests capturing output via output buffering can still pass `php://output` explicitly.
 
 ## [0.5.0](https://codeberg.org/celema/console/src/tag/0.5.0) (2026-07-20)
 

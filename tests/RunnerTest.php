@@ -524,7 +524,10 @@ class RunnerTest extends TestCase
 	public function testUngroupedCommandsShareSingleGeneralHeader(): void
 	{
 		$_SERVER['argv'] = ['run'];
-		$runner = new Runner(new Commands([new Fixtures\Plain(), new Fixtures\BarStuff()]));
+		$runner = new Runner(
+			new Commands([new Fixtures\Plain(), new Fixtures\BarStuff()]),
+			output: 'php://output',
+		);
 
 		ob_start();
 		$runner->run();
@@ -941,7 +944,7 @@ class RunnerTest extends TestCase
 	public function testCommandReceivesParsedArgs(): void
 	{
 		$_SERVER['argv'] = ['run', 'greet', 'Ada', '--greeting=Hi'];
-		$runner = new Runner(new Commands([new Fixtures\Greet()]));
+		$runner = new Runner(new Commands([new Fixtures\Greet()]), output: 'php://output');
 
 		$this->expectOutputString('Hi, Ada');
 		$runner->run();
@@ -950,7 +953,7 @@ class RunnerTest extends TestCase
 	public function testCommandUsesArgDefaults(): void
 	{
 		$_SERVER['argv'] = ['run', 'greet'];
-		$runner = new Runner(new Commands([new Fixtures\Greet()]));
+		$runner = new Runner(new Commands([new Fixtures\Greet()]), output: 'php://output');
 
 		$this->expectOutputString('Hello, World');
 		$runner->run();
@@ -979,7 +982,7 @@ class RunnerTest extends TestCase
 	public function testRunClassStringCommand(): void
 	{
 		$_SERVER['argv'] = ['run', 'plain'];
-		$runner = new Runner(new Commands(Fixtures\Plain::class));
+		$runner = new Runner(new Commands(Fixtures\Plain::class), output: 'php://output');
 
 		$this->expectOutputString('Plain');
 		$runner->run();
@@ -999,7 +1002,7 @@ class RunnerTest extends TestCase
 					return 0;
 				}
 			}]);
-		$runner = new Runner($commands);
+		$runner = new Runner($commands, output: 'php://output');
 
 		ob_start();
 		$code = $runner->run();
@@ -1020,7 +1023,7 @@ class RunnerTest extends TestCase
 					return 0;
 				}
 			}]);
-		$runner = new Runner($commands);
+		$runner = new Runner($commands, output: 'php://output');
 
 		$this->expectOutputRegex('/Cache.*cache:.*clear.*Clears the cache/s');
 		$runner->run();
@@ -1038,7 +1041,7 @@ class RunnerTest extends TestCase
 		$commands = new Commands([Fixtures\Greet::class => $factory]);
 
 		ob_start();
-		new Runner($commands)->run();
+		new Runner($commands, output: 'php://output')->run();
 		ob_get_clean();
 
 		$this->assertFalse($called);
@@ -1046,7 +1049,7 @@ class RunnerTest extends TestCase
 		$_SERVER['argv'] = ['run', 'greet'];
 
 		ob_start();
-		new Runner($commands)->run();
+		new Runner($commands, output: 'php://output')->run();
 		ob_get_clean();
 
 		$this->assertTrue($called);
@@ -1072,7 +1075,7 @@ class RunnerTest extends TestCase
 	public function testHelpOptionRendersEqualsNotation(): void
 	{
 		$_SERVER['argv'] = ['run', 'help', 'variants'];
-		$runner = new Runner(new Commands([new Fixtures\HelpVariants()]));
+		$runner = new Runner(new Commands([new Fixtures\HelpVariants()]), output: 'php://output');
 
 		ob_start();
 		$runner->run();

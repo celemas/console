@@ -39,7 +39,7 @@ final class Runner
 	 */
 	public function __construct(
 		Commands $commands,
-		string|Io $output = 'php://output',
+		string|Io $output = 'php://stdout',
 		string $errorOutput = 'php://stderr',
 		private bool $debug = false,
 	) {
