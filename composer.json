@@ -29,11 +29,11 @@
 		"ext-mbstring": "*"
 	},
 	"require-dev": {
-		"carthage-software/mago": "~1.47.0",
+		"carthage-software/mago": "1.50.0",
 		"celema/dev": "^6.0",
 		"ernst/coverlyzer": "^0.3",
 		"phpunit/phpunit": "^13.0",
-		"vimeo/psalm": "~6.16.0"
+		"vimeo/psalm": "6.19.0"
 	},
 	"scripts": {
 		"test": "./vendor/bin/phpunit --testdox --no-coverage --colors=always",
