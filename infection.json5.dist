@@ -9,10 +9,111 @@
 		html: '.infection/infection.html',
 		summary: '.infection/summary.log',
 	},
+	// Ratchet: raise these with the reached score, never lower them.
+	minMsi: 100,
+	minCoveredMsi: 100,
 	// CI mutates only the lines changed by a push; pushes without source
 	// changes produce no mutants and must not fail the threshold.
 	ignoreMsiWithNoMutations: true,
+	// Ignores below cover equivalent mutants: they change no observable behavior.
+	// Keep them scoped to a method so that new code elsewhere is still mutated.
+	// Where a method also has killed mutants of the same kind, match the source
+	// line by regex instead (`ignoreSourceCodeByRegex` applies to the removed
+	// diff lines across the whole codebase). Avoid `Class::method::line` pins:
+	// unrelated edits that move the line break the run.
 	mutators: {
 		'@default': true,
+
+		// Terminal-only branches: the tests have no TTY, so these conditions
+		// can only be exercised against a real terminal. Scoped per mutator
+		// because the negated hidden-input condition is caught by tests.
+		NotIdentical: {
+			ignoreSourceCodeByRegex: ['if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
+		},
+		LogicalAnd: {
+			ignoreSourceCodeByRegex: ['if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
+		},
+		LogicalAndAllSubExprNegation: {
+			ignoreSourceCodeByRegex: ['if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
+		},
+		LogicalAndSingleSubExprNegation: {
+			ignoreSourceCodeByRegex: ['if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
+		},
+		LogicalAndNegation: {
+			ignoreSourceCodeByRegex: ['if \\(\\$columns < 1 && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
+		},
+		LessThanNegotiation: {
+			ignoreSourceCodeByRegex: ['if \\(\\$columns < 1 && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
+		},
+		// Flushing only matters for real output streams.
+		FunctionCallRemoval: {
+			ignoreSourceCodeByRegex: ['fflush\\(\\$stream\\);'],
+		},
+
+		// Memoization and fast paths: dropping the cache or early return
+		// recomputes the same value.
+		AssignCoalesce: {
+			ignore: ['Celema\\Console\\Io::stdin'],
+		},
+		ReturnRemoval: {
+			ignore: ['Celema\\Console\\Markup::render'],
+		},
+
+		// Casts of values that cannot be anything else: preg_* results
+		// with valid patterns, numeric-string answers compared as numbers,
+		// and the last wrapped line, which explode() always provides.
+		CastString: {
+			ignore: [
+				'Celema\\Console\\Io::wrap',
+				'Celema\\Console\\Markup::escape',
+				'Celema\\Console\\Markup::width',
+			],
+		},
+		CastArray: {
+			ignore: ['Celema\\Console\\Markup::render'],
+		},
+		CastInt: {
+			ignore: ['Celema\\Console\\Io::choice'],
+		},
+
+		// Boundaries where the equal case yields the same result: a cap equal
+		// to the terminal width, and zero missing padding.
+		LessThan: {
+			ignoreSourceCodeByRegex: [
+				'if \\(\\$max !== null && \\$max < \\$(width|terminal)\\) \\{',
+				// Terminal-only branch, see NotIdentical.
+				'if \\(\\$columns < 1 && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{',
+			],
+		},
+		LessThanOrEqualTo: {
+			ignore: ['Celema\\Console\\Markup::pad'],
+		},
+
+		// Initial values that are never read below zero: the first word
+		// always resets the line width, and cell widths are never negative.
+		DecrementInteger: {
+			ignoreSourceCodeByRegex: [
+				'\\$currentWidth = 0;',
+				'\\$widths\\[\\$i\\] = max\\(\\$widths\\[\\$i\\] \\?\\? 0, .+',
+			],
+		},
+		// The split pattern's only capture group equals the full match, so
+		// `$match[1]` is the same as `$match[0]`. Also skips two killed
+		// increments on the same line (the char index and the substr offset).
+		IncrementInteger: {
+			ignore: ['Celema\\Console\\Markup::width'],
+		},
+		// Only the key of a bare occurrence is checked.
+		TrueValue: {
+			ignoreSourceCodeByRegex: ['\\$this->bare\\[\\$token\\] = true;'],
+		},
+		// Both operands only contribute their combined length.
+		Concat: {
+			ignoreSourceCodeByRegex: ['\\$pad = str_repeat\\(\' \', \\$this->longestName \\+ 2 - strlen\\(\\$prefix \\. \\$name\\)\\);'],
+		},
+		// fopen() reports failures through the handler and does not throw.
+		UnwrapFinally: {
+			ignore: ['Celema\\Console\\Io::open'],
+		},
 	},
 }
