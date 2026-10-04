@@ -52,12 +52,11 @@ final class BufferedIo extends Io
 
 	private function contents(mixed $stream): string
 	{
-		$position = (int) ftell($stream);
+		// Writes always append, so reading to the end leaves the position
+		// where the next write expects it.
 		rewind($stream);
-		$contents = (string) stream_get_contents($stream);
-		fseek($stream, $position);
 
-		return $contents;
+		return (string) stream_get_contents($stream);
 	}
 
 	#[Override]

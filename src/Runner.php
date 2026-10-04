@@ -72,8 +72,7 @@ final class Runner
 			$groups[$meta->prefix]['commands'][$meta->name] = $entry;
 			$this->list[$meta->name][] = $entry;
 
-			$len = strlen($meta->full());
-			$this->longestName = $len > $this->longestName ? $len : $this->longestName;
+			$this->longestName = max($this->longestName, strlen($meta->full()));
 		}
 
 		$this->longestName = max($this->longestName, strlen('commands'));
@@ -134,9 +133,9 @@ final class Runner
 			foreach ($group['commands'] as $entry) {
 				$meta = $entry->meta;
 
+				// Full names are unique; only bare names can be shared.
 				if ($meta->prefix !== '') {
-					$key = $meta->full();
-					$list[$key] = ($list[$key] ?? 0) + 1;
+					$list[$meta->full()] = 1;
 				}
 
 				$list[$meta->name] = ($list[$meta->name] ?? 0) + 1;
@@ -478,8 +477,9 @@ final class Runner
 	{
 		$prefix = $prefix ? $prefix . ':' : '';
 
-		// Pad on the visible length; the markup tags don't print.
-		$pad = str_repeat(' ', max(2, $this->longestName + 2 - strlen($prefix . $name)));
+		// Pad on the visible length; the markup tags don't print. The
+		// longest name includes every listed one, so the gap is at least 2.
+		$pad = str_repeat(' ', $this->longestName + 2 - strlen($prefix . $name));
 		$this->io->echoln("  {$prefix}<green>{$name}</green>{$pad}{$desc}");
 	}
 
@@ -506,11 +506,7 @@ final class Runner
 			/** @var array{0: string, 1: string} $parts */
 			$parts = explode(':', $cmd, limit: 2);
 
-			if (array_key_exists($parts[1], $this->toc[$parts[0]]['commands'] ?? [])) {
-				return $this->toc[$parts[0]]['commands'][$parts[1]];
-			}
-
-			throw new ValueError('Command not found');
+			return $this->toc[$parts[0]]['commands'][$parts[1]] ?? throw new ValueError('Command not found');
 		}
 
 		if (array_key_exists($cmd, $this->toc['']['commands'] ?? [])) {
