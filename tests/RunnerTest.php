@@ -48,6 +48,20 @@ class RunnerTest extends TestCase
 		);
 	}
 
+	public function testSuggestionAcceptsADistanceOfThree(): void
+	{
+		[, $errors] = $this->runVariants('--verb');
+
+		$this->assertStringContainsString("Unknown option '--verb'. Did you mean '--verbose'?", $errors);
+	}
+
+	public function testSuggestionPrefersTheFirstDeclaredOptionOnTies(): void
+	{
+		[, $errors] = $this->runVariants('-x');
+
+		$this->assertStringContainsString("Unknown option '-x'. Did you mean '-v'?", $errors);
+	}
+
 	public function testRejectUnknownOptionWithoutSuggestion(): void
 	{
 		[$code, $errors] = $this->runVariants('--completely-different');
@@ -65,6 +79,18 @@ class RunnerTest extends TestCase
 		$this->assertStringContainsString(
 			"Unknown option '--help'. Use 'php run help help:variants' to show the command's help",
 			$errors,
+		);
+	}
+
+	public function testHelpFlagHintUsesTheScriptName(): void
+	{
+		$_SERVER['argv'] = ['bin/console', 'help:variants', '--help'];
+		$out = new BufferedIo();
+		new Runner(new Commands([new HelpVariants()]), $out)->run();
+
+		$this->assertStringContainsString(
+			"Unknown option '--help'. Use 'php bin/console help help:variants' to show the command's help",
+			$out->errorOutput(),
 		);
 	}
 
@@ -147,6 +173,31 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(0, $code);
 		$this->assertSame('[true,false,[],[]]', $out->output());
+	}
+
+	public function testSeparatorPassesLaterTokensUnchanged(): void
+	{
+		[$code, $out] = $this->runProbe(
+			new
+				#[Command('probe')]
+				#[Opt('--verbose', 'Verbose output', short: '-v')]
+				#[Arg('rest', 'Remaining tokens', optional: true, variadic: true)]
+				class {
+					public function __invoke(Args $args, Io $io): int
+					{
+						$io->echo((string) json_encode([$args->has('--verbose'), $args->positionals()]));
+
+						return 0;
+					}
+				},
+			'-v',
+			'--',
+			'-v',
+			'x',
+		);
+
+		$this->assertSame(0, $code);
+		$this->assertSame('[true,["-v","x"]]', $out->output());
 	}
 
 	public function testRejectMissingRequiredArgument(): void
@@ -359,6 +410,72 @@ class RunnerTest extends TestCase
 		new Runner(new Commands([new Fixtures\Plain(), new Fixtures\Plain()]));
 	}
 
+	public function testHelpOverviewLayout(): void
+	{
+		$_SERVER['argv'] = ['bin/console'];
+		$out = new BufferedIo();
+		$commands = $this->getCommands();
+		$commands->add(new Fixtures\Plain());
+		$code = new Runner($commands, $out)->run();
+
+		$this->assertSame(0, $code);
+		$this->assertSame(
+			<<<'TEXT'
+				Usage:
+				  php bin/console [prefix:]command [arguments]
+
+				Prefixes are optional if the command is unambiguous.
+
+				Available commands:
+
+				General
+				  commands    Lists all available commands
+				  help        Displays this overview
+				  plain       An ungrouped command
+
+				Bar
+				  bar:stuff   Prints Bar's stuff to stdout
+
+				Errors
+				  err:err     Throws an error
+
+				Foo
+				  foo:drivel  Prints Foo's drivel to stdout
+				  foo:stuff   Prints Foo's stuff to stdout
+
+				TEXT,
+			$out->output(),
+		);
+	}
+
+	public function testShowHelpAndShowCommandsArePublic(): void
+	{
+		$_SERVER['argv'] = ['run'];
+		$out = new BufferedIo();
+		$runner = new Runner($this->getCommands(), $out);
+
+		$this->assertSame(0, $runner->showCommands());
+		$this->assertSame("bar:stuff\ndrivel\nerr\nerr:err\nfoo:drivel\nfoo:stuff\n", $out->output());
+		$this->assertSame(0, $runner->showHelp());
+		$this->assertStringContainsString('Available commands:', $out->output());
+	}
+
+	public function testCommandNamesAreCaseInsensitive(): void
+	{
+		$_SERVER['argv'] = ['run', 'DRIVEL'];
+		$out = new BufferedIo();
+		new Runner($this->getCommands(), $out)->run();
+
+		$this->assertSame("Foo's drivel", $out->output());
+
+		$_SERVER['argv'] = ['run', 'help', 'FOO:STUFF'];
+		$out = new BufferedIo();
+		$code = new Runner($this->getCommands(), $out)->run();
+
+		$this->assertSame(0, $code);
+		$this->assertStringContainsString('php run foo:stuff', $out->output());
+	}
+
 	public function testShowHelpWhenCalledWithoutCommand(): void
 	{
 		$_SERVER['argv'] = ['run'];
@@ -430,7 +547,7 @@ class RunnerTest extends TestCase
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex('/Ambiguous.*bar.*:stuff.*foo.*:stuff/s');
-		$runner->run();
+		$this->assertSame(1, $runner->run());
 	}
 
 	public function testUnprefixedCommandWinsOverPrefixedNamesake(): void
@@ -548,6 +665,17 @@ class RunnerTest extends TestCase
 		$runner->run();
 	}
 
+	public function testFailingCommandReportsTheErrorWithoutTraceback(): void
+	{
+		$_SERVER['argv'] = ['run', 'err'];
+		$out = new BufferedIo();
+		$code = new Runner($this->getCommands(), $out)->run();
+
+		$this->assertSame(1, $code);
+		$this->assertSame('', $out->output());
+		$this->assertSame("Error while running command 'err':\n\nRed herring\n", $out->errorOutput());
+	}
+
 	public function testRunFailingCommandWithCustomPrefix(): void
 	{
 		$_SERVER['argv'] = ['run', 'err:err'];
@@ -586,7 +714,7 @@ class RunnerTest extends TestCase
 			debug: true,
 		);
 
-		$this->expectOutputRegex("/Error while.*'err'.*Red herring.*Traceback:/s");
+		$this->expectOutputRegex("/Error while.*'err'.*Red herring.*Traceback:\n#0 /s");
 		$runner->run();
 	}
 

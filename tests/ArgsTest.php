@@ -65,6 +65,14 @@ class ArgsTest extends TestCase
 		$this->assertFalse($args->bare('--missing'));
 	}
 
+	public function testBareOccurrenceKeepsEarlierValues(): void
+	{
+		$args = new Args(['--tag=a', '--tag']);
+
+		$this->assertSame(['a'], $args->opts('--tag'));
+		$this->assertTrue($args->bare('--tag'));
+	}
+
 	public function testSeparatorEndsOptionParsing(): void
 	{
 		$args = new Args(['up', '--tag=a', '--', '--tag=b', '-v', '--']);

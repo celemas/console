@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Celema\Console\Tests;
 
 use Celema\Console\Arg;
+use Celema\Console\BufferedIo;
 use Celema\Console\Command;
 use Celema\Console\Help;
 use Celema\Console\Io;
+use Celema\Console\Opt;
 use Celema\Console\Tests\Fixtures\HelpVariants;
 use Celema\Console\Tests\Fixtures\Plain;
 
@@ -69,5 +71,36 @@ class HelpTest extends TestCase
 		$this->assertStringContainsString('An ungrouped command', $out);
 		$this->assertStringContainsString('php run plain', $out);
 		$this->assertStringNotContainsString('Options:', $out);
+		$this->assertStringNotContainsString('Arguments:', $out);
+	}
+
+	public function testShowWrapsDescriptionsAtEightyColumns(): void
+	{
+		putenv('COLUMNS=100');
+		$_SERVER['argv'] = ['run'];
+		// With an indent of 8 the text width is 72: the first line fits
+		// exactly, the second wraps its last word.
+		$line72 = str_repeat('abcde ', 11) . 'abcdef';
+		$line71 = str_repeat('abcde ', 11) . 'abcde';
+		$description = "{$line72}\n{$line71} x";
+		$io = new BufferedIo();
+
+		try {
+			new Help($io)->show(
+				new Command('wrap'),
+				[new Opt('--long', $description)],
+				[new Arg('target', $description)],
+			);
+		} finally {
+			putenv('COLUMNS');
+		}
+
+		$block = "        {$line72}\n        {$line71}\n        x\n";
+		$this->assertSame(
+			"Usage:\n  php run wrap <target> [options]\n"
+				. "\nArguments:\n    <target>\n{$block}"
+				. "\nOptions:\n    --long\n{$block}",
+			$io->output(),
+		);
 	}
 }

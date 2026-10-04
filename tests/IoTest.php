@@ -65,9 +65,11 @@ class IoTest extends TestCase
 		$io->echo('<red>test</red>');
 		putenv('FORCE_COLOR=false');
 		$io->echo('<red>test</red>');
+		putenv('FORCE_COLOR=FALSE');
+		$io->echo('<red>test</red>');
 		$out = (string) ob_get_clean();
 
-		$this->assertSame('testtest', $out);
+		$this->assertSame('testtesttest', $out);
 	}
 
 	public function testEmptyNoColorIsIgnored(): void
@@ -204,6 +206,7 @@ class IoTest extends TestCase
 
 		$first = explode("\n", $io->indent($text, 4));
 		// The second call is served from the cached width.
+		putenv('COLUMNS=80');
 		$second = explode("\n", $io->indent($text, 4));
 
 		$this->assertSame($first, $second);
@@ -225,6 +228,15 @@ class IoTest extends TestCase
 		$out->rule();
 
 		$this->assertSame(str_repeat('─', 20) . PHP_EOL, $out->output());
+	}
+
+	public function testRuleHonorsASingleColumn(): void
+	{
+		putenv('COLUMNS=1');
+		$out = new BufferedIo();
+		$out->rule();
+
+		$this->assertSame('─' . PHP_EOL, $out->output());
 	}
 
 	public function testRuleMaxCapsTheWidth(): void
@@ -376,6 +388,18 @@ class IoTest extends TestCase
 		new Io('/nonexistent/dir/out')->echo('test');
 	}
 
+	public function testUnopenableTargetDoesNotEmitWarning(): void
+	{
+		error_clear_last();
+
+		try {
+			new Io('/nonexistent/dir/out')->echo('test');
+			$this->fail('RuntimeException was not thrown');
+		} catch (RuntimeException) {
+			$this->assertNull(error_get_last());
+		}
+	}
+
 	public function testAskReadsOneLinePerPrompt(): void
 	{
 		$out = new BufferedIo("Charly\ny\n");
@@ -398,6 +422,16 @@ class IoTest extends TestCase
 		$this->assertSame('prod', new BufferedIo("\n")->choice('Env?', ['dev', 'prod'], default: 2));
 		// End of input also yields the default.
 		$this->assertSame('dev', new BufferedIo()->choice('Env?', ['dev', 'prod']));
+	}
+
+	public function testChoiceAcceptsTheFirstOptionByNumber(): void
+	{
+		$this->assertSame('dev', new BufferedIo("1\n")->choice('Env?', ['dev', 'prod'], default: 2));
+	}
+
+	public function testChoiceReturnsTheDefaultRightAfterAnEmptyAnswer(): void
+	{
+		$this->assertSame('dev', new BufferedIo("\n2\n")->choice('Env?', ['dev', 'prod']));
 	}
 
 	public function testChoiceAsksAgainOnInvalidAnswers(): void

@@ -64,6 +64,33 @@ class TableTest extends TestCase
 		$this->assertSame("abcd  ef\n════════\n─ ─ ─ ─ \n", $table->render());
 	}
 
+	public function testLeadingRuleSpansTheColumnsAndEmptyColumnsTakeNoWidth(): void
+	{
+		$table = new Table();
+		$table->rule('-');
+		$table->row(['a', '', 'ccc']);
+		$table->row(['bb']);
+
+		$this->assertSame("---------\na     ccc\nbb\n", $table->render());
+	}
+
+	public function testSingleColumnRuleHasNoSeparatorWidth(): void
+	{
+		$table = new Table();
+		$table->row(['abc']);
+		$table->rule('=');
+
+		$this->assertSame("abc\n===\n", $table->render());
+	}
+
+	public function testRuleWithoutRowsRendersAnEmptyLine(): void
+	{
+		$table = new Table();
+		$table->rule('=');
+
+		$this->assertSame("\n", $table->render());
+	}
+
 	public function testEmptyTableRendersNothing(): void
 	{
 		$this->assertSame('', new Table()->render());

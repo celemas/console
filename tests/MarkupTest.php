@@ -194,6 +194,7 @@ class MarkupTest extends TestCase
 		$this->assertSame('  abc', $markup->pad('abc', 5, Align::Right));
 		$this->assertSame(' abc ', $markup->pad('abc', 5, Align::Center));
 		$this->assertSame(' ab  ', $markup->pad('ab', 5, Align::Center));
+		$this->assertSame('   ab   ', $markup->pad('ab', 8, Align::Center));
 		$this->assertSame('<green>abc</green>  ', $markup->pad('<green>abc</green>', 5, Align::Left));
 		$this->assertSame('  Süd', $markup->pad('Süd', 5, Align::Right));
 	}

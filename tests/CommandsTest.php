@@ -75,6 +75,19 @@ class CommandsTest extends TestCase
 		$this->assertSame($entry->command(), $entry->command());
 	}
 
+	public function testInitWithSeveralFactories(): void
+	{
+		$commands = new Commands([
+			Greet::class => static fn(): Greet => new Greet(),
+			Plain::class => static fn(): Plain => new Plain(),
+		]);
+
+		$this->assertSame(
+			['greet', 'plain'],
+			array_map(static fn($entry): string => $entry->meta->name, $commands->entries()),
+		);
+	}
+
 	public function testAddFactory(): void
 	{
 		$called = false;
