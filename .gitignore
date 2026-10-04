@@ -1,4 +1,5 @@
 /.coverage
+/.infection
 /tmp
 /vendor
 *.log
