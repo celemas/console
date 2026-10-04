@@ -210,7 +210,11 @@ final class Markup
 		if (str_contains($text, '<')) {
 			$text = (string) preg_replace_callback(
 				$this->split,
-				static fn(array $match): string => $match[0][0] === '\\' ? substr($match[0], offset: 1) : '',
+				static function (array $match): string {
+					[$tag] = $match;
+
+					return str_starts_with($tag, '\\') ? substr($tag, offset: 1) : '';
+				},
 				$text,
 			);
 		}

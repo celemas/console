@@ -97,12 +97,6 @@
 				'\\$widths\\[\\$i\\] = max\\(\\$widths\\[\\$i\\] \\?\\? 0, .+',
 			],
 		},
-		// The split pattern's only capture group equals the full match, so
-		// `$match[1]` is the same as `$match[0]`. Also skips two killed
-		// increments on the same line (the char index and the substr offset).
-		IncrementInteger: {
-			ignore: ['Celema\\Console\\Markup::width'],
-		},
 		// Only the key of a bare occurrence is checked.
 		TrueValue: {
 			ignoreSourceCodeByRegex: ['\\$this->bare\\[\\$token\\] = true;'],
