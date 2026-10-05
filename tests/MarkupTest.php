@@ -220,4 +220,17 @@ class MarkupTest extends TestCase
 
 		$this->assertSame($text, $markup->render($markup->escape($text), colors: true));
 	}
+
+	public function testEscapedTrailingBackslashLeavesAFollowingTagIntact(): void
+	{
+		$markup = new Markup();
+		$path = $markup->escape('C:\\');
+
+		$this->assertSame("\033[32mC:\\\033[0m", $markup->render("<green>{$path}</green>", colors: true));
+		$this->assertSame('C:\\', $markup->render("<green>{$path}</green>", colors: false));
+		$this->assertSame('C:\\x', $markup->render("{$path}<dim>x</dim>", colors: false));
+		$this->assertSame('C:\\', $markup->render($path, colors: true));
+		$this->assertSame(3, $markup->width("<green>{$path}</green>"));
+		$this->assertSame('C:\\ ', $markup->render($markup->pad($path, 4, Align::Left), colors: false));
+	}
 }

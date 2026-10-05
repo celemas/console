@@ -27,6 +27,15 @@ final class Markup
 {
 	private const string RESET = "\033[0m";
 
+	/**
+	 * Follows a trailing backslash of escaped text, so that a tag placed
+	 * right after it stays a tag: without it, `C:\` + `</red>` would read
+	 * as an escaped `</red>`. escape() strips control characters from its
+	 * input, so untrusted text cannot forge it; render() and width() drop
+	 * it again.
+	 */
+	private const string BOUNDARY = "\x1F";
+
 	/** SGR codes by tag name. */
 	private const array TAGS = [
 		'strong' => '1',
@@ -88,7 +97,7 @@ final class Markup
 	public function render(string $text, bool $colors): string
 	{
 		if (!str_contains($text, '<')) {
-			return $text;
+			return $this->unbound($text);
 		}
 
 		/** @var list<string> $parts */
@@ -149,7 +158,7 @@ final class Markup
 			throw new ValueError("Unclosed markup tag '<{$stack[array_key_last($stack)]}>'");
 		}
 
-		return $out;
+		return $this->unbound($out);
 	}
 
 	/** The SGR code for a tag name: a named lookup or a truecolor hex tag. */
@@ -176,8 +185,15 @@ final class Markup
 	public function escape(string $text): string
 	{
 		$text = (string) preg_replace('/[\x00-\x08\x0B-\x1F\x7F]/', replacement: '', subject: $text);
+		$text = (string) preg_replace($this->split, replacement: '\\\\$0', subject: $text);
 
-		return (string) preg_replace($this->split, replacement: '\\\\$0', subject: $text);
+		return str_ends_with($text, '\\') ? $text . self::BOUNDARY : $text;
+	}
+
+	/** Drops the boundaries that escape() appends after a backslash. */
+	private function unbound(string $text): string
+	{
+		return str_replace('\\' . self::BOUNDARY, '\\', $text);
 	}
 
 	/**
@@ -219,6 +235,6 @@ final class Markup
 			);
 		}
 
-		return mb_strwidth($text);
+		return mb_strwidth($this->unbound($text));
 	}
 }

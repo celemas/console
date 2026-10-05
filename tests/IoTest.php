@@ -292,6 +292,29 @@ class IoTest extends TestCase
 		$this->assertStringContainsString("\033[31mfailed\033[0m\n", $result);
 	}
 
+	public function testMessageHelpersKeepATrailingBackslash(): void
+	{
+		putenv('FORCE_COLOR=1');
+		$io = new Io('php://output', 'php://output');
+
+		ob_start();
+		$io->info('Path C:\\');
+		$io->success('Path C:\\');
+		$io->warn('Path C:\\');
+		$io->error('Path C:\\');
+		$result = (string) ob_get_clean();
+
+		$this->assertSame(
+			"Path C:\\\n\033[32mPath C:\\\033[0m\n\033[33mPath C:\\\033[0m\n\033[31mPath C:\\\033[0m\n",
+			$result,
+		);
+
+		$plain = new BufferedIo();
+		$plain->error('Path C:\\');
+
+		$this->assertSame('Path C:\\' . PHP_EOL, $plain->errorOutput());
+	}
+
 	public function testMessageHelperStreams(): void
 	{
 		putenv('NO_COLOR=1');

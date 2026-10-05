@@ -58,6 +58,10 @@ class Io
 	/**
 	 * Escapes markup tags and strips control characters (keeping
 	 * newlines and tabs) so the text prints literally.
+	 *
+	 * The result is meant for the echo methods: text ending in a
+	 * backslash gets an invisible marker that keeps a following tag
+	 * from reading as escaped.
 	 */
 	public function escape(string $text): string
 	{

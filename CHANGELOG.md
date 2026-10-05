@@ -11,6 +11,7 @@
 - Hidden prompts (`ask(hidden: true)`) switch the echo off on the input stream itself instead of on the process STDIN, so an input target like `/dev/tty` is hidden even when STDIN is redirected. If the echo cannot be switched off on a terminal — say, `stty` is missing — `ask()` now throws a `RuntimeException` instead of reading the answer visibly.
 - `Io::choice()` no longer calls `ctype_digit()`: the package does not require the ctype extension, so on PHP built without it every non-empty answer threw an `Error`. Accepted answers are unchanged: plain digits only.
 - The help overview no longer fails with a `TypeError` when a command name or prefix is numeric, like `2026:import` or `task:2026`; such commands always ran, only the overview broke. A `0` prefix is now shown instead of dropped.
+- Text passed through `Io::escape()` that ends in a backslash, like `C:\`, no longer escapes a tag placed right after it. `success()`, `warn()`, and `error()` threw a `ValueError` for such messages, as did markup composed by hand, e.g. `'<red>' . $io->escape($path) . '</red>'`. Escaped text ending in a backslash now carries an invisible marker that rendering and width measurement drop, so print it through the `Io` methods rather than elsewhere.
 
 ## [0.5.3](https://codefloe.com/celema/console/src/tag/0.5.3) (2026-07-21)
 
