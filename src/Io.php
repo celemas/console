@@ -124,8 +124,9 @@ class Io
 	 * A trimmed empty answer (or end of input) yields the default. With
 	 * `hidden` the terminal echo is switched off while typing, for example
 	 * for passwords, and the answer keeps its whitespace; only the trailing
-	 * newline is stripped. On Windows, or without a terminal, the input is
-	 * simply read as is, visibly.
+	 * newline is stripped. If the echo cannot be switched off on a terminal,
+	 * a RuntimeException is thrown before reading. On Windows, or without
+	 * a terminal, the input is simply read as is, visibly.
 	 */
 	public function ask(string $question, string $default = '', bool $hidden = false): string
 	{
@@ -196,22 +197,20 @@ class Io
 	{
 		$stream = $this->stdin();
 
-		// No stty on Windows; shell_exec would leak its error output.
+		// No stty on Windows: hidden input reads visibly there.
 		if ($hidden && DIRECTORY_SEPARATOR !== '\\' && stream_isatty($stream)) {
 			// @codeCoverageIgnoreStart
-			/** @psalm-suppress ForbiddenCode */
-			$previous = trim((string) shell_exec('stty -g'));
-
-			/** @psalm-suppress ForbiddenCode */
-			shell_exec('stty -echo');
+			// Needs a real terminal; HiddenInputTest drives this in a child
+			// process, outside the coverage run.
+			$previous = $this->stty($stream, '-g');
+			$this->stty($stream, '-echo');
 
 			try {
 				return (string) fgets($stream);
 			} finally {
 				// Restore the saved terminal state rather than assuming
 				// echo was on, even when reading throws.
-				/** @psalm-suppress ForbiddenCode */
-				shell_exec($previous === '' ? 'stty echo' : 'stty ' . escapeshellarg($previous));
+				$this->stty($stream, $previous === '' ? 'echo' : $previous);
 				$this->echo(PHP_EOL);
 			}
 
@@ -219,6 +218,39 @@ class Io
 		}
 
 		return (string) fgets($stream);
+	}
+
+	/**
+	 * Runs stty on the input terminal and returns its output.
+	 *
+	 * The stream becomes stty's STDIN: the process STDIN may be another
+	 * file, e.g. when only the prompts read from `/dev/tty`. Failures
+	 * throw, so a hidden prompt never reads while echo is still on.
+	 *
+	 * @codeCoverageIgnore
+	 */
+	private function stty(mixed $stream, string $arg): string
+	{
+		set_error_handler(static fn(): bool => true);
+
+		try {
+			$process = proc_open(['stty', $arg], [0 => $stream, 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+		} finally {
+			restore_error_handler();
+		}
+
+		if ($process === false) {
+			throw new RuntimeException('Could not run stty to hide the input');
+		}
+
+		$output = (string) stream_get_contents($pipes[1]);
+		$error = trim((string) stream_get_contents($pipes[2]));
+
+		if (proc_close($process) !== 0) {
+			throw new RuntimeException('Could not switch the terminal echo for hidden input: ' . $error);
+		}
+
+		return trim($output);
 	}
 
 	private function write(mixed $stream, string $text): void

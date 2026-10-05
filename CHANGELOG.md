@@ -6,6 +6,10 @@
 
 - Internal refactoring, stronger tests, and development-tooling changes.
 
+### Fixed
+
+- Hidden prompts (`ask(hidden: true)`) switch the echo off on the input stream itself instead of on the process STDIN, so an input target like `/dev/tty` is hidden even when STDIN is redirected. If the echo cannot be switched off on a terminal — say, `stty` is missing — `ask()` now throws a `RuntimeException` instead of reading the answer visibly.
+
 ## [0.5.3](https://codefloe.com/celema/console/src/tag/0.5.3) (2026-07-21)
 
 ### Added
