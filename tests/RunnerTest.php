@@ -448,6 +448,68 @@ class RunnerTest extends TestCase
 		);
 	}
 
+	public function testHelpOverviewListsNumericNamesAndPrefixes(): void
+	{
+		$_SERVER['argv'] = ['bin/console'];
+		$out = new BufferedIo();
+		$commands = new Commands([
+			new
+				#[Command('7', 'Numbered')]
+				class {
+					public function __invoke(): int
+					{
+						return 0;
+					}
+				},
+			new
+				#[Command('0:task', 'Numbered')]
+				class {
+					public function __invoke(): int
+					{
+						return 0;
+					}
+				},
+			new
+				#[Command('2026:import', 'Numbered')]
+				class {
+					public function __invoke(): int
+					{
+						return 0;
+					}
+				},
+			new
+				#[Command('task:2026', 'Numbered')]
+				class {
+					public function __invoke(): int
+					{
+						return 0;
+					}
+				},
+		]);
+		$code = new Runner($commands, $out)->run();
+
+		$this->assertSame(0, $code);
+		$this->assertStringEndsWith(
+			<<<'TEXT'
+				General
+				  commands     Lists all available commands
+				  help         Displays this overview
+				  7            Numbered
+
+				0
+				  0:task       Numbered
+
+				2026
+				  2026:import  Numbered
+
+				Task
+				  task:2026    Numbered
+
+				TEXT,
+			$out->output(),
+		);
+	}
+
 	public function testShowHelpAndShowCommandsArePublic(): void
 	{
 		$_SERVER['argv'] = ['run'];

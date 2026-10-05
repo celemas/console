@@ -98,8 +98,10 @@ final class Runner
 		$this->echoCommand('', 'commands', 'Lists all available commands');
 		$this->echoCommand('', 'help', 'Displays this overview');
 
-		foreach ($this->toc['']['commands'] ?? [] as $name => $entry) {
-			$this->echoCommand('', $name, $entry->meta->description);
+		// Render from the metadata, not the keys: PHP turns numeric
+		// keys like '2026' into integers.
+		foreach ($this->toc['']['commands'] ?? [] as $entry) {
+			$this->echoCommand('', $entry->meta->name, $entry->meta->description);
 		}
 
 		foreach ($this->toc as $prefix => $group) {
@@ -109,8 +111,8 @@ final class Runner
 
 			$this->echoGroup($group['title']);
 
-			foreach ($group['commands'] as $name => $entry) {
-				$this->echoCommand($prefix, $name, $entry->meta->description);
+			foreach ($group['commands'] as $entry) {
+				$this->echoCommand($entry->meta->prefix, $entry->meta->name, $entry->meta->description);
 			}
 		}
 
@@ -475,7 +477,7 @@ final class Runner
 
 	private function echoCommand(string $prefix, string $name, string $desc): void
 	{
-		$prefix = $prefix ? $prefix . ':' : '';
+		$prefix = $prefix === '' ? '' : $prefix . ':';
 
 		// Pad on the visible length; the markup tags don't print. The
 		// longest name includes every listed one, so the gap is at least 2.
