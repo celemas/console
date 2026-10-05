@@ -187,7 +187,7 @@ class Io
 				return $options[$default - 1];
 			}
 
-			if (ctype_digit($answer) && (int) $answer >= 1 && (int) $answer <= count($options)) {
+			if (preg_match('/^\d+\z/', $answer) === 1 && (int) $answer >= 1 && (int) $answer <= count($options)) {
 				return $options[(int) $answer - 1];
 			}
 		}

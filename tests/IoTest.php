@@ -436,10 +436,11 @@ class IoTest extends TestCase
 
 	public function testChoiceAsksAgainOnInvalidAnswers(): void
 	{
-		$out = new BufferedIo("x\n0\n9\n2\n");
+		// Only plain numbers count, not ones PHP would cast into range.
+		$out = new BufferedIo("x\n0\n9\n+1\n1x\n1.0\n2\n");
 
 		$this->assertSame('prod', $out->choice('Env?', ['dev', 'prod']));
-		$this->assertStringEndsWith('[1] [1] [1] [1] ', $out->output());
+		$this->assertStringEndsWith('[1] [1] [1] [1] [1] [1] [1] ', $out->output());
 	}
 
 	public function testChoiceWithoutOptionsThrows(): void

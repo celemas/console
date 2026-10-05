@@ -9,6 +9,7 @@
 ### Fixed
 
 - Hidden prompts (`ask(hidden: true)`) switch the echo off on the input stream itself instead of on the process STDIN, so an input target like `/dev/tty` is hidden even when STDIN is redirected. If the echo cannot be switched off on a terminal — say, `stty` is missing — `ask()` now throws a `RuntimeException` instead of reading the answer visibly.
+- `Io::choice()` no longer calls `ctype_digit()`: the package does not require the ctype extension, so on PHP built without it every non-empty answer threw an `Error`. Accepted answers are unchanged: plain digits only.
 
 ## [0.5.3](https://codefloe.com/celema/console/src/tag/0.5.3) (2026-07-21)
 
