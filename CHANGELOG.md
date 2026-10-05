@@ -2,7 +2,9 @@
 
 ## [Unreleased](https://codefloe.com/celema/console/compare/0.5.3...HEAD)
 
-No notable changes since the last release.
+### Changed
+
+- Internal refactoring, stronger tests, and development-tooling changes.
 
 ## [0.5.3](https://codefloe.com/celema/console/src/tag/0.5.3) (2026-07-21)
 
