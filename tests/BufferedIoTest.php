@@ -52,11 +52,10 @@ class BufferedIoTest extends TestCase
 
 	public function testRunnerAcceptsAnOutputInstance(): void
 	{
-		$_SERVER['argv'] = ['run', 'plain'];
 		$out = new BufferedIo();
 		$runner = new Runner(new Commands([new Plain()]), $out);
 
-		$this->assertSame(0, $runner->run());
+		$this->assertSame(0, $runner->run(['run', 'plain']));
 		$this->assertSame('Plain', $out->output());
 	}
 }

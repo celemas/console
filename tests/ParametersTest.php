@@ -23,10 +23,9 @@ class ParametersTest extends TestCase
 	/** @return array{int, BufferedIo} */
 	private function runProbe(object $command, string ...$args): array
 	{
-		$_SERVER['argv'] = ['run', 'probe', ...$args];
 		$out = new BufferedIo();
 
-		return [new Runner(new Commands([$command]), $out)->run(), $out];
+		return [new Runner(new Commands([$command]), $out)->run(['run', 'probe', ...$args]), $out];
 	}
 
 	private static function typed(): object
@@ -369,9 +368,8 @@ class ParametersTest extends TestCase
 
 	public function testHelpListsTheOptionsOfGroups(): void
 	{
-		$_SERVER['argv'] = ['run', 'help', 'probe'];
 		$out = new BufferedIo();
-		new Runner(new Commands([self::served()]), $out)->run();
+		new Runner(new Commands([self::served()]), $out)->run(['run', 'help', 'probe']);
 
 		$this->assertStringContainsString(
 			"Options:\n    -H=<host>, --host=<host>\n        Host to bind to [default: localhost]\n"

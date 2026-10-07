@@ -13,13 +13,13 @@ use Celema\Console\Tests\Fixtures\Defaults;
 use Celema\Console\Tests\Fixtures\HelpVariants;
 use Celema\Console\Tests\Fixtures\Plain;
 use Celema\Console\Tests\Fixtures\Wrapped;
+use PHPUnit\Framework\Attributes\BackupGlobals;
 
 class HelpTest extends TestCase
 {
 	public function testShowForRendersVariadicArguments(): void
 	{
-		$_SERVER['argv'] = ['run', 'copy'];
-		$help = new Help(new Io('php://output'));
+		$help = new Help(new Io('php://output'), 'run');
 		$command = new
 			#[Command('copy', 'Copies files')]
 			class {
@@ -44,19 +44,19 @@ class HelpTest extends TestCase
 		$this->assertStringContainsString("<files>...\n        The files", $out);
 	}
 
-	public function testShowForUsesAGivenScriptName(): void
+	#[BackupGlobals(true)]
+	public function testShowForDefaultsToTheServerScriptName(): void
 	{
-		$_SERVER['argv'] = ['run'];
+		$_SERVER['argv'] = ['bin/console'];
 		$io = new BufferedIo();
-		new Help($io, 'bin/tool')->showFor(Plain::class);
+		new Help($io)->showFor(Plain::class);
 
-		$this->assertStringContainsString('php bin/tool plain', $io->output());
+		$this->assertStringContainsString('php bin/console plain', $io->output());
 	}
 
 	public function testShowForRendersOptionsFromAttributes(): void
 	{
-		$_SERVER['argv'] = ['run', 'help:variants', '--help'];
-		$help = new Help(new Io('php://output'));
+		$help = new Help(new Io('php://output'), 'run');
 
 		ob_start();
 		$help->showFor(new HelpVariants());
@@ -73,10 +73,9 @@ class HelpTest extends TestCase
 
 	public function testShowForRendersDefaultsAndChoices(): void
 	{
-		$_SERVER['argv'] = ['run'];
 		$io = new BufferedIo();
 
-		new Help($io)->showFor(Defaults::class);
+		new Help($io, 'run')->showFor(Defaults::class);
 
 		$this->assertSame(
 			<<<'TEXT'
@@ -115,8 +114,7 @@ class HelpTest extends TestCase
 
 	public function testShowForClassWithoutOptions(): void
 	{
-		$_SERVER['argv'] = ['run'];
-		$help = new Help(new Io('php://output'));
+		$help = new Help(new Io('php://output'), 'run');
 
 		ob_start();
 		$help->showFor(Plain::class);
@@ -132,11 +130,10 @@ class HelpTest extends TestCase
 	public function testShowWrapsDescriptionsAtEightyColumns(): void
 	{
 		putenv('COLUMNS=100');
-		$_SERVER['argv'] = ['run'];
 		$io = new BufferedIo();
 
 		try {
-			new Help($io)->showFor(Wrapped::class);
+			new Help($io, 'run')->showFor(Wrapped::class);
 		} finally {
 			putenv('COLUMNS');
 		}

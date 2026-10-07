@@ -16,6 +16,7 @@ use Celema\Console\Runner;
 use Celema\Console\Tests\Fixtures\Greet;
 use Celema\Console\Tests\Fixtures\HelpVariants;
 use Celema\Console\Tests\Fixtures\OptionAliases;
+use PHPUnit\Framework\Attributes\BackupGlobals;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use ValueError;
@@ -25,19 +26,17 @@ class RunnerTest extends TestCase
 	/** @return array{int, BufferedIo} */
 	private function runProbe(object $command, string ...$args): array
 	{
-		$_SERVER['argv'] = ['run', 'probe', ...$args];
 		$out = new BufferedIo();
 
-		return [new Runner(new Commands([$command]), $out)->run(), $out];
+		return [new Runner(new Commands([$command]), $out)->run(['run', 'probe', ...$args]), $out];
 	}
 
 	private function runVariants(string ...$args): array
 	{
-		$_SERVER['argv'] = ['run', 'help:variants', ...$args];
 		$out = new BufferedIo();
 		$runner = new Runner(new Commands([new HelpVariants()]), $out);
 
-		return [$runner->run(), $out->errorOutput()];
+		return [$runner->run(['run', 'help:variants', ...$args]), $out->errorOutput()];
 	}
 
 	public function testRejectUnknownOptionWithSuggestion(): void
@@ -87,9 +86,8 @@ class RunnerTest extends TestCase
 
 	public function testHelpFlagHintUsesTheScriptName(): void
 	{
-		$_SERVER['argv'] = ['bin/console', 'help:variants', '--help'];
 		$out = new BufferedIo();
-		new Runner(new Commands([new HelpVariants()]), $out)->run();
+		new Runner(new Commands([new HelpVariants()]), $out)->run(['bin/console', 'help:variants', '--help']);
 
 		$this->assertStringContainsString(
 			"Unknown option '--help'. Use 'php bin/console help help:variants' to show the command's help",
@@ -144,9 +142,15 @@ class RunnerTest extends TestCase
 
 	public function testNormalizesShortOptionsToLongNames(): void
 	{
-		$_SERVER['argv'] = ['run', 'aliases', '-v', '--watch=a', '-w=b', '--watch=c'];
 		$out = new BufferedIo();
-		$code = new Runner(new Commands(new OptionAliases()), $out)->run();
+		$code = new Runner(new Commands(new OptionAliases()), $out)->run([
+			'run',
+			'aliases',
+			'-v',
+			'--watch=a',
+			'-w=b',
+			'--watch=c',
+		]);
 
 		$this->assertSame(0, $code);
 		$this->assertSame('[true,false,["a","b","c"],[],true,["a","b","c"]]', $out->output());
@@ -170,9 +174,8 @@ class RunnerTest extends TestCase
 
 	public function testSeparatorStopsShortOptionNormalization(): void
 	{
-		$_SERVER['argv'] = ['run', 'aliases', '-v', '--', '-w=b'];
 		$out = new BufferedIo();
-		$code = new Runner(new Commands(new OptionAliases()), $out)->run();
+		$code = new Runner(new Commands(new OptionAliases()), $out)->run(['run', 'aliases', '-v', '--', '-w=b']);
 
 		$this->assertSame(0, $code);
 		$this->assertSame('[true,false,[],[],true,[]]', $out->output());
@@ -353,19 +356,20 @@ class RunnerTest extends TestCase
 
 	public function testRejectUndeclaredOption(): void
 	{
-		$_SERVER['argv'] = ['run', 'plain', '--whatever'];
 		$out = new BufferedIo();
 
-		$this->assertSame(2, new Runner(new Commands([new Fixtures\Plain()]), $out)->run());
+		$this->assertSame(
+			2,
+			new Runner(new Commands([new Fixtures\Plain()]), $out)->run(['run', 'plain', '--whatever']),
+		);
 		$this->assertStringContainsString("Unknown option '--whatever'", $out->errorOutput());
 	}
 
 	public function testRejectUndeclaredPositional(): void
 	{
-		$_SERVER['argv'] = ['run', 'plain', 'extra'];
 		$out = new BufferedIo();
 
-		$this->assertSame(2, new Runner(new Commands([new Fixtures\Plain()]), $out)->run());
+		$this->assertSame(2, new Runner(new Commands([new Fixtures\Plain()]), $out)->run(['run', 'plain', 'extra']));
 		$this->assertStringContainsString("Unexpected argument 'extra'", $out->errorOutput());
 	}
 
@@ -413,10 +417,9 @@ class RunnerTest extends TestCase
 
 	public function testRunnerWithoutCommandsListsOnlyTheBuiltins(): void
 	{
-		$_SERVER['argv'] = ['bin/console'];
 		$out = new BufferedIo();
 
-		$this->assertSame(0, new Runner(output: $out)->run());
+		$this->assertSame(0, new Runner(output: $out)->run(['bin/console']));
 		$this->assertStringEndsWith(
 			<<<'TEXT'
 				Available commands:
@@ -440,22 +443,19 @@ class RunnerTest extends TestCase
 			->add([Fixtures\BarStuff::class => static fn(): Fixtures\BarStuff => new Fixtures\BarStuff()])
 			->add(new Commands(new Fixtures\FooStuff()));
 
-		$_SERVER['argv'] = ['run', 'commands'];
-		$runner->run();
-		$_SERVER['argv'] = ['run', 'greet', 'Ada'];
+		$runner->run(['run', 'commands']);
 
-		$this->assertSame(0, $runner->run());
+		$this->assertSame(0, $runner->run(['run', 'greet', 'Ada']));
 		$this->assertSame("bar:stuff\nfoo:stuff\ngreet\nplain\nHello, Ada", $out->output());
 	}
 
 	public function testHelpSortsCommandsAddedOutOfOrder(): void
 	{
-		$_SERVER['argv'] = ['bin/console'];
 		$out = new BufferedIo();
 		new Runner([new Fixtures\FooStuff(), new Fixtures\Plain()], $out)
 			->add([new Fixtures\BarStuff(), new Fixtures\Greet()])
 			->add([new Fixtures\FooDrivel(), new Fixtures\Erring()])
-			->run();
+			->run(['bin/console']);
 
 		$this->assertStringEndsWith(
 			<<<'TEXT'
@@ -548,16 +548,13 @@ class RunnerTest extends TestCase
 		$runner->add(Fixtures\Plain::class);
 
 		foreach ([['run'], ['run', 'commands'], ['run', 'help', 'plain']] as $argv) {
-			$_SERVER['argv'] = $argv;
-			$this->assertSame(0, $runner->run());
+			$this->assertSame(0, $runner->run($argv));
 		}
 
 		$this->assertSame([], $resolved);
 
-		$_SERVER['argv'] = ['run', 'greet:injected', 'Ada'];
-		$this->assertSame(0, $runner->run());
-		$_SERVER['argv'] = ['run', 'plain'];
-		$this->assertSame(0, $runner->run());
+		$this->assertSame(0, $runner->run(['run', 'greet:injected', 'Ada']));
+		$this->assertSame(0, $runner->run(['run', 'plain']));
 
 		$this->assertSame([Fixtures\InjectedGreet::class, Fixtures\Plain::class], $resolved);
 		$this->assertStringContainsString('Hello, Ada', $out->output());
@@ -580,20 +577,20 @@ class RunnerTest extends TestCase
 			return new $class();
 		};
 
-		$_SERVER['argv'] = ['run', 'plain'];
-
-		$this->assertSame(0, new Runner($commands, new BufferedIo(), resolve: $resolve)->run());
-		$this->assertSame(0, new Runner(output: new BufferedIo(), resolve: $resolve)->add($commands)->run());
+		$this->assertSame(0, new Runner($commands, new BufferedIo(), resolve: $resolve)->run(['run', 'plain']));
+		$this->assertSame(
+			0,
+			new Runner(output: new BufferedIo(), resolve: $resolve)->add($commands)->run(['run', 'plain']),
+		);
 		$this->assertSame(['collection'], $calls);
 	}
 
 	public function testHelpOverviewLayout(): void
 	{
-		$_SERVER['argv'] = ['bin/console'];
 		$out = new BufferedIo();
 		$commands = $this->getCommands();
 		$commands->add(new Fixtures\Plain());
-		$code = new Runner($commands, $out)->run();
+		$code = new Runner($commands, $out)->run(['bin/console']);
 
 		$this->assertSame(0, $code);
 		$this->assertSame(
@@ -627,7 +624,6 @@ class RunnerTest extends TestCase
 
 	public function testHelpOverviewListsNumericNamesAndPrefixes(): void
 	{
-		$_SERVER['argv'] = ['bin/console'];
 		$out = new BufferedIo();
 		$commands = new Commands([
 			new
@@ -663,7 +659,7 @@ class RunnerTest extends TestCase
 					}
 				},
 		]);
-		$code = new Runner($commands, $out)->run();
+		$code = new Runner($commands, $out)->run(['bin/console']);
 
 		$this->assertSame(0, $code);
 		$this->assertStringEndsWith(
@@ -689,7 +685,6 @@ class RunnerTest extends TestCase
 
 	public function testShowHelpAndShowCommandsArePublic(): void
 	{
-		$_SERVER['argv'] = ['run'];
 		$out = new BufferedIo();
 		$runner = new Runner($this->getCommands(), $out);
 
@@ -701,15 +696,13 @@ class RunnerTest extends TestCase
 
 	public function testCommandNamesAreCaseInsensitive(): void
 	{
-		$_SERVER['argv'] = ['run', 'DRIVEL'];
 		$out = new BufferedIo();
-		new Runner($this->getCommands(), $out)->run();
+		new Runner($this->getCommands(), $out)->run(['run', 'DRIVEL']);
 
 		$this->assertSame("Foo's drivel", $out->output());
 
-		$_SERVER['argv'] = ['run', 'help', 'FOO:STUFF'];
 		$out = new BufferedIo();
-		$code = new Runner($this->getCommands(), $out)->run();
+		$code = new Runner($this->getCommands(), $out)->run(['run', 'help', 'FOO:STUFF']);
 
 		$this->assertSame(0, $code);
 		$this->assertStringContainsString('php run foo:stuff', $out->output());
@@ -717,77 +710,73 @@ class RunnerTest extends TestCase
 
 	public function testShowHelpWhenCalledWithoutCommand(): void
 	{
-		$_SERVER['argv'] = ['run'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex("/available commands.*bar.*prints foo's stuff/si");
-		$runner->run();
+		$runner->run(['run']);
 	}
 
 	public function testShowHelpWhenCalledWithHelpCommand(): void
 	{
-		$_SERVER['argv'] = ['run', 'help'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex("/available commands.*prints bar's stuff.*foo/si");
-		$runner->run();
+		$runner->run(['run', 'help']);
 	}
 
 	public function testListCommands(): void
 	{
-		$_SERVER['argv'] = ['run', 'commands'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputString("bar:stuff\ndrivel\nerr\nerr:err\nfoo:drivel\nfoo:stuff\n");
-		$runner->run();
+		$runner->run(['run', 'commands']);
 	}
 
 	public function testShowCommandSpecificHelp(): void
 	{
-		$_SERVER['argv'] = ['run', 'help', 'foo:stuff'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex('/php run foo:stuff.*Options:.*Lorem ipsum/s');
-		$runner->run();
+		$runner->run(['run', 'help', 'foo:stuff']);
 	}
 
 	public function testCommandSpecificHelpDefault(): void
 	{
-		$_SERVER['argv'] = ['run', 'help', 'bar:stuff'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex('/php run bar:stuff/');
-		$runner->run();
+		$runner->run(['run', 'help', 'bar:stuff']);
 	}
 
 	public function testShowHelpInOrder(): void
 	{
-		$_SERVER['argv'] = ['run'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex(
 			'/Available.*Bar.*bar:.*stuff.*Errors.*err:.*err.*Foo.*foo:.*drivel.*stuff/s',
 		);
-		$runner->run();
+		$runner->run(['run']);
 	}
 
 	public function testRunSimpleCommand(): void
 	{
-		$_SERVER['argv'] = ['run', 'drivel'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputString("Foo's drivel");
-		$runner->run();
+		$runner->run(['run', 'drivel']);
 	}
 
-	public function testRunTakesAnExplicitArgumentVector(): void
+	#[BackupGlobals(true)]
+	public function testDefaultsToTheServerArgumentVector(): void
 	{
-		$_SERVER['argv'] = ['run', 'unknown'];
+		$_SERVER['argv'] = ['bin/console', 'help', 'help:variants'];
 		$out = new BufferedIo();
-		$code = new Runner($this->getCommands(), $out)->run(['bin/tool', 'drivel']);
+		$runner = new Runner([new HelpVariants()], $out);
 
-		$this->assertSame(0, $code);
-		$this->assertSame("Foo's drivel", $out->output());
+		$this->assertSame(0, $runner->run());
+		$this->assertStringContainsString('php bin/console help:variants <file>', $out->output());
+		$this->assertSame(0, $runner->showHelp());
+		$this->assertStringContainsString('php bin/console [prefix:]command', $out->output());
 	}
 
 	public static function explicitScriptNameProvider(): iterable
@@ -795,30 +784,24 @@ class RunnerTest extends TestCase
 		yield 'overview' => [['bin/tool'], 'php bin/tool [prefix:]command'];
 		yield 'help command' => [['bin/tool', 'help'], 'php bin/tool [prefix:]command'];
 		yield 'command help' => [['bin/tool', 'help', 'help:variants'], 'php bin/tool help:variants <file>'];
-		yield 'help flag hint' => [
-			['bin/tool', 'help:variants', '--help'],
-			"Use 'php bin/tool help help:variants' to show the command's help",
-		];
 	}
 
 	/** @param list<string> $argv */
 	#[DataProvider('explicitScriptNameProvider')]
 	public function testExplicitArgumentVectorNamesTheScript(array $argv, string $expected): void
 	{
-		$_SERVER['argv'] = ['run'];
 		$out = new BufferedIo();
 		new Runner([new HelpVariants()], $out)->run($argv);
 
-		$this->assertStringContainsString($expected, $out->output() . $out->errorOutput());
+		$this->assertStringContainsString($expected, $out->output());
 	}
 
 	public function testRunAmbiguousCommand(): void
 	{
-		$_SERVER['argv'] = ['run', 'stuff'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex('/Ambiguous.*bar.*:stuff.*foo.*:stuff/s');
-		$this->assertSame(2, $runner->run());
+		$this->assertSame(2, $runner->run(['run', 'stuff']));
 	}
 
 	public function testUnprefixedCommandWinsOverPrefixedNamesake(): void
@@ -846,37 +829,32 @@ class RunnerTest extends TestCase
 				},
 		]);
 
-		$_SERVER['argv'] = ['run', 'deploy'];
 		$out = new BufferedIo();
-		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame(0, new Runner($commands, $out)->run(['run', 'deploy']));
 		$this->assertSame('plain deploy', $out->output());
 
-		$_SERVER['argv'] = ['run', 'ops:deploy'];
 		$out = new BufferedIo();
-		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame(0, new Runner($commands, $out)->run(['run', 'ops:deploy']));
 		$this->assertSame('ops deploy', $out->output());
 
 		// Both stay invocable, so both appear in the listing.
-		$_SERVER['argv'] = ['run', 'commands'];
 		$out = new BufferedIo();
-		new Runner($commands, $out)->run();
+		new Runner($commands, $out)->run(['run', 'commands']);
 		$this->assertSame("deploy\nops:deploy\n", $out->output());
 	}
 
 	public function testRunGroupNameCommand(): void
 	{
-		$_SERVER['argv'] = ['run', 'bar:stuff'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputString("Bar's stuff");
-		$runner->run();
+		$runner->run(['run', 'bar:stuff']);
 	}
 
 	public function testHelpForUnknownCommandNamesTheTarget(): void
 	{
-		$_SERVER['argv'] = ['run', 'help', 'missing'];
 		$out = new BufferedIo();
-		$code = new Runner(new Commands([new HelpVariants()]), $out)->run();
+		$code = new Runner(new Commands([new HelpVariants()]), $out)->run(['run', 'help', 'missing']);
 
 		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Error while running command 'missing'", $out->errorOutput());
@@ -884,41 +862,37 @@ class RunnerTest extends TestCase
 
 	public function testRunUnknownCommand(): void
 	{
-		$_SERVER['argv'] = ['run', 'unknown'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex('/Command not found/');
-		$runner->run();
+		$runner->run(['run', 'unknown']);
 	}
 
 	public function testRunUnknownGroupCommand(): void
 	{
-		$_SERVER['argv'] = ['run', 'foo:unknown'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex('/Command not found/');
-		$runner->run();
+		$runner->run(['run', 'foo:unknown']);
 	}
 
 	public function testRunCommandWithExtraColonsNotFound(): void
 	{
-		$_SERVER['argv'] = ['run', 'foo:stuff:extra'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex('/Command not found/');
-		$runner->run();
+		$runner->run(['run', 'foo:stuff:extra']);
 	}
 
 	public function testUngroupedCommandsShareSingleGeneralHeader(): void
 	{
-		$_SERVER['argv'] = ['run'];
 		$runner = new Runner(
 			new Commands([new Fixtures\Plain(), new Fixtures\BarStuff()]),
 			output: 'php://output',
 		);
 
 		ob_start();
-		$runner->run();
+		$runner->run(['run']);
 		$raw = (string) ob_get_clean();
 		$out = (string) preg_replace('/\033\[[0-9;]*m/', replacement: '', subject: $raw);
 
@@ -929,18 +903,16 @@ class RunnerTest extends TestCase
 
 	public function testRunFailingCommand(): void
 	{
-		$_SERVER['argv'] = ['run', 'err'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex("/Error while.*'err'.*Red herring/s");
-		$runner->run();
+		$runner->run(['run', 'err']);
 	}
 
 	public function testFailingCommandReportsTheErrorWithoutTraceback(): void
 	{
-		$_SERVER['argv'] = ['run', 'err'];
 		$out = new BufferedIo();
-		$code = new Runner($this->getCommands(), $out)->run();
+		$code = new Runner($this->getCommands(), $out)->run(['run', 'err']);
 
 		$this->assertSame(1, $code);
 		$this->assertSame('', $out->output());
@@ -949,16 +921,14 @@ class RunnerTest extends TestCase
 
 	public function testRunFailingCommandWithCustomPrefix(): void
 	{
-		$_SERVER['argv'] = ['run', 'err:err'];
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex("/Error while.*'err:err'.*Red herring/s");
-		$runner->run();
+		$runner->run(['run', 'err:err']);
 	}
 
 	public function testCommandValueErrorIsNotTreatedAsAmbiguous(): void
 	{
-		$_SERVER['argv'] = ['run', 'boom'];
 		$commands = new Commands([new
 			#[Command('boom', 'Fails with a ValueError')]
 			class {
@@ -968,7 +938,7 @@ class RunnerTest extends TestCase
 				}
 			}]);
 		$out = new BufferedIo();
-		$code = new Runner($commands, $out)->run();
+		$code = new Runner($commands, $out)->run(['run', 'boom']);
 
 		$this->assertSame(1, $code);
 		$this->assertStringContainsString('Command failure', $out->errorOutput());
@@ -995,7 +965,6 @@ class RunnerTest extends TestCase
 
 	public function testRunFailingCommandWithDebug(): void
 	{
-		$_SERVER['argv'] = ['run', 'err'];
 		$runner = new Runner(
 			$this->getCommands(),
 			output: 'php://output',
@@ -1004,15 +973,13 @@ class RunnerTest extends TestCase
 		);
 
 		$this->expectOutputRegex("/Error while.*'err'.*Red herring.*Traceback:\n#0 /s");
-		$runner->run();
+		$runner->run(['run', 'err']);
 	}
 
 	public function testRunReturnsSuccessCode(): void
 	{
-		$_SERVER['argv'] = ['run', 'drivel'];
-
 		ob_start();
-		$code = $this->getRunner()->run();
+		$code = $this->getRunner()->run(['run', 'drivel']);
 		ob_get_clean();
 
 		$this->assertSame(0, $code);
@@ -1020,18 +987,15 @@ class RunnerTest extends TestCase
 
 	public function testRunReturnsFailureCodeFromCommand(): void
 	{
-		$_SERVER['argv'] = ['run', 'fail'];
 		$runner = new Runner(new Commands([new Fixtures\Failing()]));
 
-		$this->assertSame(1, $runner->run());
+		$this->assertSame(1, $runner->run(['run', 'fail']));
 	}
 
 	public function testRunReturnsFailureCodeOnException(): void
 	{
-		$_SERVER['argv'] = ['run', 'err'];
-
 		ob_start();
-		$code = $this->getRunner()->run();
+		$code = $this->getRunner()->run(['run', 'err']);
 		ob_get_clean();
 
 		$this->assertSame(1, $code);
@@ -1340,12 +1304,11 @@ class RunnerTest extends TestCase
 
 	public function testErrorsGoToStderrNotStdout(): void
 	{
-		$_SERVER['argv'] = ['run', 'unknown'];
 		$err = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
 		$runner = new Runner($this->getCommands(), output: 'php://output', errorOutput: $err);
 
 		ob_start();
-		$code = $runner->run();
+		$code = $runner->run(['run', 'unknown']);
 		$stdout = (string) ob_get_clean();
 
 		$contents = (string) file_get_contents($err);
@@ -1358,20 +1321,18 @@ class RunnerTest extends TestCase
 
 	public function testCommandReceivesParsedArgs(): void
 	{
-		$_SERVER['argv'] = ['run', 'greet', 'Ada', '--greeting=Hi'];
 		$runner = new Runner(new Commands([new Fixtures\Greet()]), output: 'php://output');
 
 		$this->expectOutputString('Hi, Ada');
-		$runner->run();
+		$runner->run(['run', 'greet', 'Ada', '--greeting=Hi']);
 	}
 
 	public function testCommandUsesArgDefaults(): void
 	{
-		$_SERVER['argv'] = ['run', 'greet'];
 		$runner = new Runner(new Commands([new Fixtures\Greet()]), output: 'php://output');
 
 		$this->expectOutputString('Hello, World');
-		$runner->run();
+		$runner->run(['run', 'greet']);
 	}
 
 	public function testDeclaredHelpFlagReachesTheCommand(): void
@@ -1395,11 +1356,10 @@ class RunnerTest extends TestCase
 
 	public function testRunClassStringCommand(): void
 	{
-		$_SERVER['argv'] = ['run', 'plain'];
 		$runner = new Runner(new Commands(Fixtures\Plain::class), output: 'php://output');
 
 		$this->expectOutputString('Plain');
-		$runner->run();
+		$runner->run(['run', 'plain']);
 	}
 
 	public function testResolverRunsOnlyForTheInvokedCommand(): void
@@ -1415,55 +1375,49 @@ class RunnerTest extends TestCase
 		);
 
 		foreach ([['run'], ['run', 'help'], ['run', 'commands'], ['run', 'help', 'greet']] as $argv) {
-			$_SERVER['argv'] = $argv;
 			$out = new BufferedIo();
 
-			$this->assertSame(0, new Runner($commands, $out)->run());
+			$this->assertSame(0, new Runner($commands, $out)->run($argv));
 			$this->assertNotSame('', $out->output());
 			$this->assertSame([], $resolved);
 		}
 
-		$_SERVER['argv'] = ['run', 'greet', '--unknown'];
-		$this->assertSame(2, new Runner($commands, new BufferedIo())->run());
+		$this->assertSame(2, new Runner($commands, new BufferedIo())->run(['run', 'greet', '--unknown']));
 		$this->assertSame([], $resolved);
 
-		$_SERVER['argv'] = ['run', 'greet', 'Ada'];
 		$out = new BufferedIo();
 
-		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame(0, new Runner($commands, $out)->run(['run', 'greet', 'Ada']));
 		$this->assertSame('Hello, Ada', $out->output());
 		$this->assertSame([Fixtures\Greet::class], $resolved);
 	}
 
 	public function testResolverInjectsIoIntoConstructor(): void
 	{
-		$_SERVER['argv'] = ['run', 'greet:injected', 'Ada'];
 		$out = new BufferedIo();
 		$commands = new Commands(
 			Fixtures\InjectedGreet::class,
 			resolve: static fn(string $class): object => new $class($out),
 		);
 
-		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame(0, new Runner($commands, $out)->run(['run', 'greet:injected', 'Ada']));
 		$this->assertSame('Hello, Ada', $out->output());
 	}
 
 	public function testResolverFailureIsReported(): void
 	{
-		$_SERVER['argv'] = ['run', 'greet'];
 		$out = new BufferedIo();
 		$commands = new Commands(
 			Fixtures\Greet::class,
 			resolve: static fn(string $class): object => throw new RuntimeException('Dependencies unavailable'),
 		);
 
-		$this->assertSame(1, new Runner($commands, $out)->run());
+		$this->assertSame(1, new Runner($commands, $out)->run(['run', 'greet']));
 		$this->assertStringContainsString('Dependencies unavailable', $out->errorOutput());
 	}
 
 	public function testRunAnonymousClassCommand(): void
 	{
-		$_SERVER['argv'] = ['run', 'cache:clear', 'now'];
 		$commands = new Commands([new
 			#[Command('cache:clear', 'Clears the cache')]
 			class {
@@ -1477,7 +1431,7 @@ class RunnerTest extends TestCase
 		$runner = new Runner($commands, output: 'php://output');
 
 		ob_start();
-		$code = $runner->run();
+		$code = $runner->run(['run', 'cache:clear', 'now']);
 		$stdout = (string) ob_get_clean();
 
 		$this->assertSame(0, $code);
@@ -1486,7 +1440,6 @@ class RunnerTest extends TestCase
 
 	public function testAnonymousClassCommandAppearsInHelp(): void
 	{
-		$_SERVER['argv'] = ['run'];
 		$commands = new Commands([new
 			#[Command('cache:clear', 'Clears the cache')]
 			class {
@@ -1498,7 +1451,7 @@ class RunnerTest extends TestCase
 		$runner = new Runner($commands, output: 'php://output');
 
 		$this->expectOutputRegex('/Cache.*cache:.*clear.*Clears the cache/s');
-		$runner->run();
+		$runner->run(['run']);
 	}
 
 	public function testFactorySubclassMayRenameParameters(): void
@@ -1516,21 +1469,18 @@ class RunnerTest extends TestCase
 		};
 		$commands = new Commands([Fixtures\Greet::class => $factory]);
 
-		$_SERVER['argv'] = ['run', 'greet', 'Ada', '--greeting=Hi'];
 		$out = new BufferedIo();
-		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame(0, new Runner($commands, $out)->run(['run', 'greet', 'Ada', '--greeting=Hi']));
 		$this->assertSame('Hi, Ada!', $out->output());
 
 		// Absent input leaves the override's own defaults in place.
-		$_SERVER['argv'] = ['run', 'greet'];
 		$out = new BufferedIo();
-		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame(0, new Runner($commands, $out)->run(['run', 'greet']));
 		$this->assertSame('Hey, World!', $out->output());
 	}
 
 	public function testFactoryRunsOnlyForTheInvokedCommand(): void
 	{
-		$_SERVER['argv'] = ['run', 'help'];
 		$called = false;
 		$factory = static function () use (&$called): Fixtures\Greet {
 			$called = true;
@@ -1540,15 +1490,13 @@ class RunnerTest extends TestCase
 		$commands = new Commands([Fixtures\Greet::class => $factory]);
 
 		ob_start();
-		new Runner($commands, output: 'php://output')->run();
+		new Runner($commands, output: 'php://output')->run(['run', 'help']);
 		ob_get_clean();
 
 		$this->assertFalse($called);
 
-		$_SERVER['argv'] = ['run', 'greet'];
-
 		ob_start();
-		new Runner($commands, output: 'php://output')->run();
+		new Runner($commands, output: 'php://output')->run(['run', 'greet']);
 		ob_get_clean();
 
 		$this->assertTrue($called);
@@ -1556,7 +1504,6 @@ class RunnerTest extends TestCase
 
 	public function testUninvokableCommandFails(): void
 	{
-		$_SERVER['argv'] = ['run', 'broken'];
 		$runner = new Runner(
 			new Commands(Fixtures\Uninvokable::class),
 			output: 'php://output',
@@ -1564,7 +1511,7 @@ class RunnerTest extends TestCase
 		);
 
 		ob_start();
-		$code = $runner->run();
+		$code = $runner->run(['run', 'broken']);
 		$stdout = (string) ob_get_clean();
 
 		$this->assertSame(1, $code);
@@ -1573,11 +1520,10 @@ class RunnerTest extends TestCase
 
 	public function testHelpOptionRendersEqualsNotation(): void
 	{
-		$_SERVER['argv'] = ['run', 'help', 'variants'];
 		$runner = new Runner(new Commands([new Fixtures\HelpVariants()]), output: 'php://output');
 
 		ob_start();
-		$runner->run();
+		$runner->run(['run', 'help', 'variants']);
 		$raw = (string) ob_get_clean();
 		$out = (string) preg_replace('/\033\[[0-9;]*m/', replacement: '', subject: $raw);
 
