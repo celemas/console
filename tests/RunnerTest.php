@@ -890,7 +890,7 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(1, $code);
 		$this->assertStringContainsString(
-			"Command 'probe' parameter \$args must be declared as Args or Io",
+			"Command 'probe' parameter \$args must be declared as Args, Io, or an option group",
 			$out->errorOutput(),
 		);
 	}
@@ -908,7 +908,7 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(1, $code);
 		$this->assertStringContainsString(
-			"Command 'probe' parameter \$name must be declared as Args or Io, or carry #[Arg] or #[Opt]\n",
+			"Command 'probe' parameter \$name must be declared as Args, Io, or an option group, or carry #[Arg] or #[Opt]\n",
 			$out->errorOutput(),
 		);
 	}
@@ -926,7 +926,7 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(1, $code);
 		$this->assertStringContainsString(
-			"Command 'probe' parameter \$io must be declared as Args or Io",
+			"Command 'probe' parameter \$io must be declared as Args, Io, or an option group",
 			$out->errorOutput(),
 		);
 	}
@@ -944,7 +944,7 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(1, $code);
 		$this->assertStringContainsString(
-			"Command 'probe' parameter \$args must be declared as Args or Io",
+			"Command 'probe' parameter \$args must be declared as Args, Io, or an option group",
 			$out->errorOutput(),
 		);
 	}
@@ -962,7 +962,7 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(1, $code);
 		$this->assertStringContainsString(
-			"Command 'probe' parameter \$io must be declared as Args or Io",
+			"Command 'probe' parameter \$io must be declared as Args, Io, or an option group",
 			$out->errorOutput(),
 		);
 	}
@@ -980,7 +980,7 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(1, $code);
 		$this->assertStringContainsString(
-			"Command 'probe' parameter \$io must be declared as Args or Io",
+			"Command 'probe' parameter \$io must be declared as Args, Io, or an option group",
 			$out->errorOutput(),
 		);
 	}

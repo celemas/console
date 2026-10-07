@@ -14,7 +14,8 @@ use ValueError;
  *
  * Parameters typed `Args` or `Io` are injected; `#[Arg]` and `#[Opt]`
  * parameters receive the converted command-line input and form the
- * command's complete interface. Declaration errors surface when the
+ * command's complete interface, together with the `#[Opt]` constructor
+ * parameters of option groups. Declaration errors surface when the
  * signature is read, input errors when it is bound.
  *
  * @internal
@@ -44,6 +45,13 @@ final class Signature
 	 * @var array<string, string>
 	 */
 	private array $injected = [];
+
+	/**
+	 * The option group classes, keyed by parameter name.
+	 *
+	 * @var array<string, class-string>
+	 */
+	private array $groups = [];
 
 	private function __construct(
 		private readonly string $full,
@@ -120,9 +128,20 @@ final class Signature
 			$values[$name] = $class === Args::class ? $args : $io;
 		}
 
+		$grouped = [];
+
 		foreach ($args->names() as $name) {
 			$option = $this->options[$name] ?? throw new ValueError($this->unknownOption($name));
-			$values[$option->parameter->name] = $option->value($args);
+
+			if ($option->group === null) {
+				$values[$option->parameter->name] = $option->value($args);
+			} else {
+				$grouped[$option->group][$option->parameter->name] = $option->value($args);
+			}
+		}
+
+		foreach ($this->groups as $name => $class) {
+			$values[$name] = new $class(...$grouped[$name] ?? []);
 		}
 
 		return [...$values, ...$this->bindArguments($args->positionals())];
@@ -241,19 +260,45 @@ final class Signature
 			: '';
 
 		if ($class !== Args::class && $class !== Io::class) {
-			throw new ValueError(
-				"Command '{$this->full}' parameter \${$parameter->name} must be declared as Args or Io, "
-					. 'or carry #[Arg] or #[Opt]',
-			);
-		}
-
-		if (array_key_exists($class, $this->injected)) {
+			$this->addGroup($parameter, $class);
+		} elseif (array_key_exists($class, $this->injected)) {
 			$short = $class === Args::class ? 'Args' : 'Io';
 
 			throw new ValueError("Command '{$this->full}' declares more than one {$short} parameter");
+		} else {
+			$this->injected[$class] = $parameter->name;
+		}
+	}
+
+	/**
+	 * Adds the options of an option group: a class whose constructor
+	 * parameters all carry `#[Opt]`.
+	 */
+	private function addGroup(ReflectionParameter $parameter, string $class): void
+	{
+		$constructor = class_exists($class) ? new ReflectionClass($class)->getConstructor() : null;
+		$members = $constructor?->getParameters() ?? [];
+
+		if (!array_any(
+			$members,
+			static fn(ReflectionParameter $member): bool => $member->getAttributes(Opt::class) !== [],
+		)) {
+			throw new ValueError(
+				"Command '{$this->full}' parameter \${$parameter->name} must be declared as Args, Io, "
+					. 'or an option group, or carry #[Arg] or #[Opt]',
+			);
 		}
 
-		$this->injected[$class] = $parameter->name;
+		foreach ($members as $member) {
+			$opt = $member->getAttributes(Opt::class)[0] ?? throw new ValueError(
+				"Command '{$this->full}' option group {$class} parameter \${$member->name} must carry #[Opt]",
+			);
+
+			$this->addOption(new Option($member, $opt->newInstance(), $this->type($member), $parameter->name));
+		}
+
+		/** @var class-string $class Checked by class_exists() */
+		$this->groups[$parameter->name] = $class;
 	}
 
 	private function checkArguments(): void

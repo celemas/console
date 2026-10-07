@@ -13,7 +13,10 @@ use Celema\Console\Opt;
 use Celema\Console\Runner;
 use Celema\Console\Tests\Fixtures\Format;
 use Celema\Console\Tests\Fixtures\Level;
+use Celema\Console\Tests\Fixtures\PartialOptions;
+use Celema\Console\Tests\Fixtures\ServeOptions;
 use PHPUnit\Framework\Attributes\DataProvider;
+use stdClass;
 
 class ParametersTest extends TestCase
 {
@@ -292,6 +295,67 @@ class ParametersTest extends TestCase
 		$this->assertSame(['target' => 'dist', 'files' => ['a.txt', 'b.txt']], $command->seen);
 	}
 
+	private static function served(): object
+	{
+		return new
+			#[Command('probe')]
+			class {
+				public ?ServeOptions $options = null;
+				public bool $open = false;
+
+				public function __invoke(ServeOptions $options, #[Opt('Open a browser')] bool $open = false): int
+				{
+					$this->options = $options;
+					$this->open = $open;
+
+					return 0;
+				}
+			};
+	}
+
+	public function testOptionGroupReceivesItsOptions(): void
+	{
+		$command = self::served();
+		[$code] = $this->runProbe($command, '-H=0.0.0.0', '--port=8080', '--open');
+
+		$this->assertSame(0, $code);
+		$this->assertEquals(new ServeOptions(host: '0.0.0.0', port: 8080), $command->options);
+		$this->assertTrue($command->open);
+	}
+
+	public function testOptionGroupKeepsItsDefaults(): void
+	{
+		$command = self::served();
+		[$code] = $this->runProbe($command);
+
+		$this->assertSame(0, $code);
+		$this->assertEquals(new ServeOptions(), $command->options);
+		$this->assertFalse($command->open);
+	}
+
+	public function testOptionGroupValuesAreValidated(): void
+	{
+		[$code, $out] = $this->runProbe(self::served(), '--port=http');
+
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString("Option '--port' expects an integer, got 'http'", $out->errorOutput());
+	}
+
+	public function testHelpListsTheOptionsOfGroups(): void
+	{
+		$_SERVER['argv'] = ['run', 'help', 'probe'];
+		$out = new BufferedIo();
+		new Runner(new Commands([self::served()]), $out)->run();
+
+		$this->assertStringContainsString(
+			"Options:\n    -H=<host>, --host=<host>\n        Host to bind to [default: localhost]\n"
+				. "    -p=<port>, --port=<port>\n        Port to listen on\n"
+				. "    -q, --quiet\n        Reduce output\n"
+				. "    --open\n        Open a browser\n",
+			$out->output(),
+		);
+	}
+
 	public function testCommandsCanBeCalledDirectlyWithNamedArguments(): void
 	{
 		$command = self::typed();
@@ -426,6 +490,52 @@ class ParametersTest extends TestCase
 						}
 					},
 				"Command 'probe' parameter \$files cannot be variadic; declare it as array",
+			],
+			'option group member without #[Opt]' => [
+				new
+					#[Command('probe')]
+					class {
+						public function __invoke(PartialOptions $options): int
+						{
+							return 0;
+						}
+					},
+				"Command 'probe' option group " . PartialOptions::class . ' parameter $mode must carry #[Opt]',
+			],
+			'class without constructor' => [
+				new
+					#[Command('probe')]
+					class {
+						public function __invoke(stdClass $options): int
+						{
+							return 0;
+						}
+					},
+				"Command 'probe' parameter \$options must be declared as Args, Io, or an option group, "
+					. 'or carry #[Arg] or #[Opt]',
+			],
+			'class without options' => [
+				new
+					#[Command('probe')]
+					class {
+						public function __invoke(Command $meta): int
+						{
+							return 0;
+						}
+					},
+				"Command 'probe' parameter \$meta must be declared as Args, Io, or an option group, "
+					. 'or carry #[Arg] or #[Opt]',
+			],
+			'option in a group and the command' => [
+				new
+					#[Command('probe')]
+					class {
+						public function __invoke(ServeOptions $options, #[Opt] bool $quiet = false): int
+						{
+							return 0;
+						}
+					},
+				"Command 'probe' declares the option name '--quiet' twice",
 			],
 			'both attributes' => [
 				new

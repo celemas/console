@@ -85,7 +85,7 @@ $commands->add(new #[Command('cache:clear', 'Clears the cache')] class {
 
 Commands carry their metadata in the `#[Command]` attribute, which is read without instantiating the class. Factories run only when their command is actually invoked — listing the help never constructs a command.
 
-The runner validates the signature of the invoked command: `__invoke()` must declare the return type `int` — the exit code. Parameters typed `Args` or `Io` are injected, each at most once and in any order; every other parameter must carry `#[Arg]` or `#[Opt]` (see [Arguments and Options](#arguments-and-options)).
+The runner validates the signature of the invoked command: `__invoke()` must declare the return type `int` — the exit code. Parameters typed `Args` or `Io` are injected, each at most once and in any order; every other parameter must carry `#[Arg]` or `#[Opt]` or take an option group (see [Arguments and Options](#arguments-and-options)).
 
 ### Io Methods
 
@@ -243,6 +243,41 @@ The command line is parsed into options and positionals:
 - The first `--` ends option parsing: every later token is a positional, dashed or not — for values like `-5` or `--literal`.
 
 A positional cannot start with `-` — such a token is read as an option. Declared short names are normalized to their long names before binding.
+
+#### Option Groups
+
+Options shared by several commands, or too many for one signature, go into an option group: a class whose constructor parameters all carry `#[Opt]`. A command takes the group as an `__invoke()` parameter, and the runner creates it from the command line:
+
+```php
+use Celema\Console\{Command, Opt, Io};
+
+final readonly class ServeOptions
+{
+    public function __construct(
+        #[Opt('Host to bind to')]
+        public string $host = 'localhost',
+        #[Opt('Port to listen on', short: '-p')]
+        public int $port = 8080,
+        #[Opt('Reduce output', short: '-q')]
+        public bool $quiet = false,
+    ) {}
+}
+
+#[Command('serve', 'Serve the application')]
+final class Serve
+{
+    public function __invoke(
+        Io $io,
+        ServeOptions $options,
+        #[Opt('Open a browser')]
+        bool $open = false,
+    ): int {
+        // ...
+    }
+}
+```
+
+The group's options behave like the command's own: they are validated and converted the same way, listed in the help, and share one namespace with the command's options, so a name may occur only once. Tests pass a group like any other value: `$command(io: $io, options: new ServeOptions(port: 9000))`. Groups do not nest and declare no arguments.
 
 #### Validation
 

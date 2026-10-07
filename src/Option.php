@@ -8,7 +8,8 @@ use ReflectionParameter;
 use ValueError;
 
 /**
- * An `#[Opt]` parameter of a command's `__invoke()`.
+ * An `#[Opt]` parameter of a command's `__invoke()` or of an option group's
+ * constructor.
  *
  * @internal
  */
@@ -16,10 +17,15 @@ final class Option
 {
 	public readonly string $name;
 
+	/**
+	 * @param ?string $group The `__invoke()` parameter of the option group
+	 *     declaring the option, if any
+	 */
 	public function __construct(
 		public readonly ReflectionParameter $parameter,
 		public readonly Opt $opt,
 		public readonly Type $type,
+		public readonly ?string $group = null,
 	) {
 		$this->name = '--' . Signature::kebab($parameter->getName());
 	}
