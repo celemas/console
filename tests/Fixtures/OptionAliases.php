@@ -11,18 +11,26 @@ use Celema\Console\Io;
 use Celema\Console\Opt;
 
 #[Command('aliases')]
-#[Arg('extra', 'Extra tokens', optional: true)]
-#[Opt('--verbose', 'Verbose output', short: '-v')]
-#[Opt('--watch', 'Files to watch', short: '-w', value: 'file')]
 final class OptionAliases
 {
-	public function __invoke(Args $args, Io $io): int
-	{
+	/** @param list<string> $watch */
+	public function __invoke(
+		Args $args,
+		Io $io,
+		#[Arg('Extra tokens')]
+		string $extra = '',
+		#[Opt('Verbose output', short: '-v')]
+		bool $verbose = false,
+		#[Opt('Files to watch', short: '-w', value: 'file')]
+		array $watch = [],
+	): int {
 		$io->echo((string) json_encode([
 			$args->has('--verbose'),
 			$args->has('-v'),
 			$args->opts('--watch'),
 			$args->opts('-w'),
+			$verbose,
+			$watch,
 		]));
 
 		return 0;

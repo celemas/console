@@ -9,9 +9,10 @@ use Celema\Console\BufferedIo;
 use Celema\Console\Command;
 use Celema\Console\Help;
 use Celema\Console\Io;
-use Celema\Console\Opt;
+use Celema\Console\Tests\Fixtures\Defaults;
 use Celema\Console\Tests\Fixtures\HelpVariants;
 use Celema\Console\Tests\Fixtures\Plain;
+use Celema\Console\Tests\Fixtures\Wrapped;
 
 class HelpTest extends TestCase
 {
@@ -21,11 +22,14 @@ class HelpTest extends TestCase
 		$help = new Help(new Io('php://output'));
 		$command = new
 			#[Command('copy', 'Copies files')]
-			#[Arg('target', 'The target')]
-			#[Arg('files', 'The files', optional: true, variadic: true)]
 			class {
-				public function __invoke(): int
-				{
+				/** @param list<string> $files */
+				public function __invoke(
+					#[Arg('The target')]
+					string $target,
+					#[Arg('The files')]
+					array $files = [],
+				): int {
 					return 0;
 				}
 			};
@@ -58,6 +62,48 @@ class HelpTest extends TestCase
 		$this->assertStringContainsString("<target>\n        Where the result ends up", $out);
 	}
 
+	public function testShowForRendersDefaultsAndChoices(): void
+	{
+		$_SERVER['argv'] = ['run'];
+		$io = new BufferedIo();
+
+		new Help($io)->showFor(Defaults::class);
+
+		$this->assertSame(
+			<<<'TEXT'
+				Usage:
+				  php run defaults [<format>] [<paths>...] [options]
+
+				Arguments:
+				    <format>
+				        Output format [choices: csv, json] [default: csv]
+				    <paths>...
+				        Paths to scan
+
+				Options:
+				    -b=<batch>, --batch=<batch>
+				        Rows per batch [default: 500]
+				    --ratio=<ratio>
+				        [default: 0.5]
+				    --conn=<conn>
+				        Connection [default: sqlite]
+				    --level=<level>
+				        Severity [choices: 1, 2] [default: 2]
+				    --limit=<limit>
+				        Row limit
+				    --prefix=<prefix>
+				        Prefix
+				    --tag=<tag>
+				        Tags
+				    --worker[=<worker>]
+				        Worker count
+				    --force
+
+				TEXT,
+			$io->output(),
+		);
+	}
+
 	public function testShowForClassWithoutOptions(): void
 	{
 		$_SERVER['argv'] = ['run'];
@@ -78,24 +124,15 @@ class HelpTest extends TestCase
 	{
 		putenv('COLUMNS=100');
 		$_SERVER['argv'] = ['run'];
-		// With an indent of 8 the text width is 72: the first line fits
-		// exactly, the second wraps its last word.
-		$line72 = str_repeat('abcde ', 11) . 'abcdef';
-		$line71 = str_repeat('abcde ', 11) . 'abcde';
-		$description = "{$line72}\n{$line71} x";
 		$io = new BufferedIo();
 
 		try {
-			new Help($io)->show(
-				new Command('wrap'),
-				[new Opt('--long', $description)],
-				[new Arg('target', $description)],
-			);
+			new Help($io)->showFor(Wrapped::class);
 		} finally {
 			putenv('COLUMNS');
 		}
 
-		$block = "        {$line72}\n        {$line71}\n        x\n";
+		$block = '        ' . Wrapped::LINE72 . "\n        " . Wrapped::LINE71 . "\n        x\n";
 		$this->assertSame(
 			"Usage:\n  php run wrap <target> [options]\n"
 				. "\nArguments:\n    <target>\n{$block}"

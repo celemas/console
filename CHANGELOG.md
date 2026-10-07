@@ -2,7 +2,51 @@
 
 ## [Unreleased](https://codefloe.com/celema/console/compare/0.5.4...HEAD)
 
-No notable changes since the last release.
+### Breaking Changes
+
+- Arguments and options are declared as `__invoke()` parameters and passed to the command converted to their declared types, instead of being declared on the class and read as strings from `Args`. `#[Arg]` and `#[Opt]` now target parameters; the names derive from the parameter names in kebab-case (`$dryRun` is `--dry-run`, `$targetDir` renders as `<target-dir>`):
+
+  ```php
+  // Before
+  #[Command('db:import')]
+  #[Arg('file', 'The file to import')]
+  #[Opt('--batch', 'Rows per batch', short: '-b', value: 'rows', default: '500')]
+  #[Opt('--dry-run', 'Report without writing')]
+  final class Import
+  {
+      public function __invoke(Args $args, Io $io): int
+      {
+          $file = (string) $args->positional(0);
+          $batch = (int) $args->opt('--batch', '500');
+          $dryRun = $args->has('--dry-run');
+          // ...
+      }
+  }
+
+  // After
+  #[Command('db:import')]
+  final class Import
+  {
+      public function __invoke(
+          Io $io,
+          #[Arg('The file to import')]
+          string $file,
+          #[Opt('Rows per batch', short: '-b', value: 'rows')]
+          int $batch = 500,
+          #[Opt('Report without writing')]
+          bool $dryRun = false,
+      ): int {
+          // ...
+      }
+  }
+  ```
+
+  - Supported types are `string`, `int`, `float`, `bool`, `array`, and backed enums, also nullable. A value that does not convert, like `--batch=many`, aborts the command before it runs, as does a single-value option given more than once; previously the first value won. An enum accepts its backing values, and the help lists them as `[choices: ...]`.
+  - `#[Arg]` takes only a description. An argument with a default is optional (formerly `optional: true`); an `array` argument takes the remaining positionals (formerly `variadic: true`).
+  - `#[Opt]` takes a description, `short`, `value` (the help label, now defaulting to the option name), and `bare`. Every option needs a default, which the help renders as `[default: ...]` (formerly the `default:` string, which the runner never applied). A `bool` option is a flag and must default to `false`; an `array` option is repeatable. `bare` replaces `optionalValue`: it is the value a bare `--name` stands for, so `#[Opt('Worker count', bare: '1')] ?int $worker = null` receives `null`, `1`, or the given count.
+  - Removed `Arg::$name`, `Arg::$optional`, `Arg::$variadic`, `Opt::$long`, `Opt::$optionalValue`, `Opt::$default`, `Arg::of()`, `Opt::of()`, and `Help::show()`. `Help::showFor()` renders from the `#[Command]` attribute and the `__invoke()` signature.
+  - `__invoke()` parameters other than `Args` and `Io` must carry `#[Arg]` or `#[Opt]`. `Args` stays injectable for raw access; it holds the validated strings.
+  - Commands are plain callables, so tests call them with named arguments, already converted, instead of building `Args`: `$command(io: $io, file: 'data.csv', batch: 10)`.
 
 ## [0.5.4](https://codefloe.com/celema/console/src/tag/0.5.4) (2026-10-05)
 

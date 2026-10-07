@@ -5,44 +5,26 @@ declare(strict_types=1);
 namespace Celema\Console;
 
 use Attribute;
-use ReflectionAttribute;
-use ReflectionClass;
 
 /**
- * Describes one positional argument of a command in its help output.
+ * Declares an `__invoke()` parameter as a positional argument.
  *
- * Arguments render in declaration order in the usage line — `<name>`, or
- * `[<name>]` when optional — and as entries of an "Arguments:" section.
+ * The argument takes its name from the parameter, converted to kebab-case:
+ * `$targetDir` renders as `<target-dir>`. Positionals are matched to the
+ * arguments in declaration order and converted to the declared type:
+ * `string`, `int`, `float`, or a backed enum. A parameter with a default
+ * is optional and renders as `[<name>]`.
  *
- * A `variadic` argument must be the last one and accepts the remaining
- * positionals: at least one, or any number when also `optional`. It
- * renders as `<name>...`.
+ * An `array` parameter must be the last argument and takes the remaining
+ * positionals as strings: at least one, or any number when it has a
+ * default. It renders as `<name>...`.
  *
  * @api
  */
-#[Attribute(Attribute::TARGET_CLASS | Attribute::IS_REPEATABLE)]
+#[Attribute(Attribute::TARGET_PARAMETER)]
 final class Arg
 {
 	public function __construct(
-		public readonly string $name,
-		public readonly string $description,
-		public readonly bool $optional = false,
-		public readonly bool $variadic = false,
+		public readonly string $description = '',
 	) {}
-
-	/**
-	 * Reads all argument attributes off a command instance or class.
-	 *
-	 * @param class-string|object $command
-	 * @return list<self>
-	 */
-	public static function of(object|string $command): array
-	{
-		$class = is_object($command) ? $command::class : $command;
-
-		return array_map(
-			static fn(ReflectionAttribute $attribute): self => $attribute->newInstance(),
-			new ReflectionClass($class)->getAttributes(self::class),
-		);
-	}
 }

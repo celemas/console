@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Celema\Console;
 
-use Closure;
-use ReflectionFunction;
-use ReflectionNamedType;
 use Throwable;
 use ValueError;
 
@@ -199,9 +196,7 @@ final class Runner
 				return $this->showCommandHelp($entry);
 			}
 
-			$args = new Args($this->normalizeOptions($entry, $tokens));
-
-			return $this->runCommand($entry, $args);
+			return $this->runCommand($entry, $tokens);
 		} catch (Throwable $e) {
 			// Escape the arbitrary strings: a message containing markup
 			// (or broken markup) must never throw while reporting. `$arg`
@@ -219,253 +214,23 @@ final class Runner
 		}
 	}
 
-	/**
-	 * @param list<string> $tokens
-	 * @return list<string>
-	 */
-	private function normalizeOptions(Entry $entry, array $tokens): array
+	/** @param list<string> $tokens */
+	private function runCommand(Entry $entry, array $tokens): int
 	{
-		$aliases = [];
+		$values = $entry->signature()->bind($tokens, $this->io);
 
-		foreach ($entry->opts() as $opt) {
-			if ($opt->short !== '') {
-				$aliases[$opt->short] = $opt->long;
-			}
-		}
-
-		$normalized = [];
-		$literal = false;
-
-		foreach ($tokens as $token) {
-			// Aliasing stops at the `--` separator; Args reads every
-			// later token as a positional. The token is command-line
-			// input, not a secret.
-			// @mago-expect lint:no-insecure-comparison
-			if ($literal || $token === '--') {
-				$literal = true;
-				$normalized[] = $token;
-
-				continue;
-			}
-
-			$separator = strpos(haystack: $token, needle: '=');
-			$name = $separator === false
-				? $token
-				: substr(string: $token, offset: 0, length: $separator);
-			$long = $aliases[$name] ?? null;
-			$normalized[] = $long === null
-				? $token
-				: $long . ($separator === false ? '' : substr(string: $token, offset: $separator));
-		}
-
-		return $normalized;
-	}
-
-	private function runCommand(Entry $entry, Args $args): int
-	{
-		$this->validate($entry, $args);
+		// The signature checked that __invoke() exists; PHP requires it
+		// to be public.
+		/** @var callable $command */
 		$command = $entry->command();
-		$full = $entry->meta->full();
-
-		if (!is_callable($command)) {
-			throw new ValueError("Command '{$full}' is not callable");
-		}
-
-		$function = new ReflectionFunction(Closure::fromCallable($command));
-		$return = $function->getReturnType();
-
-		if (
-			!$return instanceof ReflectionNamedType
-			|| $return->getName() !== 'int'
-			|| $return->allowsNull()
-		) {
-			throw new ValueError("Command '{$full}' must declare the return type int");
-		}
 
 		/** @var int Guaranteed by the declared return type under strict_types */
-		return $command(...$this->bind($function, $full, $args));
-	}
-
-	/**
-	 * Builds the argument list from the command's parameters.
-	 *
-	 * Commands may declare any subset of Args and Io in any order;
-	 * arguments are matched by declared type. Other parameters are
-	 * rejected.
-	 *
-	 * @return list<Args|Io>
-	 */
-	private function bind(ReflectionFunction $function, string $full, Args $args): array
-	{
-		$available = [Args::class => $args, Io::class => $this->io];
-		$bound = [];
-
-		foreach ($function->getParameters() as $parameter) {
-			$type = $parameter->getType();
-			$class = $type instanceof ReflectionNamedType
-			&& !$type->allowsNull()
-			&& !$parameter->isVariadic()
-				? $type->getName()
-				: '';
-
-			if ($class !== Args::class && $class !== Io::class) {
-				throw new ValueError(
-					"Command '{$full}' parameter \${$parameter->getName()} must be declared as Args or Io",
-				);
-			}
-
-			if (!array_key_exists($class, $available)) {
-				$short = $class === Args::class ? 'Args' : 'Io';
-
-				throw new ValueError("Command '{$full}' declares more than one {$short} parameter");
-			}
-
-			$bound[] = $available[$class];
-			unset($available[$class]);
-		}
-
-		return $bound;
-	}
-
-	/**
-	 * Checks the provided options against the command's declared `#[Opt]`s
-	 * and the positionals against its `#[Arg]`s.
-	 *
-	 * The declarations are the command's complete interface: undeclared
-	 * options and positionals are rejected. Declare a variadic `#[Arg]`
-	 * for open-ended input.
-	 */
-	private function validate(Entry $entry, Args $args): void
-	{
-		$this->validateOptions($entry, $args);
-		$this->validateArguments($entry, $args);
-	}
-
-	private function validateOptions(Entry $entry, Args $args): void
-	{
-		$opts = $entry->opts();
-		$declared = [];
-
-		foreach ($opts as $opt) {
-			if (
-				array_key_exists($opt->long, $declared)
-				|| $opt->short !== ''
-				&& array_key_exists($opt->short, $declared)
-			) {
-				$name = array_key_exists($opt->long, $declared) ? $opt->long : $opt->short;
-
-				throw new ValueError(
-					"Command '{$entry->meta->full()}' declares the option name '{$name}' twice",
-				);
-			}
-
-			$declared[$opt->long] = $opt;
-
-			if ($opt->short !== '') {
-				$declared[$opt->short] = $opt;
-			}
-		}
-
-		foreach ($args->names() as $name) {
-			$opt = $declared[$name] ?? null;
-
-			if ($opt === null) {
-				throw new ValueError($this->unknownOption($name, $entry->meta->full(), array_keys($declared)));
-			}
-
-			$values = $args->opts($name);
-
-			if ($opt->value === '' && $values !== []) {
-				throw new ValueError("Option '{$name}' does not accept a value");
-			}
-
-			// Every occurrence needs a value, also when a repetition
-			// provides one: `--host --host=x` hides a bare `--host`.
-			if ($opt->value !== '' && !$opt->optionalValue && ($values === [] || $args->bare($name))) {
-				throw new ValueError("Option '{$name}' requires a value: {$name}=<{$opt->value}>");
-			}
-		}
-	}
-
-	private function validateArguments(Entry $entry, Args $args): void
-	{
-		$declared = $entry->args();
-		$positionals = $args->positionals();
-
-		if ($declared === []) {
-			if ($positionals !== []) {
-				throw new ValueError("Unexpected argument '{$positionals[0]}'");
-			}
-
-			return;
-		}
-
-		$last = count($declared) - 1;
-		$required = 0;
-
-		foreach ($declared as $index => $arg) {
-			if ($arg->variadic && $index < $last) {
-				throw new ValueError(
-					"Command '{$entry->meta->full()}' declares an argument "
-						. "after the variadic '<{$arg->name}>'",
-				);
-			}
-
-			if ($arg->optional) {
-				continue;
-			}
-
-			// Required arguments must form a prefix of the declaration.
-			if ($index > $required) {
-				throw new ValueError(
-					"Command '{$entry->meta->full()}' declares the required argument "
-						. "'<{$arg->name}>' after an optional one",
-				);
-			}
-
-			$required++;
-		}
-
-		$count = count($positionals);
-
-		if ($count < $required) {
-			throw new ValueError("Missing required argument '<{$declared[$count]->name}>'");
-		}
-
-		// A variadic last argument accepts the remaining positionals.
-		if (!$declared[$last]->variadic && $count > count($declared)) {
-			throw new ValueError("Unexpected argument '{$positionals[count($declared)]}'");
-		}
-	}
-
-	/** @param list<string> $declared */
-	private function unknownOption(string $name, string $full, array $declared): string
-	{
-		if ($name === '--help' || $name === '-h') {
-			$script = $_SERVER['argv'][0] ?? 'run';
-
-			return "Unknown option '{$name}'. Use 'php {$script} help {$full}' to show the command's help";
-		}
-
-		$message = "Unknown option '{$name}'";
-		$best = '';
-		$bestDistance = PHP_INT_MAX;
-
-		foreach ($declared as $candidate) {
-			$distance = levenshtein($name, $candidate);
-
-			if ($distance < $bestDistance) {
-				$bestDistance = $distance;
-				$best = $candidate;
-			}
-		}
-
-		return $bestDistance <= 3 ? "{$message}. Did you mean '{$best}'?" : $message;
+		return $command(...$values);
 	}
 
 	private function showCommandHelp(Entry $entry): int
 	{
-		new Help($this->io)->show($entry->meta, $entry->opts(), $entry->args());
+		new Help($this->io)->showFor($entry->class);
 
 		return 0;
 	}

@@ -5,23 +5,30 @@ declare(strict_types=1);
 namespace Celema\Console\Tests\Fixtures;
 
 use Celema\Console\Arg;
-use Celema\Console\Args;
 use Celema\Console\Command;
-use Celema\Console\Io;
 use Celema\Console\Opt;
 
 #[Command('help:variants', 'Exercises help option rendering')]
-#[Arg('file', 'The file to process')]
-#[Arg('target', 'Where the result ends up', optional: true)]
-#[Opt('--verbose', 'Enable verbose output', short: '-v')]
-#[Opt('--prune', 'Drop obsolete entries')]
-#[Opt('--host', 'Host to bind to', short: '-h', value: 'host', default: 'localhost')]
-#[Opt('--release', 'Install a specific tag', value: 'tag')]
-#[Opt('--watch', 'Optionally watch files', short: '-w', value: 'file', optionalValue: true)]
 class HelpVariants
 {
-	public function __invoke(Args $args, Io $output): int
-	{
+	// One parameter per declared argument and option.
+	// @mago-expect lint:excessive-parameter-list
+	public function __invoke(
+		#[Arg('The file to process')]
+		string $file,
+		#[Arg('Where the result ends up')]
+		string $target = '',
+		#[Opt('Enable verbose output', short: '-v')]
+		bool $verbose = false,
+		#[Opt('Drop obsolete entries')]
+		bool $prune = false,
+		#[Opt('Host to bind to', short: '-h')]
+		string $host = 'localhost',
+		#[Opt('Install a specific tag', value: 'tag')]
+		string $release = '',
+		#[Opt('Optionally watch files', short: '-w', value: 'file', bare: '.')]
+		string $watch = '',
+	): int {
 		return 0;
 	}
 }

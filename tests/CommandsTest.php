@@ -122,7 +122,7 @@ class CommandsTest extends TestCase
 
 		$this->assertSame('cache:clear', $entry->meta->full());
 		$this->assertSame('Clears the cache', $entry->meta->description);
-		$this->assertSame([], $entry->opts());
+		$this->assertSame([], $entry->signature()->options());
 	}
 
 	public function testAddUnknownClassFails(): void

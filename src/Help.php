@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Celema\Console;
 
+use BackedEnum;
+use ReflectionParameter;
+
 /**
- * Renders a command's help screen from its attributes.
+ * Renders a command's help screen from its declaration.
  *
  * Used by the Runner for `help <command>`; commands that intercept a
  * `--help` flag themselves can render the same screen via `showFor()`.
@@ -19,11 +22,18 @@ final class Help
 	) {}
 
 	/**
-	 * @param list<Opt> $opts
-	 * @param list<Arg> $arguments
+	 * Renders help for a command instance or class from its `#[Command]`
+	 * attribute and `__invoke()` signature.
+	 *
+	 * @param class-string|object $command
 	 */
-	public function show(Command $meta, array $opts = [], array $arguments = []): void
+	public function showFor(object|string $command): void
 	{
+		$class = is_object($command) ? $command::class : $command;
+		$meta = Command::of($class);
+		$signature = Signature::of($class, $meta->full());
+		$arguments = $signature->arguments();
+		$options = $signature->options();
 		$script = $_SERVER['argv'][0] ?? '';
 
 		if ($meta->description !== '') {
@@ -33,17 +43,16 @@ final class Help
 		$usage = "<yellow>Usage:</yellow>\n  php {$script} {$meta->full()}";
 
 		foreach ($arguments as $argument) {
-			// Escaped: the <name> notation must not parse as markup.
-			$name = $this->io->escape("<{$argument->name}>") . ($argument->variadic ? '...' : '');
-			$usage .= $argument->optional ? " [{$name}]" : " {$name}";
+			$name = $this->argumentName($argument);
+			$usage .= $argument->optional() ? " [{$name}]" : " {$name}";
 		}
 
-		$this->io->echo($usage . ($opts === [] ? "\n" : " [options]\n"));
+		$this->io->echo($usage . ($options === [] ? "\n" : " [options]\n"));
 		$this->showArguments($arguments);
-		$this->showOptions($opts);
+		$this->showOptions($options);
 	}
 
-	/** @param list<Arg> $arguments */
+	/** @param list<Argument> $arguments */
 	private function showArguments(array $arguments): void
 	{
 		if ($arguments === []) {
@@ -53,54 +62,73 @@ final class Help
 		$this->io->echo("\n<yellow>Arguments:</yellow>\n");
 
 		foreach ($arguments as $argument) {
-			$name = $this->io->escape("<{$argument->name}>") . ($argument->variadic ? '...' : '');
-			$this->io->echo("    <green>{$name}</green>\n");
-
-			if ($argument->description !== '') {
-				$this->io->echo($this->io->indent($argument->description, 8, 80) . "\n");
-			}
+			$this->io->echo("    <green>{$this->argumentName($argument)}</green>\n");
+			$this->showDescription($argument->arg->description, $argument->parameter, $argument->type);
 		}
 	}
 
-	/** @param list<Opt> $opts */
-	private function showOptions(array $opts): void
+	/** @param array<string, Option> $options */
+	private function showOptions(array $options): void
 	{
-		if ($opts === []) {
+		if ($options === []) {
 			return;
 		}
 
 		$this->io->echo("\n<yellow>Options:</yellow>\n");
 
-		foreach ($opts as $opt) {
+		foreach ($options as $option) {
 			$suffix = match (true) {
-				$opt->value === '' => '',
-				$opt->optionalValue => "[=<{$opt->value}>]",
-				default => "=<{$opt->value}>",
+				$option->type->name === 'bool' => '',
+				$option->opt->bare !== null => "[=<{$option->label()}>]",
+				default => "=<{$option->label()}>",
 			};
 
-			$option = $opt->short === ''
-				? $opt->long . $suffix
-				: "{$opt->short}{$suffix}, {$opt->long}{$suffix}";
+			$short = $option->opt->short;
+			$flags = $short === '' ? $option->name . $suffix : "{$short}{$suffix}, {$option->name}{$suffix}";
 
-			$description = $opt->default === ''
-				? $opt->description
-				: "{$opt->description} [default: {$opt->default}]";
+			$this->io->echo('    <green>' . $this->io->escape($flags) . "</green>\n");
+			$this->showDescription($option->opt->description, $option->parameter, $option->type);
+		}
+	}
 
-			$this->io->echo('    <green>' . $this->io->escape($option) . "</green>\n");
+	private function argumentName(Argument $argument): string
+	{
+		// Escaped: the <name> notation must not parse as markup.
+		return $this->io->escape("<{$argument->name}>") . ($argument->variadic() ? '...' : '');
+	}
 
-			if ($description !== '') {
-				$this->io->echo($this->io->indent($description, 8, 80) . "\n");
-			}
+	/**
+	 * Renders the description followed by the choices and the default.
+	 */
+	private function showDescription(string $description, ReflectionParameter $parameter, Type $type): void
+	{
+		$parts = $description === '' ? [] : [$description];
+		$choices = $type->choices();
+
+		if ($choices !== []) {
+			$parts[] = '[choices: ' . $this->io->escape(implode(', ', $choices)) . ']';
+		}
+
+		$default = $parameter->isDefaultValueAvailable() ? $this->text($parameter->getDefaultValue()) : '';
+
+		if ($default !== '') {
+			$parts[] = '[default: ' . $this->io->escape($default) . ']';
+		}
+
+		if ($parts !== []) {
+			$this->io->echo($this->io->indent(implode(' ', $parts), 8, 80) . "\n");
 		}
 	}
 
 	/**
-	 * Renders help for a command instance or class from its attributes.
-	 *
-	 * @param class-string|object $command
+	 * Renders a default value; null, booleans, and arrays render empty.
 	 */
-	public function showFor(object|string $command): void
+	private function text(mixed $value): string
 	{
-		$this->show(Command::of($command), Opt::of($command), Arg::of($command));
+		if ($value instanceof BackedEnum) {
+			$value = $value->value;
+		}
+
+		return is_string($value) || is_int($value) || is_float($value) ? (string) $value : '';
 	}
 }

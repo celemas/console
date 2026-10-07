@@ -20,7 +20,7 @@ final class Entry
 	/** @param class-string $class */
 	private function __construct(
 		public readonly Command $meta,
-		private readonly string $class,
+		public readonly string $class,
 		private readonly Closure $factory,
 	) {}
 
@@ -60,15 +60,11 @@ final class Entry
 		return $this->command;
 	}
 
-	/** @return list<Opt> */
-	public function opts(): array
+	/**
+	 * Reads the command's signature off the keyed class.
+	 */
+	public function signature(): Signature
 	{
-		return Opt::of($this->class);
-	}
-
-	/** @return list<Arg> */
-	public function args(): array
-	{
-		return Arg::of($this->class);
+		return Signature::of($this->class, $this->meta->full());
 	}
 }

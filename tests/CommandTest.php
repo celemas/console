@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Celema\Console\Tests;
 
 use Celema\Console\Command;
-use Celema\Console\Opt;
 use Celema\Console\Tests\Fixtures\Erring;
 use Celema\Console\Tests\Fixtures\FooStuff;
-use Celema\Console\Tests\Fixtures\Plain;
 use stdClass;
 use ValueError;
 
@@ -97,21 +95,5 @@ class CommandTest extends TestCase
 		$this->expectExceptionMessage('has no #[Command] attribute');
 
 		Command::of(stdClass::class);
-	}
-
-	public function testReadOptsFromClass(): void
-	{
-		$opts = Opt::of(FooStuff::class);
-
-		$this->assertCount(1, $opts);
-		$this->assertSame('--stuff', $opts[0]->long);
-		$this->assertSame('-s', $opts[0]->short);
-		$this->assertSame('stuff', $opts[0]->value);
-		$this->assertFalse($opts[0]->optionalValue);
-	}
-
-	public function testReadOptsFromInstance(): void
-	{
-		$this->assertSame([], Opt::of(new Plain()));
 	}
 }

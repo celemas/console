@@ -13,9 +13,10 @@ A command line interface helper.
 ## Features
 
 - Commands are plain classes marked with a `#[Command]` attribute — no base class, free constructors
-- Automatic help generation from `#[Command]`, `#[Arg]`, and `#[Opt]` attributes
-- Strict by default: the `#[Arg]`/`#[Opt]` declarations are a command's complete interface — an unknown or malformed option (with a "Did you mean" suggestion), a missing required argument, or an undeclared positional aborts before the command runs; a variadic `#[Arg]` takes open-ended input
-- Parsed options and positional arguments via an injected `Args` object
+- Arguments and options are `__invoke()` parameters marked `#[Arg]` or `#[Opt]`, converted to their declared types — `string`, `int`, `float`, `bool`, `array`, or a backed enum — with defaults from the signature
+- Automatic help generation from the `#[Command]` attribute and the `__invoke()` signature
+- Strict by default: the parameters are a command's complete interface — an unknown or malformed option (with a "Did you mean" suggestion), a value of the wrong type, a missing required argument, or an undeclared positional aborts before the command runs; an `array` argument takes open-ended input
+- Raw access to the parsed options and positionals via an injected `Args` object
 - Lazy command construction: factories run only for the invoked command
 - Anonymous classes as lightweight one-off commands — attributes work inline
 - Built-in color support with per-stream terminal detection and `NO_COLOR`/`FORCE_COLOR` handling
@@ -41,17 +42,21 @@ composer require celema/console
 A command is a plain invokable class with a `#[Command]` attribute:
 
 ```php
-use Celema\Console\{Arg, Args, Command, Opt, Io};
+use Celema\Console\{Arg, Command, Opt, Io};
 
 #[Command('grp:mycommand', 'This is my command')]
-#[Arg('name', 'Who to greet', optional: true)]
-#[Opt('--force', 'Skip the safety net')]
 class MyCommand
 {
-    public function __invoke(Args $args, Io $io): int
-    {
-        $name = $args->positional(0, 'world');
-        $io->info("Running my command for {$name}");
+    public function __invoke(
+        Io $io,
+        #[Arg('Who to greet')]
+        string $name = 'world',
+        #[Opt('Rows per batch', short: '-b')]
+        int $batch = 500,
+        #[Opt('Skip the safety net')]
+        bool $force = false,
+    ): int {
+        $io->info("Running my command for {$name} in batches of {$batch}");
         $io->success('Command completed!');
 
         return 0;
@@ -59,15 +64,7 @@ class MyCommand
 }
 ```
 
-`__invoke()` must declare the return type `int` (the exit code). Its `Args` and `Io` parameters are matched by type, not position: each is optional and their order is free, but no other parameters are allowed.
-
-Options use `--key=value` (a bare `--flag` is a boolean); every other argument is a positional. Read them from the injected `Args`:
-
-```php
-$name = $args->positional(0);        // first positional, or null
-$conn = $args->opt('--conn', 'sqlite'); // option value, or the default
-$force = $args->has('--force');      // boolean flag
-```
+`__invoke()` must declare the return type `int` (the exit code). An `Io` parameter is injected; `#[Arg]` parameters take the positional arguments in order and `#[Opt]` parameters the options, named after the parameter in kebab-case. Options use `--key=value` (a flag like `--force` has no value), and every option needs a default.
 
 Create a runner script and pass its exit code to `exit()`:
 
@@ -86,8 +83,8 @@ exit($runner->run());
 Run your command:
 
 ```bash
-$ php run mycommand alice
-Running my command for alice
+$ php run mycommand alice -b=100
+Running my command for alice in batches of 100
 Command completed!
 ```
 

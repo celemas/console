@@ -12,35 +12,35 @@ composer require celema/console
 
 ## Quick Start
 
-A command is a plain class with a `#[Command]` attribute and an `__invoke()` method receiving the parsed arguments and the terminal `Io`:
+A command is a plain class with a `#[Command]` attribute and an `__invoke()` method. Its parameters receive the terminal `Io` and the command-line input, converted to their declared types:
 
 ```php
-use Celema\Console\{Arg, Args, Command, Opt, Io};
+use Celema\Console\{Arg, Command, Opt, Io};
 
 // The first argument is the name by which the command is invoked from the
 // command line. An optional `grp:` prefix namespaces the command and groups
 // it in the help overview; `group` overrides the displayed group title.
 #[Command('grp:mycommand', 'This is my command description', group: 'My Group')]
-// Each #[Arg] describes one positional argument and each #[Opt] one
-// option in the command's help text (e.g. `php run help mycommand`).
-// The declarations are the command's complete interface: an unknown or
-// malformed option, a missing required argument, or an undeclared
-// positional aborts the command before it runs. A `variadic` #[Arg]
-// takes open-ended input.
-#[Arg('name', 'Who to greet', optional: true)]
-#[Opt('--stuff', 'Description of --stuff', short: '-s', value: 'stuff')]
-#[Opt('--conn', 'The database connection', value: 'conn', default: 'sqlite')]
-#[Opt('--verbose', 'Enable verbose output', short: '-v')]
 class MyCommand
 {
-    public function __invoke(Args $args, Io $io): int
-    {
-        $io->echo("Run my command\n");
-
-        // Read options and positionals from the injected Args
-        $name = $args->positional(0, 'world');   // first positional, or default
-        $conn = $args->opt('--conn', 'sqlite');  // --conn=value, or default
-        $verbose = $args->has('--verbose');      // boolean flag
+    // An #[Arg] parameter takes a positional argument, an #[Opt] parameter
+    // an option; names derive from the parameter names, so `$dryRun` is
+    // `--dry-run`. The help text (`php run help mycommand`) renders from
+    // them. They are the command's complete interface: an unknown option,
+    // a value of the wrong type, a missing required argument, or an
+    // undeclared positional aborts the command before it runs.
+    public function __invoke(
+        Io $io,
+        #[Arg('Who to greet')]
+        string $name = 'world',
+        #[Opt('Rows per batch', short: '-b')]
+        int $batch = 500,
+        #[Opt('The database connection')]
+        string $conn = 'sqlite',
+        #[Opt('Enable verbose output', short: '-v')]
+        bool $verbose = false,
+    ): int {
+        $io->echo("Run my command for {$name}\n");
 
         // Output helpers with color support (warn/error go to STDERR)
         $io->info('Informational message');
@@ -85,7 +85,7 @@ $commands->add(new #[Command('cache:clear', 'Clears the cache')] class {
 
 Commands carry their metadata in the `#[Command]` attribute, which is read without instantiating the class. Factories run only when their command is actually invoked — listing the help never constructs a command.
 
-The runner validates the signature of the invoked command: `__invoke()` must declare the return type `int` — the exit code — and may declare any subset of `Args` and `Io` parameters in any order. They are matched by declared type, and no other parameters are allowed.
+The runner validates the signature of the invoked command: `__invoke()` must declare the return type `int` — the exit code. Parameters typed `Args` or `Io` are injected, each at most once and in any order; every other parameter must carry `#[Arg]` or `#[Opt]` (see [Arguments and Options](#arguments-and-options)).
 
 ### Io Methods
 
@@ -110,7 +110,7 @@ The constructor takes the output, error, and input targets (`php://stdout`, `php
 `Io` also reads: `ask()` prompts for one line of input, `confirm()` for a yes/no answer, `choice()` for one of a numbered list.
 
 ```php
-public function __invoke(Args $args, Io $io): int
+public function __invoke(Io $io): int
 {
     $name = $io->ask('Migration name:', default: 'unnamed');
     $password = $io->ask('Password:', hidden: true);
@@ -138,14 +138,14 @@ public function __invoke(Args $args, Io $io): int
 use Celema\Console\BufferedIo;
 
 $io = new BufferedIo("yes\n");
-$exitCode = new MyCommand()($args, $io);
+$exitCode = new MyCommand()(io: $io, name: 'Ada', verbose: true);
 
 $this->assertSame(0, $exitCode);
 $this->assertStringContainsString('done', $io->output());
 $this->assertSame('', $io->errorOutput());
 ```
 
-The `Runner` also accepts a ready `Io` instance in place of its output target string, so full runs can be captured the same way: `new Runner($commands, $io)`.
+A command is a plain callable, so a test passes its parameters by name, already converted, and leaves out those that keep their defaults. To test the command line itself — parsing, validation, and conversion — run the command through a `Runner`, which also accepts a ready `Io` instance in place of its output target string: `new Runner($commands, $io)`.
 
 ### Markup
 
@@ -194,18 +194,65 @@ foreach (['', '  Import failed', '  3 of 120 pages skipped', ''] as $line) {
 
 With colors off the block collapses to plain indented text — nothing clutters logs or redirected output (bar the padding spaces). Two rules keep the rendering intact: pad inside the tag and indent outside, so the margin stays uncolored; and tag each line separately rather than spanning one pair across lines.
 
-### Command-Line Arguments
+### Arguments and Options
 
-The Runner parses the command's arguments and passes them to `__invoke(Args $args, Io $io)`:
+A command declares its command line with its `__invoke()` parameters: `#[Arg]` marks a positional argument, `#[Opt]` an option. The runner validates the input against them and passes the values converted to the declared types:
 
-```bash
-php run mycommand up --conn=sqlite --verbose
+```php
+use Celema\Console\{Arg, Command, Opt, Io};
+
+#[Command('db:import', 'Import records from a file')]
+class Import
+{
+    /** @param list<string> $tag */
+    public function __invoke(
+        Io $io,
+        #[Arg('The file to import')]
+        string $file,
+        #[Arg('Target format')]
+        Format $format = Format::Csv, // a backed enum
+        #[Opt('Rows per batch', short: '-b')]
+        int $batch = 500,
+        #[Opt('Only these tags')]
+        array $tag = [],
+        #[Opt('Report without writing')]
+        bool $dryRun = false,
+    ): int {
+        // ...
+    }
+}
 ```
 
-- `--key=value` sets an option; repeat the flag to collect multiple values.
-- A dashed token without `=`, such as `--verbose` or `-h`, is a boolean flag.
+```bash
+php run db:import data.csv json -b=100 --tag=news --tag=events --dry-run
+```
+
+- Names derive from the parameter names in kebab-case: `$dryRun` is `--dry-run`, and `$targetDir` renders as `<target-dir>`.
+- The supported types are `string`, `int`, `float`, `bool`, `array`, and backed enums, also nullable. An enum accepts its backing values. A value that does not convert, like `--batch=many` or `--format=xml`, aborts the command.
+- Positionals match the arguments in declaration order. An argument with a default is optional. An `array` argument must be the last one and takes the remaining positionals as strings: at least one, or any number when it has a default.
+- Every option needs a default, which the command receives when the option is absent; use a nullable type for "not given", like `?int $limit = null`. A `bool` option is a flag without value and must default to `false`. An `array` option is repeatable and collects its values as strings. Any other option takes exactly one value.
+- `short` adds an alias, such as `-b`. `value` overrides the `<value>` label in the help, which defaults to the option name.
+- `bare` makes the value of an option optional. With `#[Opt('Worker count', bare: '1')] ?int $worker = null`, the command receives `null` without `--worker`, `1` for a bare `--worker`, and `4` for `--worker=4`. The bare value is written as on the command line.
+- A default known only at runtime, such as a port configured in the constructor, becomes a nullable parameter: `?int $port = null`, then `$port ?? $this->port`.
+
+The command line is parsed into options and positionals:
+
+- `--key=value` sets an option; repeat it for a repeatable option.
+- A dashed token without `=`, such as `--verbose` or `-v`, is an option without a value.
 - Every other token is a positional argument.
 - The first `--` ends option parsing: every later token is a positional, dashed or not — for values like `-5` or `--literal`.
+
+A positional cannot start with `-` — such a token is read as an option. Declared short names are normalized to their long names before binding.
+
+#### Validation
+
+The parameters are a command's complete interface; the runner validates every invocation against them before the command runs. An unknown option (with a "Did you mean" suggestion for near misses), a value on a flag, a missing value, a repeated single-value option, a value that does not convert, a missing required argument, or an undeclared positional aborts with exit code 1. So a typo like `--forec` — or an option on a command that takes none — fails loudly instead of being silently ignored.
+
+Declarations are checked when the command runs or renders its help: an option without a default, a flag defaulting to `true`, an unsupported type, a variadic (`...`) parameter, or an argument after the `array` argument is reported as an error.
+
+#### Raw Input
+
+A command can also declare an `Args` parameter for the parsed tokens, for example to loop over a set of flags:
 
 ```php
 $args->positional(0);            // "up" (or null / a default)
@@ -216,32 +263,18 @@ $args->has('--verbose');         // true
 $args->names();                  // names of all provided options
 ```
 
-A positional cannot start with `-` — such a token is read as a flag. When `#[Opt]` declares a short name, the runner normalizes it to the long name before invoking the command. Repeated short and long forms retain their original order, and command code only needs to read the long name.
-
-### Validation
-
-The `#[Arg]` and `#[Opt]` declarations are a command's complete interface; the runner validates every invocation against them before the command runs. An unknown or undeclared option (with a "Did you mean" suggestion for near misses), a value on a boolean flag, a value-taking option without `=value`, a missing required argument, or an undeclared positional aborts with exit code 1. So a typo like `--forec` — or an option on a command that takes none — fails loudly instead of being silently ignored.
-
-For open-ended positional input declare the last argument as variadic, e.g. `#[Arg('files', 'The files to process', variadic: true)]`: it takes all remaining positionals — at least one, or any number when also `optional`.
+`Args` holds the raw strings after validation, with short names normalized to long ones.
 
 ### Command Help
 
-`php run help <command>` renders the description and usage line from the `#[Command]` attribute, an "Arguments:" entry per `#[Arg]` attribute, and an "Options:" entry per `#[Opt]` attribute:
+`php run help <command>` renders the description and usage line from the `#[Command]` attribute, an "Arguments:" entry per `#[Arg]` parameter, and an "Options:" entry per `#[Opt]` parameter:
 
-```php
-#[Arg('file', 'The file to process')]
-// Renders "<file>" in the usage line and under "Arguments:"
-#[Arg('target', 'Where the result ends up', optional: true)]
-// Renders "[<target>]"
-#[Opt('--stuff', 'Description of --stuff', short: '-s', value: 'stuff')]
-// Renders "-s=<stuff>, --stuff=<stuff>"
-#[Opt('--verbose', 'Enable verbose output', short: '-v')]
-// Renders "-v, --verbose"
-#[Opt('--watch', 'Optionally watch files', value: 'file', optionalValue: true)]
-// Renders "--watch[=<file>]"
-#[Opt('--conn', 'The connection to use', value: 'conn', default: 'sqlite')]
-// Appends "[default: sqlite]" to the description
-```
+- `#[Arg] string $file` renders `<file>` in the usage line and under "Arguments:". With a default, it renders `[<file>]`; as an `array`, `<file>...`.
+- `#[Opt(short: '-s')] string $stuff = ''` renders `-s=<stuff>, --stuff=<stuff>`; `value: 'path'` changes the label to `<path>`.
+- `#[Opt(short: '-v')] bool $verbose = false` renders `-v, --verbose`.
+- `#[Opt(bare: '.')] string $watch = ''` renders `--watch[=<watch>]`.
+
+The descriptions are followed by `[choices: csv, json]` for an enum and `[default: sqlite]` for a string, number, or enum default. `null`, `false`, empty strings, and arrays render no default.
 
 ### Built-in Commands
 
@@ -252,17 +285,18 @@ The unprefixed names `help` and `commands` are reserved, and duplicate full comm
 
 The runner reserves no flags, so `--help`/`-h` (and every other flag) belong to your command; use `php run help <command>` for a command's help screen.
 
-A command that wants to answer `--help` itself can render the same screen with the `Help` renderer. If the command declares `#[Opt]` attributes, `--help` must be declared too, or option validation rejects it first:
+A command that wants to answer `--help` itself can render the same screen with the `Help` renderer. It declares the flag like any other option, or validation rejects it first:
 
 ```php
-use Celema\Console\{Args, Help, Opt, Io};
+use Celema\Console\{Help, Opt, Io};
 
-#[Opt('--help', 'Show this help', short: '-h')]
-// ... the command's other options ...
-
-public function __invoke(Args $args, Io $io): int
-{
-    if ($args->has('--help') || $args->has('-h')) {
+public function __invoke(
+    Io $io,
+    #[Opt('Show this help', short: '-h')]
+    bool $help = false,
+    // ... the command's other parameters ...
+): int {
+    if ($help) {
         new Help($io)->showFor($this);
 
         return 0;
@@ -272,7 +306,7 @@ public function __invoke(Args $args, Io $io): int
 }
 ```
 
-`showFor()` reads the `#[Command]` and `#[Opt]` attributes off the instance or class, so the flag-triggered screen cannot drift from `php run help <command>`.
+`showFor()` reads the `#[Command]` attribute and the `__invoke()` signature off the instance or class, so the flag-triggered screen cannot drift from `php run help <command>`.
 
 ### Debug Mode
 

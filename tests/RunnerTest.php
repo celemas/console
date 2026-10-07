@@ -123,12 +123,12 @@ class RunnerTest extends TestCase
 		$this->assertStringContainsString("Option '--host' requires a value: --host=<host>", $errors);
 	}
 
-	public function testOptionalValueAllowsMixedRepetition(): void
+	public function testRejectBareAndValuedOccurrenceOfSingleValueOption(): void
 	{
 		[$code, $errors] = $this->runVariants('--watch', '--watch=src', 'file.txt');
 
-		$this->assertSame(0, $code);
-		$this->assertSame('', $errors);
+		$this->assertSame(1, $code);
+		$this->assertStringContainsString("Option '--watch' accepts only one value", $errors);
 	}
 
 	public function testAcceptDeclaredOptions(): void
@@ -146,7 +146,7 @@ class RunnerTest extends TestCase
 		$code = new Runner(new Commands(new OptionAliases()), $out)->run();
 
 		$this->assertSame(0, $code);
-		$this->assertSame('[true,false,["a","b","c"],[]]', $out->output());
+		$this->assertSame('[true,false,["a","b","c"],[],true,["a","b","c"]]', $out->output());
 	}
 
 	public function testOptionalValueAcceptsAValue(): void
@@ -172,7 +172,7 @@ class RunnerTest extends TestCase
 		$code = new Runner(new Commands(new OptionAliases()), $out)->run();
 
 		$this->assertSame(0, $code);
-		$this->assertSame('[true,false,[],[]]', $out->output());
+		$this->assertSame('[true,false,[],[],true,[]]', $out->output());
 	}
 
 	public function testSeparatorPassesLaterTokensUnchanged(): void
@@ -180,12 +180,16 @@ class RunnerTest extends TestCase
 		[$code, $out] = $this->runProbe(
 			new
 				#[Command('probe')]
-				#[Opt('--verbose', 'Verbose output', short: '-v')]
-				#[Arg('rest', 'Remaining tokens', optional: true, variadic: true)]
 				class {
-					public function __invoke(Args $args, Io $io): int
-					{
-						$io->echo((string) json_encode([$args->has('--verbose'), $args->positionals()]));
+					/** @param list<string> $rest */
+					public function __invoke(
+						Io $io,
+						#[Opt('Verbose output', short: '-v')]
+						bool $verbose = false,
+						#[Arg('Remaining tokens')]
+						array $rest = [],
+					): int {
+						$io->echo((string) json_encode([$verbose, $rest]));
 
 						return 0;
 					}
@@ -228,14 +232,14 @@ class RunnerTest extends TestCase
 	{
 		$command = new
 			#[Command('probe', 'Variadic probe')]
-			#[Arg('files', 'The files', variadic: true)]
 			class {
 				/** @var list<string> */
 				public array $files = [];
 
-				public function __invoke(Args $args): int
+				/** @param list<string> $files */
+				public function __invoke(#[Arg('The files')] array $files): int
 				{
-					$this->files = $args->positionals();
+					$this->files = $files;
 
 					return 0;
 				}
@@ -250,9 +254,9 @@ class RunnerTest extends TestCase
 	{
 		[$code, $out] = $this->runProbe(new
 			#[Command('probe', 'Variadic probe')]
-			#[Arg('files', 'The files', variadic: true)]
 			class {
-				public function __invoke(): int
+				/** @param list<string> $files */
+				public function __invoke(#[Arg('The files')] array $files): int
 				{
 					return 0;
 				}
@@ -266,9 +270,9 @@ class RunnerTest extends TestCase
 	{
 		[$code] = $this->runProbe(new
 			#[Command('probe', 'Variadic probe')]
-			#[Arg('files', 'The files', optional: true, variadic: true)]
 			class {
-				public function __invoke(): int
+				/** @param list<string> $files */
+				public function __invoke(#[Arg('The files')] array $files = []): int
 				{
 					return 0;
 				}
@@ -279,16 +283,18 @@ class RunnerTest extends TestCase
 
 	public function testRejectArgumentAfterVariadic(): void
 	{
-		[$code, $out] = $this->runProbe(new
-			#[Command('probe', 'Variadic probe')]
-			#[Arg('files', 'The files', variadic: true)]
-			#[Arg('extra', 'Too late')]
-			class {
-				public function __invoke(): int
-				{
-					return 0;
-				}
-			}, 'a.txt');
+		[$code, $out] = $this->runProbe(
+			new
+				#[Command('probe', 'Variadic probe')]
+				class {
+					/** @param list<string> $files */
+					public function __invoke(#[Arg('The files')] array $files, #[Arg('Too late')] string $extra): int
+					{
+						return 0;
+					}
+				},
+			'a.txt',
+		);
 
 		$this->assertSame(1, $code);
 		$this->assertStringContainsString(
@@ -297,28 +303,18 @@ class RunnerTest extends TestCase
 		);
 	}
 
-	public function testRejectRequiredArgumentAfterOptional(): void
-	{
-		$_SERVER['argv'] = ['run', 'badargs', 'value'];
-		$out = new BufferedIo();
-		$code = new Runner(new Commands(Fixtures\BadArgOrder::class), $out)->run();
-
-		$this->assertSame(1, $code);
-		$this->assertStringContainsString(
-			"Command 'badargs' declares the required argument '<second>' after an optional one",
-			$out->errorOutput(),
-		);
-	}
-
 	public function testRejectDuplicateOptionName(): void
 	{
 		[$code, $out] = $this->runProbe(new
 			#[Command('probe', 'Duplicate option')]
-			#[Opt('--force', 'First')]
-			#[Opt('--force', 'Second')]
 			class {
-				public function __invoke(): int
-				{
+				// Parameter names are case-sensitive, command-line names are not.
+				public function __invoke(
+					#[Opt('First')]
+					bool $force = false,
+					#[Opt('Second')]
+					bool $Force = false,
+				): int {
 					return 0;
 				}
 			});
@@ -334,11 +330,13 @@ class RunnerTest extends TestCase
 	{
 		[$code, $out] = $this->runProbe(new
 			#[Command('probe', 'Duplicate alias')]
-			#[Opt('--alpha', 'First', short: '-x')]
-			#[Opt('--beta', 'Second', short: '-x')]
 			class {
-				public function __invoke(): int
-				{
+				public function __invoke(
+					#[Opt('First', short: '-x')]
+					bool $alpha = false,
+					#[Opt('Second', short: '-x')]
+					bool $beta = false,
+				): int {
 					return 0;
 				}
 			});
@@ -831,21 +829,20 @@ class RunnerTest extends TestCase
 	{
 		$command = new
 			#[Command('probe', 'Signature probe')]
-			#[Arg('when', 'The when')]
 			class {
-				public string $seen = '';
+				public ?Args $seen = null;
 
 				public function __invoke(Args $args): int
 				{
-					$this->seen = (string) $args->positional(0);
+					$this->seen = $args;
 
 					return 0;
 				}
 			};
-		[$code] = $this->runProbe($command, 'now');
+		[$code] = $this->runProbe($command);
 
 		$this->assertSame(0, $code);
-		$this->assertSame('now', $command->seen);
+		$this->assertSame([], $command->seen?->positionals());
 	}
 
 	public function testCommandWithoutParameters(): void
@@ -866,18 +863,17 @@ class RunnerTest extends TestCase
 	{
 		[$code, $out] = $this->runProbe(new
 			#[Command('probe', 'Signature probe')]
-			#[Arg('when', 'The when')]
 			class {
-				public function __invoke(Io $io, Args $args): int
+				public function __invoke(#[Arg('The when')] string $when, Io $io, Args $args): int
 				{
-					$io->echo('swapped ' . (string) $args->positional(0));
+					$io->echo("swapped {$when} " . (string) $args->positional(0));
 
 					return 0;
 				}
 			}, 'now');
 
 		$this->assertSame(0, $code);
-		$this->assertSame('swapped now', $out->output());
+		$this->assertSame('swapped now now', $out->output());
 	}
 
 	public function testRejectUntypedParameter(): void
@@ -912,7 +908,7 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(1, $code);
 		$this->assertStringContainsString(
-			"Command 'probe' parameter \$name must be declared as Args or Io",
+			"Command 'probe' parameter \$name must be declared as Args or Io, or carry #[Arg] or #[Opt]\n",
 			$out->errorOutput(),
 		);
 	}
@@ -1155,11 +1151,10 @@ class RunnerTest extends TestCase
 		// the flag reads it itself. Help stays on `run help <command>`.
 		[$code, $out] = $this->runProbe(new
 			#[Command('probe', 'Help probe')]
-			#[Opt('--help', 'Show this help', short: '-h')]
 			class {
-				public function __invoke(Args $args, Io $io): int
+				public function __invoke(Io $io, #[Opt('Show this help', short: '-h')] bool $help = false): int
 				{
-					$io->echo($args->has('--help') ? 'own help' : 'no help');
+					$io->echo($help ? 'own help' : 'no help');
 
 					return 0;
 				}
@@ -1183,11 +1178,10 @@ class RunnerTest extends TestCase
 		$_SERVER['argv'] = ['run', 'cache:clear', 'now'];
 		$commands = new Commands([new
 			#[Command('cache:clear', 'Clears the cache')]
-			#[Arg('what', 'What to clear')]
 			class {
-				public function __invoke(Args $args, Io $out): int
+				public function __invoke(Io $out, #[Arg('What to clear')] string $what): int
 				{
-					$out->echo('cleared ' . (string) $args->positional(0));
+					$out->echo("cleared {$what}");
 
 					return 0;
 				}
