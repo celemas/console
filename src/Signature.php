@@ -6,6 +6,7 @@ namespace Celema\Console;
 
 use Celema\Console\Exception\InvalidUsage;
 use ReflectionClass;
+use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ValueError;
@@ -53,6 +54,13 @@ final class Signature
 	 * @var array<string, class-string>
 	 */
 	private array $groups = [];
+
+	/**
+	 * The names of all `__invoke()` parameters, in declaration order.
+	 *
+	 * @var list<string>
+	 */
+	private array $parameters = [];
 
 	private function __construct(
 		private readonly string $full,
@@ -150,8 +158,33 @@ final class Signature
 		return [...$values, ...$this->bindArguments($args->positionals())];
 	}
 
+	/**
+	 * Renames the bound values to the parameters of the command's own
+	 * `__invoke()`, matching them by position.
+	 *
+	 * The values are bound to the registered class, but a factory may
+	 * return a subclass whose override renames the parameters.
+	 *
+	 * @param array<string, mixed> $values
+	 * @return array<string, mixed>
+	 */
+	public function match(array $values, object $command): array
+	{
+		$parameters = new ReflectionMethod($command, '__invoke')->getParameters();
+		$matched = [];
+
+		foreach ($this->parameters as $position => $name) {
+			if (array_key_exists($name, $values)) {
+				$matched[$parameters[$position]->name] = $values[$name];
+			}
+		}
+
+		return $matched;
+	}
+
 	private function add(ReflectionParameter $parameter): void
 	{
+		$this->parameters[] = $parameter->name;
 		$arg = $parameter->getAttributes(Arg::class)[0] ?? null;
 		$opt = $parameter->getAttributes(Opt::class)[0] ?? null;
 

@@ -1232,6 +1232,33 @@ class RunnerTest extends TestCase
 		$runner->run();
 	}
 
+	public function testFactorySubclassMayRenameParameters(): void
+	{
+		// The registered class defines the command line; the override
+		// receives the values by position.
+		$factory = static fn(): Fixtures\Greet => new class extends Fixtures\Greet {
+			#[\Override]
+			public function __invoke(Io $io, string $who = 'World', string $salutation = 'Hey'): int
+			{
+				$io->echo("{$salutation}, {$who}!");
+
+				return 0;
+			}
+		};
+		$commands = new Commands([Fixtures\Greet::class => $factory]);
+
+		$_SERVER['argv'] = ['run', 'greet', 'Ada', '--greeting=Hi'];
+		$out = new BufferedIo();
+		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame('Hi, Ada!', $out->output());
+
+		// Absent input leaves the override's own defaults in place.
+		$_SERVER['argv'] = ['run', 'greet'];
+		$out = new BufferedIo();
+		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame('Hey, World!', $out->output());
+	}
+
 	public function testFactoryRunsOnlyForTheInvokedCommand(): void
 	{
 		$_SERVER['argv'] = ['run', 'help'];

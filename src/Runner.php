@@ -218,15 +218,16 @@ final class Runner
 	/** @param list<string> $tokens */
 	private function runCommand(Entry $entry, array $tokens): int
 	{
-		$values = $entry->signature()->bind($tokens, $this->io);
+		$signature = $entry->signature();
+		$values = $signature->bind($tokens, $this->io);
 
 		// The signature checked that __invoke() exists; PHP requires it
 		// to be public.
-		/** @var callable $command */
+		/** @var callable-object $command */
 		$command = $entry->command();
 
 		/** @var int Guaranteed by the declared return type under strict_types */
-		return $command(...$values);
+		return $command(...$signature->match($values, $command));
 	}
 
 	private function showCommandHelp(Entry $entry): int
