@@ -780,6 +780,38 @@ class RunnerTest extends TestCase
 		$runner->run();
 	}
 
+	public function testRunTakesAnExplicitArgumentVector(): void
+	{
+		$_SERVER['argv'] = ['run', 'unknown'];
+		$out = new BufferedIo();
+		$code = new Runner($this->getCommands(), $out)->run(['bin/tool', 'drivel']);
+
+		$this->assertSame(0, $code);
+		$this->assertSame("Foo's drivel", $out->output());
+	}
+
+	public static function explicitScriptNameProvider(): iterable
+	{
+		yield 'overview' => [['bin/tool'], 'php bin/tool [prefix:]command'];
+		yield 'help command' => [['bin/tool', 'help'], 'php bin/tool [prefix:]command'];
+		yield 'command help' => [['bin/tool', 'help', 'help:variants'], 'php bin/tool help:variants <file>'];
+		yield 'help flag hint' => [
+			['bin/tool', 'help:variants', '--help'],
+			"Use 'php bin/tool help help:variants' to show the command's help",
+		];
+	}
+
+	/** @param list<string> $argv */
+	#[DataProvider('explicitScriptNameProvider')]
+	public function testExplicitArgumentVectorNamesTheScript(array $argv, string $expected): void
+	{
+		$_SERVER['argv'] = ['run'];
+		$out = new BufferedIo();
+		new Runner([new HelpVariants()], $out)->run($argv);
+
+		$this->assertStringContainsString($expected, $out->output() . $out->errorOutput());
+	}
+
 	public function testRunAmbiguousCommand(): void
 	{
 		$_SERVER['argv'] = ['run', 'stuff'];

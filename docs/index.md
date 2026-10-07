@@ -209,6 +209,13 @@ $this->assertSame('', $io->errorOutput());
 
 A command is a plain callable, so a test passes its parameters by name, already converted, and leaves out those that keep their defaults. To test the command line itself — parsing, validation, and conversion — run the command through a `Runner`, which also accepts a ready `Io` instance in place of its output target string: `new Runner([new MyCommand()], $io)`.
 
+`run()` reads `$_SERVER['argv']` unless it is given an argument vector of the same shape, starting with the script name, so a test need not change the global:
+
+```php
+$io = new BufferedIo();
+$exitCode = new Runner([new MyCommand()], $io)->run(['run', 'mycommand', 'Ada', '--verbose']);
+```
+
 ### Markup
 
 The echo methods render inline markup:
@@ -413,7 +420,7 @@ public function __invoke(
 }
 ```
 
-`showFor()` reads the `#[Command]` attribute and the `__invoke()` signature off the instance or class, so the flag-triggered screen cannot drift from `php run help <command>`.
+`showFor()` reads the `#[Command]` attribute and the `__invoke()` signature off the instance or class, so the flag-triggered screen cannot drift from `php run help <command>`. The usage line shows the script name from `$_SERVER['argv'][0]`; pass another as the second constructor argument: `new Help($io, 'bin/console')`.
 
 ### Debug Mode
 

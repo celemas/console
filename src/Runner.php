@@ -91,9 +91,12 @@ final class Runner
 		return $this;
 	}
 
-	public function showHelp(): int
+	/**
+	 * The script name in the usage line defaults to `$_SERVER['argv'][0]`.
+	 */
+	public function showHelp(?string $script = null): int
 	{
-		$script = $_SERVER['argv'][0] ?? '';
+		$script ??= $_SERVER['argv'][0] ?? '';
 		$this->io->echo("<yellow>Usage:</yellow>\n");
 		$this->io->echo("  php {$script} [prefix:]command [arguments]\n\n");
 		$this->io->echo("Prefixes are optional if the command is unambiguous.\n\n");
@@ -167,14 +170,23 @@ final class Runner
 		return 0;
 	}
 
-	public function run(): int
+	/**
+	 * Runs the command named in the argument vector, `$_SERVER['argv']` by
+	 * default. A given vector has the same shape: it starts with the script
+	 * name, which help screens and usage hints display.
+	 *
+	 * @param null|list<string> $argv
+	 */
+	public function run(?array $argv = null): int
 	{
+		$argv ??= $_SERVER['argv'] ?? [];
+		$script = $argv[0] ?? '';
+
 		try {
-			$argv = $_SERVER['argv'] ?? [];
 			$arg = $argv[1] ?? null;
 
 			if ($arg === null) {
-				return $this->showHelp();
+				return $this->showHelp($script);
 			}
 
 			$cmd = strtolower($arg);
@@ -185,7 +197,7 @@ final class Runner
 				$arg = $argv[2] ?? null;
 
 				if ($arg === null) {
-					return $this->showHelp();
+					return $this->showHelp($script);
 				}
 
 				$cmd = strtolower($arg);
@@ -208,10 +220,10 @@ final class Runner
 			}
 
 			if ($isHelpCall) {
-				return $this->showCommandHelp($entry);
+				return $this->showCommandHelp($entry, $script);
 			}
 
-			return $this->runCommand($entry, $tokens);
+			return $this->runCommand($entry, $tokens, $script);
 		} catch (Throwable $e) {
 			// Escape the arbitrary strings: a message containing markup
 			// (or broken markup) must never throw while reporting. `$arg`
@@ -230,10 +242,10 @@ final class Runner
 	}
 
 	/** @param list<string> $tokens */
-	private function runCommand(Entry $entry, array $tokens): int
+	private function runCommand(Entry $entry, array $tokens, string $script): int
 	{
 		$signature = $entry->signature();
-		$values = $signature->bind($tokens, $this->io);
+		$values = $signature->bind($tokens, $this->io, $script);
 
 		// The signature checked that __invoke() exists; PHP requires it
 		// to be public.
@@ -244,9 +256,9 @@ final class Runner
 		return $command(...$signature->match($values, $command));
 	}
 
-	private function showCommandHelp(Entry $entry): int
+	private function showCommandHelp(Entry $entry, string $script): int
 	{
-		new Help($this->io)->showFor($entry->class);
+		new Help($this->io, $script)->showFor($entry->class);
 
 		return 0;
 	}

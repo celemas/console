@@ -44,6 +44,15 @@ class HelpTest extends TestCase
 		$this->assertStringContainsString("<files>...\n        The files", $out);
 	}
 
+	public function testShowForUsesAGivenScriptName(): void
+	{
+		$_SERVER['argv'] = ['run'];
+		$io = new BufferedIo();
+		new Help($io, 'bin/tool')->showFor(Plain::class);
+
+		$this->assertStringContainsString('php bin/tool plain', $io->output());
+	}
+
 	public function testShowForRendersOptionsFromAttributes(): void
 	{
 		$_SERVER['argv'] = ['run', 'help:variants', '--help'];

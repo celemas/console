@@ -17,8 +17,12 @@ use ReflectionParameter;
  */
 final class Help
 {
+	/**
+	 * The script name in the usage line defaults to `$_SERVER['argv'][0]`.
+	 */
 	public function __construct(
 		private readonly Io $io,
+		private readonly ?string $script = null,
 	) {}
 
 	/**
@@ -34,7 +38,7 @@ final class Help
 		$signature = Signature::of($class, $meta->full());
 		$arguments = $signature->arguments();
 		$options = $signature->options();
-		$script = $_SERVER['argv'][0] ?? '';
+		$script = $this->script ?? $_SERVER['argv'][0] ?? '';
 
 		if ($meta->description !== '') {
 			$this->io->echo("<yellow>Description:</yellow>\n  {$meta->description}\n\n");

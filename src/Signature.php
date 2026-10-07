@@ -127,10 +127,12 @@ final class Signature
 	 * Absent options and optional arguments are left out, so the
 	 * parameters' defaults apply.
 	 *
+	 * `$script` names the runner script in the `--help` hint.
+	 *
 	 * @param list<string> $tokens
 	 * @return array<string, mixed>
 	 */
-	public function bind(array $tokens, Io $io): array
+	public function bind(array $tokens, Io $io, string $script): array
 	{
 		[$args, $counts] = $this->parse($tokens);
 		$values = [];
@@ -142,7 +144,7 @@ final class Signature
 		$grouped = [];
 
 		foreach ($args->names() as $name) {
-			$option = $this->options[$name] ?? throw new InvalidUsage($this->unknownOption($name));
+			$option = $this->options[$name] ?? throw new InvalidUsage($this->unknownOption($name, $script));
 
 			if ($option->group === null) {
 				$values[$option->parameter->name] = $option->value($args, $counts[$name]);
@@ -439,11 +441,9 @@ final class Signature
 		return $values;
 	}
 
-	private function unknownOption(string $name): string
+	private function unknownOption(string $name, string $script): string
 	{
 		if ($name === '--help' || $name === '-h') {
-			$script = $_SERVER['argv'][0] ?? 'run';
-
 			return "Unknown option '{$name}'. Use 'php {$script} help {$this->full}' to show the command's help";
 		}
 
