@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Celema\Console;
 
 use Celema\Console\Exception\InvalidUsage;
+use Closure;
 use Throwable;
 use ValueError;
 
@@ -16,7 +17,7 @@ final class Runner
 	private const AMBIGUOUS = 1;
 
 	/**
-	 * The commands ordered by group and name.
+	 * The commands indexed by group and name.
 	 *
 	 * @var array<string, array{title: string, commands: array<string, Entry>}>
 	 */
@@ -29,60 +30,65 @@ final class Runner
 	 */
 	private array $list = [];
 	private Io $io;
-	private int $longestName = 0;
+
+	/** The widest listed name; the built-in `commands` sets the minimum. */
+	private int $longestName = 8;
+
+	/** @var null|Closure(class-string): object */
+	private readonly ?Closure $resolve;
 
 	/**
 	 * An Io instance given as `$output` is used as is; `$errorOutput`
 	 * then has no effect.
+	 *
+	 * @param null|callable(class-string): object $resolve
 	 */
 	public function __construct(
-		Commands $commands,
+		array|object|string $commands = [],
 		string|Io $output = 'php://stdout',
 		string $errorOutput = 'php://stderr',
 		private bool $debug = false,
+		?callable $resolve = null,
 	) {
 		$this->io = is_string($output) ? new Io($output, $errorOutput) : $output;
-		$this->orderCommands($commands);
+		$this->resolve = $resolve === null ? null : Closure::fromCallable($resolve);
+		$this->add($commands);
 	}
 
-	private function orderCommands(Commands $commands): void
+	/**
+	 * An added Commands collection keeps its own resolver.
+	 */
+	public function add(array|object|string $commands): self
 	{
-		$groups = [];
+		// Index into copies so a rejected call registers nothing.
+		$toc = $this->toc;
+		$list = $this->list;
+		$longestName = $this->longestName;
 
-		foreach ($commands->entries() as $entry) {
+		foreach (new Commands($commands, $this->resolve)->entries() as $entry) {
 			$meta = $entry->meta;
 
 			if ($meta->prefix === '' && ($meta->name === 'help' || $meta->name === 'commands')) {
 				throw new ValueError("Command name '{$meta->name}' is reserved");
 			}
 
-			if (!array_key_exists($meta->prefix, $groups)) {
-				$groups[$meta->prefix] = [
-					'title' => $meta->title(),
-					'commands' => [],
-				];
-			}
+			$group = $toc[$meta->prefix] ?? ['title' => $meta->title(), 'commands' => []];
 
-			if (array_key_exists($meta->name, $groups[$meta->prefix]['commands'])) {
+			if (array_key_exists($meta->name, $group['commands'])) {
 				throw new ValueError("Duplicate command '{$meta->full()}'");
 			}
 
-			$groups[$meta->prefix]['commands'][$meta->name] = $entry;
-			$this->list[$meta->name][] = $entry;
-
-			$this->longestName = max($this->longestName, strlen($meta->full()));
+			$group['commands'][$meta->name] = $entry;
+			$toc[$meta->prefix] = $group;
+			$list[$meta->name][] = $entry;
+			$longestName = max($longestName, strlen($meta->full()));
 		}
 
-		$this->longestName = max($this->longestName, strlen('commands'));
+		$this->toc = $toc;
+		$this->list = $list;
+		$this->longestName = $longestName;
 
-		ksort($groups);
-
-		foreach ($groups as $name => $group) {
-			$commands = $group['commands'];
-			ksort($commands);
-			$group['commands'] = $commands;
-			$this->toc[$name] = $group;
-		}
+		return $this;
 	}
 
 	public function showHelp(): int
@@ -98,18 +104,26 @@ final class Runner
 
 		// Render from the metadata, not the keys: PHP turns numeric
 		// keys like '2026' into integers.
-		foreach ($this->toc['']['commands'] ?? [] as $entry) {
+		$general = $this->toc['']['commands'] ?? [];
+		ksort($general);
+
+		foreach ($general as $entry) {
 			$this->echoCommand('', $entry->meta->name, $entry->meta->description);
 		}
 
-		foreach ($this->toc as $prefix => $group) {
+		$toc = $this->toc;
+		ksort($toc);
+
+		foreach ($toc as $prefix => $group) {
 			if ($prefix === '') {
 				continue;
 			}
 
 			$this->echoGroup($group['title']);
+			$commands = $group['commands'];
+			ksort($commands);
 
-			foreach ($group['commands'] as $entry) {
+			foreach ($commands as $entry) {
 				$this->echoCommand($entry->meta->prefix, $entry->meta->name, $entry->meta->description);
 			}
 		}

@@ -62,12 +62,12 @@ The constructor is yours: take whatever dependencies the command needs and regis
 
 ### Registering Commands
 
-`Commands` accepts instances, class-strings, and lazy factories:
+The `Runner` accepts instances, class-strings, and lazy factories, in its constructor or via `add()`:
 
 ```php
-use Celema\Console\{Command, Commands, Io};
+use Celema\Console\{Command, Io, Runner};
 
-$commands = new Commands([
+$runner = new Runner([
     new MyCommand(),                          // instance
     Simple::class,                            // zero-argument constructor
     Expensive::class => fn() => new Expensive($db), // lazy factory
@@ -75,7 +75,7 @@ $commands = new Commands([
 
 // An anonymous class as a lightweight one-off command — attributes,
 // validation, and the help screen work exactly as for named classes.
-$commands->add(new #[Command('cache:clear', 'Clears the cache')] class {
+$runner->add(new #[Command('cache:clear', 'Clears the cache')] class {
     public function __invoke(Io $io): int {
         // ...
         return 0;
@@ -83,26 +83,26 @@ $commands->add(new #[Command('cache:clear', 'Clears the cache')] class {
 });
 ```
 
-Commands carry their metadata in the `#[Command]` attribute, which is read without instantiating the class. Factories run only when their command is actually invoked — listing the help never constructs a command.
+`add()` returns the runner, so calls chain. Commands carry their metadata in the `#[Command]` attribute, which is read without instantiating the class. Factories run only when their command is actually invoked — listing the help never constructs a command.
 
 Pass a resolver to construct class-string registrations through a container or application runtime:
 
 ```php
-$commands = new Commands(
+$runner = new Runner(
     [Import::class, Cleanup::class],
     resolve: $container->get(...),
 );
-$commands->add(Report::class);
+$runner->add(Report::class);
 ```
 
-The resolver can be any callable. It receives the registered class name and must return an instance of that class or a subclass. It applies to class names passed to the constructor or added later; instances and explicit factories bypass it. Adding another `Commands` collection preserves that collection's registrations and resolver rather than applying the receiving collection's resolver.
+The resolver can be any callable. It receives the registered class name and must return an instance of that class or a subclass. It applies to class names passed to the constructor or added later; instances and explicit factories bypass it.
 
 Resolution happens only after the runner validates the invoked command's signature and input. Help and command listings do not resolve commands. Each registration caches its resolved instance, just like an explicit factory. A resolver error fails the run with exit code 1; there is no fallback to a zero-argument constructor. Without a resolver, class-string registrations still use `new $class()`.
 
 Console has no container dependency and does not configure services or scopes. The application owns that setup. A command can receive `Io` through its constructor instead of its `__invoke()` parameters; the resolver must supply the same instance used by the runner:
 
 ```php
-use Celema\Console\{Arg, Command, Commands, Io, Runner};
+use Celema\Console\{Arg, Command, Io, Runner};
 
 #[Command('greet', 'Greets a name')]
 final class Greet
@@ -118,16 +118,34 @@ final class Greet
 }
 
 $io = new Io();
-$commands = new Commands(
+$runner = new Runner(
     [Greet::class],
+    $io,
     resolve: static fn(string $class): object => new $class($io),
 );
-$runner = new Runner($commands, $io);
 ```
 
 With a container-backed resolver, register that same `Io` instance in the container using its own registration API.
 
 The runner validates the signature of the invoked command: `__invoke()` must declare the return type `int` — the exit code. Parameters typed `Args` or `Io` are injected, each at most once and in any order; every other parameter must carry `#[Arg]` or `#[Opt]` or take an option group (see [Arguments and Options](#arguments-and-options)).
+
+#### Command Collections
+
+`Commands` bundles registrations without a runner, for example a package's command set. It takes the same registrations and an optional resolver of its own, and the runner accepts a collection wherever it accepts registrations:
+
+```php
+use Celema\Console\{Commands, Runner};
+
+$migrations = new Commands(
+    [Migrate::class, Rollback::class],
+    resolve: static fn(string $class): object => new $class($connection),
+);
+
+$runner = new Runner([new MyCommand()]);
+$runner->add($migrations);
+```
+
+A collection keeps its own resolver: the runner's resolver never applies to it. Its resolved instances are cached per registration and shared by every runner or collection it is added to. Registering a collection copies its current registrations; adding to the collection afterwards does not change the runner.
 
 ### Io Methods
 
@@ -187,7 +205,7 @@ $this->assertStringContainsString('done', $io->output());
 $this->assertSame('', $io->errorOutput());
 ```
 
-A command is a plain callable, so a test passes its parameters by name, already converted, and leaves out those that keep their defaults. To test the command line itself — parsing, validation, and conversion — run the command through a `Runner`, which also accepts a ready `Io` instance in place of its output target string: `new Runner($commands, $io)`.
+A command is a plain callable, so a test passes its parameters by name, already converted, and leaves out those that keep their defaults. To test the command line itself — parsing, validation, and conversion — run the command through a `Runner`, which also accepts a ready `Io` instance in place of its output target string: `new Runner([new MyCommand()], $io)`.
 
 ### Markup
 
@@ -368,7 +386,7 @@ The descriptions are followed by `[choices: csv, json]` for an enum and `[defaul
 - `help` - Display help for all commands or a specific command
 - `commands` - List all command names (useful for shell autocomplete)
 
-The unprefixed names `help` and `commands` are reserved, and duplicate full command names are rejected when constructing the runner.
+The unprefixed names `help` and `commands` are reserved, and duplicate full command names are rejected: registering either throws a `ValueError`, and the rejected call registers none of its commands.
 
 The runner reserves no flags, so `--help`/`-h` (and every other flag) belong to your command; use `php run help <command>` for a command's help screen.
 
@@ -400,7 +418,7 @@ public function __invoke(
 Enable debug mode in the Runner to display full stack traces when commands throw exceptions:
 
 ```php
-$runner = new Runner($commands, debug: true);
+$runner = new Runner([new MyCommand()], debug: true);
 ```
 
 Create a runner script, e. g. `run.php` or simply `run`:
@@ -410,13 +428,11 @@ Create a runner script, e. g. `run.php` or simply `run`:
 
 require __DIR__ . '/vendor/autoload.php';
 
-use Celema\Console\{Runner, Commands};
+use Celema\Console\Runner;
 use MyCommand;
 
-$commands = new Commands([new MyCommand()]);
-
 // Optional: enable debug mode to show stack traces on errors
-$runner = new Runner($commands, debug: false);
+$runner = new Runner([new MyCommand()], debug: false);
 
 exit($runner->run());
 ```

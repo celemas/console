@@ -73,10 +73,10 @@ Create a runner script and pass its exit code to `exit()`:
 <?php
 require __DIR__ . '/vendor/autoload.php';
 
-use Celema\Console\{Runner, Commands};
+use Celema\Console\Runner;
 
-$commands = new Commands([new MyCommand()]);
-$runner = new Runner($commands);
+$runner = new Runner();
+$runner->add(new MyCommand());
 
 exit($runner->run());
 ```
@@ -94,16 +94,15 @@ Command completed!
 Register class names with an optional resolver to construct commands through your container or application runtime:
 
 ```php
-$commands = new Commands(
+$runner = new Runner(
     [MyCommand::class],
     resolve: $container->get(...),
 );
-$runner = new Runner($commands);
 ```
 
 The resolver receives the registered class name and must return an instance of that class or a subclass. Commands are resolved only when invoked, then cached per registration; instances and explicit factories bypass the resolver. Without a resolver, class names use a zero-argument constructor. Console has no container dependency.
 
-Commands can also receive `Io` through their constructors. Configure the resolver to supply the same `Io` instance you pass to `new Runner($commands, $io)`; Console does not register services in your container. See [Registering Commands](docs/index.md#registering-commands) for details.
+Commands can also receive `Io` through their constructors. Configure the resolver to supply the same `Io` instance you pass to the runner as its output; Console does not register services in your container. See [Registering Commands](docs/index.md#registering-commands) for details.
 
 ## Mutation testing
 

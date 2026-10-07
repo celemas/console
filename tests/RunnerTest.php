@@ -16,6 +16,7 @@ use Celema\Console\Runner;
 use Celema\Console\Tests\Fixtures\Greet;
 use Celema\Console\Tests\Fixtures\HelpVariants;
 use Celema\Console\Tests\Fixtures\OptionAliases;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use ValueError;
 
@@ -408,6 +409,182 @@ class RunnerTest extends TestCase
 		$this->expectExceptionMessage("Duplicate command 'plain'");
 
 		new Runner(new Commands([new Fixtures\Plain(), new Fixtures\Plain()]));
+	}
+
+	public function testRunnerWithoutCommandsListsOnlyTheBuiltins(): void
+	{
+		$_SERVER['argv'] = ['bin/console'];
+		$out = new BufferedIo();
+
+		$this->assertSame(0, new Runner(output: $out)->run());
+		$this->assertStringEndsWith(
+			<<<'TEXT'
+				Available commands:
+
+				General
+				  commands  Lists all available commands
+				  help      Displays this overview
+
+				TEXT,
+			$out->output(),
+		);
+	}
+
+	public function testAddRegistersEveryShape(): void
+	{
+		$out = new BufferedIo();
+		$runner = new Runner([new Fixtures\Plain()], $out);
+
+		$this->assertSame($runner, $runner->add(Fixtures\Greet::class));
+		$runner
+			->add([Fixtures\BarStuff::class => static fn(): Fixtures\BarStuff => new Fixtures\BarStuff()])
+			->add(new Commands(new Fixtures\FooStuff()));
+
+		$_SERVER['argv'] = ['run', 'commands'];
+		$runner->run();
+		$_SERVER['argv'] = ['run', 'greet', 'Ada'];
+
+		$this->assertSame(0, $runner->run());
+		$this->assertSame("bar:stuff\nfoo:stuff\ngreet\nplain\nHello, Ada", $out->output());
+	}
+
+	public function testHelpSortsCommandsAddedOutOfOrder(): void
+	{
+		$_SERVER['argv'] = ['bin/console'];
+		$out = new BufferedIo();
+		new Runner([new Fixtures\FooStuff(), new Fixtures\Plain()], $out)
+			->add([new Fixtures\BarStuff(), new Fixtures\Greet()])
+			->add([new Fixtures\FooDrivel(), new Fixtures\Erring()])
+			->run();
+
+		$this->assertStringEndsWith(
+			<<<'TEXT'
+				General
+				  commands    Lists all available commands
+				  help        Displays this overview
+				  greet       Greets a name
+				  plain       An ungrouped command
+
+				Bar
+				  bar:stuff   Prints Bar's stuff to stdout
+
+				Errors
+				  err:err     Throws an error
+
+				Foo
+				  foo:drivel  Prints Foo's drivel to stdout
+				  foo:stuff   Prints Foo's stuff to stdout
+
+				TEXT,
+			$out->output(),
+		);
+	}
+
+	public function testAddRejectsADuplicateOfAnEarlierRegistration(): void
+	{
+		$runner = new Runner([new Fixtures\Plain()]);
+
+		$this->expectException(ValueError::class);
+		$this->expectExceptionMessage("Duplicate command 'plain'");
+
+		$runner->add(Fixtures\Plain::class);
+	}
+
+	/** @return iterable<string, array{list<object|string>, string}> */
+	public static function rejectedRegistrationProvider(): iterable
+	{
+		yield 'duplicate' => [[Fixtures\BarStuff::class, Fixtures\Plain::class], "Duplicate command 'plain'"];
+		yield 'reserved' => [
+			[
+				Fixtures\BarStuff::class,
+				new
+					#[Command('help', 'User help')]
+					class {
+						public function __invoke(): int
+						{
+							return 0;
+						}
+					},
+			],
+			"Command name 'help' is reserved",
+		];
+		yield 'unknown class' => [
+			[Fixtures\BarStuff::class, 'Missing\\Command'],
+			"Unknown command class 'Missing\\Command'",
+		];
+	}
+
+	/** @param list<object|string> $commands */
+	#[DataProvider('rejectedRegistrationProvider')]
+	public function testRejectedAddRegistersNone(array $commands, string $message): void
+	{
+		$out = new BufferedIo();
+		$runner = new Runner([new Fixtures\Plain()], $out);
+
+		try {
+			$runner->add($commands);
+			$this->fail('The registration was accepted');
+		} catch (ValueError $e) {
+			$this->assertSame($message, $e->getMessage());
+		}
+
+		$runner->showCommands();
+		$this->assertSame("plain\n", $out->output());
+	}
+
+	public function testRunnerResolverConstructsItsClassStringsOnInvocation(): void
+	{
+		$out = new BufferedIo();
+		$resolved = [];
+		$runner = new Runner(
+			Fixtures\InjectedGreet::class,
+			$out,
+			resolve: static function (string $class) use (&$resolved, $out): object {
+				$resolved[] = $class;
+
+				return $class === Fixtures\InjectedGreet::class ? new $class($out) : new $class();
+			},
+		);
+		$runner->add(Fixtures\Plain::class);
+
+		foreach ([['run'], ['run', 'commands'], ['run', 'help', 'plain']] as $argv) {
+			$_SERVER['argv'] = $argv;
+			$this->assertSame(0, $runner->run());
+		}
+
+		$this->assertSame([], $resolved);
+
+		$_SERVER['argv'] = ['run', 'greet:injected', 'Ada'];
+		$this->assertSame(0, $runner->run());
+		$_SERVER['argv'] = ['run', 'plain'];
+		$this->assertSame(0, $runner->run());
+
+		$this->assertSame([Fixtures\InjectedGreet::class, Fixtures\Plain::class], $resolved);
+		$this->assertStringContainsString('Hello, Ada', $out->output());
+	}
+
+	public function testAddedCollectionKeepsItsResolverAndCache(): void
+	{
+		$calls = [];
+		$commands = new Commands(
+			Fixtures\Plain::class,
+			resolve: static function (string $class) use (&$calls): object {
+				$calls[] = 'collection';
+
+				return new $class();
+			},
+		);
+		$resolve = static function (string $class) use (&$calls): object {
+			$calls[] = 'runner';
+
+			return new $class();
+		};
+
+		$_SERVER['argv'] = ['run', 'plain'];
+
+		$this->assertSame(0, new Runner($commands, new BufferedIo(), resolve: $resolve)->run());
+		$this->assertSame(0, new Runner(output: new BufferedIo(), resolve: $resolve)->add($commands)->run());
+		$this->assertSame(['collection'], $calls);
 	}
 
 	public function testHelpOverviewLayout(): void
