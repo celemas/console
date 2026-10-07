@@ -53,39 +53,12 @@ final class Commands
 		$this->add($commands);
 	}
 
-	public function add(array|object|string $commands): void
+	public function add(array|object|string $commands): self
 	{
-		if ($commands instanceof Closure) {
-			throw new ValueError(
-				'Closure commands are not supported; use an anonymous class with a #[Command] attribute',
-			);
-		}
+		// Normalize the whole call first so a rejected one registers nothing.
+		$this->entries = [...$this->entries, ...$this->normalize($commands)];
 
-		if ($commands instanceof Commands) {
-			foreach ($commands->entries() as $entry) {
-				$this->entries[] = $entry;
-			}
-
-			return;
-		}
-
-		if (is_array($commands)) {
-			$this->addArray($commands);
-
-			return;
-		}
-
-		if (is_string($commands)) {
-			$class = $this->validClass($commands);
-			$resolve = $this->resolve;
-			$this->entries[] = $resolve === null
-				? Entry::fromClass($class)
-				: Entry::fromFactory($class, static fn() => $resolve($class));
-
-			return;
-		}
-
-		$this->entries[] = Entry::fromInstance($commands);
+		return $this;
 	}
 
 	/** @return list<Entry> */
@@ -94,15 +67,49 @@ final class Commands
 		return $this->entries;
 	}
 
-	private function addArray(array $commands): void
+	/** @return list<Entry> */
+	private function normalize(array|object|string $commands): array
 	{
+		if ($commands instanceof Closure) {
+			throw new ValueError(
+				'Closure commands are not supported; use an anonymous class with a #[Command] attribute',
+			);
+		}
+
+		if ($commands instanceof Commands) {
+			return $commands->entries;
+		}
+
+		if (is_array($commands)) {
+			return $this->normalizeArray($commands);
+		}
+
+		if (is_string($commands)) {
+			$class = $this->validClass($commands);
+			$resolve = $this->resolve;
+
+			return [
+				$resolve === null
+					? Entry::fromClass($class)
+					: Entry::fromFactory($class, static fn() => $resolve($class)),
+			];
+		}
+
+		return [Entry::fromInstance($commands)];
+	}
+
+	/** @return list<Entry> */
+	private function normalizeArray(array $commands): array
+	{
+		$entries = [];
+
 		foreach ($commands as $key => $item) {
 			if (is_string($key)) {
 				if (!$item instanceof Closure) {
 					throw new ValueError("Factory for command class '{$key}' must be a closure");
 				}
 
-				$this->entries[] = Entry::fromFactory($this->validClass($key), $item);
+				$entries[] = Entry::fromFactory($this->validClass($key), $item);
 
 				continue;
 			}
@@ -111,8 +118,10 @@ final class Commands
 				throw new ValueError('Invalid command registration');
 			}
 
-			$this->add($item);
+			$entries = [...$entries, ...$this->normalize($item)];
 		}
+
+		return $entries;
 	}
 
 	/** @return class-string */

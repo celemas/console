@@ -57,6 +57,10 @@
 - `Celema\Console\Exception\InvalidUsage`: commands throw it for usage checks of their own, such as options that cannot be combined; the runner prints the message and exits with code 2.
 - Option groups: an `__invoke()` parameter typed with a class whose constructor parameters all carry `#[Opt]` receives an instance of that class, created from the command line. Commands share options through a group, and a long option list moves out of the command's signature. The group's options are validated, converted, and listed in the help like the command's own.
 
+### Changed
+
+- `Commands::add()` registers none of a call's commands when it rejects one of them, like `Runner::add()`; it used to keep the registrations preceding the rejected one. It also returns the collection for chaining.
+
 ## [0.5.4](https://codefloe.com/celema/console/src/tag/0.5.4) (2026-10-05)
 
 ### Changed

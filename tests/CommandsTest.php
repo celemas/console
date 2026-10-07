@@ -10,6 +10,7 @@ use Celema\Console\Tests\Fixtures\BarStuff;
 use Celema\Console\Tests\Fixtures\FooStuff;
 use Celema\Console\Tests\Fixtures\Greet;
 use Celema\Console\Tests\Fixtures\Plain;
+use PHPUnit\Framework\Attributes\DataProvider;
 use stdClass;
 use ValueError;
 
@@ -51,6 +52,40 @@ class CommandsTest extends TestCase
 		$this->expectExceptionMessage('Invalid command registration');
 
 		$commands->add([[new BarStuff()]]);
+	}
+
+	public function testAddIsChainable(): void
+	{
+		$foo = new FooStuff();
+		$bar = new BarStuff();
+		$commands = new Commands()->add($foo)->add($bar);
+
+		$this->assertSame($foo, $commands->entries()[0]->command());
+		$this->assertSame($bar, $commands->entries()[1]->command());
+	}
+
+	public static function rejectedRegistrationProvider(): iterable
+	{
+		yield 'unknown class' => [[Plain::class, 'Missing\\Command'], "Unknown command class 'Missing\\Command'"];
+		yield 'non-closure factory' => [[new BarStuff(), Greet::class => new Greet()], 'must be a closure'];
+		yield 'invalid item' => [[new BarStuff(), 42], 'Invalid command registration'];
+	}
+
+	#[DataProvider('rejectedRegistrationProvider')]
+	public function testRejectedAddRegistersNone(array $commands, string $message): void
+	{
+		$foo = new FooStuff();
+		$collection = new Commands($foo);
+
+		try {
+			$collection->add($commands);
+			$this->fail('The registration was accepted');
+		} catch (ValueError $e) {
+			$this->assertStringContainsString($message, $e->getMessage());
+		}
+
+		$this->assertCount(1, $collection->entries());
+		$this->assertSame($foo, $collection->entries()[0]->command());
 	}
 
 	public function testAddCommands(): void

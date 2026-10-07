@@ -147,6 +147,8 @@ $runner->add($migrations);
 
 A collection keeps its own resolver: the runner's resolver never applies to it. Its resolved instances are cached per registration and shared by every runner or collection it is added to. Registering a collection copies its current registrations; adding to the collection afterwards does not change the runner.
 
+Like `Runner::add()`, `Commands::add()` returns the collection for chaining, and a call that rejects one registration registers none of them.
+
 ### Io Methods
 
 - `echo(string $text)` - Output text, rendering inline markup
