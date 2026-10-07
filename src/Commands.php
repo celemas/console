@@ -61,7 +61,14 @@ final class Commands
 		return $this;
 	}
 
-	/** @return list<Entry> */
+	/**
+	 * Public only for the runner; a collection is meant to be passed to a
+	 * runner or another collection, not inspected.
+	 *
+	 * @internal
+	 *
+	 * @return list<Entry>
+	 */
 	public function entries(): array
 	{
 		return $this->entries;

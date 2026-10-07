@@ -60,6 +60,7 @@
 ### Changed
 
 - `Commands::add()` registers none of a call's commands when it rejects one of them, like `Runner::add()`; it used to keep the registrations preceding the rejected one. It also returns the collection for chaining.
+- `Commands::entries()` is marked `@internal`: it returns the internal objects the runner indexes. Pass a collection to a `Runner` or another `Commands` instead of reading it.
 
 ## [0.5.4](https://codefloe.com/celema/console/src/tag/0.5.4) (2026-10-05)
 
