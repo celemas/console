@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Celema\Console;
 
+use Celema\Console\Exception\InvalidUsage;
 use Throwable;
 use ValueError;
 
@@ -184,7 +185,7 @@ final class Runner
 
 			try {
 				$entry = $this->getCommand($cmd);
-			} catch (ValueError $e) {
+			} catch (InvalidUsage $e) {
 				if ($e->getCode() === self::AMBIGUOUS) {
 					return $this->showAmbiguousMessage($cmd);
 				}
@@ -210,7 +211,7 @@ final class Runner
 				$this->io->echolnErr($this->io->escape($e->getTraceAsString()));
 			}
 
-			return 1;
+			return $e instanceof InvalidUsage ? 2 : 1;
 		}
 	}
 
@@ -260,7 +261,7 @@ final class Runner
 			$this->io->echolnErr("  <yellow>{$entry->meta->prefix}</yellow>:{$entry->meta->name}");
 		}
 
-		return 1;
+		return 2;
 	}
 
 	private function getCommand(string $cmd): Entry
@@ -273,7 +274,7 @@ final class Runner
 			/** @var array{0: string, 1: string} $parts */
 			$parts = explode(':', $cmd, limit: 2);
 
-			return $this->toc[$parts[0]]['commands'][$parts[1]] ?? throw new ValueError('Command not found');
+			return $this->toc[$parts[0]]['commands'][$parts[1]] ?? throw new InvalidUsage('Command not found');
 		}
 
 		if (array_key_exists($cmd, $this->toc['']['commands'] ?? [])) {
@@ -285,9 +286,9 @@ final class Runner
 				return $this->list[$cmd][0];
 			}
 
-			throw new ValueError('Ambiguous command', self::AMBIGUOUS);
+			throw new InvalidUsage('Ambiguous command', self::AMBIGUOUS);
 		}
 
-		throw new ValueError('Command not found');
+		throw new InvalidUsage('Command not found');
 	}
 }

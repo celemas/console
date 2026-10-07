@@ -48,8 +48,11 @@
   - `__invoke()` parameters other than `Args` and `Io` must carry `#[Arg]` or `#[Opt]`. `Args` stays injectable for raw access; it holds the validated strings.
   - Commands are plain callables, so tests call them with named arguments, already converted, instead of building `Args`: `$command(io: $io, file: 'data.csv', batch: 10)`.
 
+- Usage errors exit with code 2 instead of 1: an unknown option, a missing or malformed value, a missing or surplus argument, and an unknown or ambiguous command name. A failed run still exits with 1, so callers can tell a wrong invocation from a failed job. Scripts that check for exit code 1 after a wrong invocation need to accept 2.
+
 ### Added
 
+- `Celema\Console\Exception\InvalidUsage`: commands throw it for usage checks of their own, such as options that cannot be combined; the runner prints the message and exits with code 2.
 - Option groups: an `__invoke()` parameter typed with a class whose constructor parameters all carry `#[Opt]` receives an instance of that class, created from the command line. Commands share options through a group, and a long option list moves out of the command's signature. The group's options are validated, converted, and listed in the help like the command's own.
 
 ## [0.5.4](https://codefloe.com/celema/console/src/tag/0.5.4) (2026-10-05)

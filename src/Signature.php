@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Celema\Console;
 
+use Celema\Console\Exception\InvalidUsage;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionParameter;
@@ -113,6 +114,8 @@ final class Signature
 	 * Validates the command-line tokens against the declarations and
 	 * converts them to the named arguments of `__invoke()`.
 	 *
+	 * @throws InvalidUsage
+	 *
 	 * Absent options and optional arguments are left out, so the
 	 * parameters' defaults apply.
 	 *
@@ -131,7 +134,7 @@ final class Signature
 		$grouped = [];
 
 		foreach ($args->names() as $name) {
-			$option = $this->options[$name] ?? throw new ValueError($this->unknownOption($name));
+			$option = $this->options[$name] ?? throw new InvalidUsage($this->unknownOption($name));
 
 			if ($option->group === null) {
 				$values[$option->parameter->name] = $option->value($args);
@@ -365,7 +368,7 @@ final class Signature
 		// PHP makes every parameter before a required one required, so the
 		// required arguments always lead.
 		if ($count < $required) {
-			throw new ValueError("Missing required argument '<{$this->arguments[$count]->name}>'");
+			throw new InvalidUsage("Missing required argument '<{$this->arguments[$count]->name}>'");
 		}
 
 		$values = [];
@@ -389,7 +392,7 @@ final class Signature
 		$surplus = $positionals[count($this->arguments)] ?? null;
 
 		if ($surplus !== null) {
-			throw new ValueError("Unexpected argument '{$surplus}'");
+			throw new InvalidUsage("Unexpected argument '{$surplus}'");
 		}
 
 		return $values;

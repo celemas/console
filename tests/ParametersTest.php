@@ -136,7 +136,7 @@ class ParametersTest extends TestCase
 			};
 		[$code, $out] = $this->runProbe($command);
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Missing required argument '<target-dir>'", $out->errorOutput());
 	}
 
@@ -212,7 +212,7 @@ class ParametersTest extends TestCase
 	{
 		[$code, $out] = $this->runProbe(self::typed(), ...$args);
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString($message, $out->errorOutput());
 	}
 
@@ -220,12 +220,12 @@ class ParametersTest extends TestCase
 	{
 		[$code, $out] = $this->runProbe(self::arguments(), 'x', 'many', '1', 'csv', '1');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Argument '<count>' expects an integer, got 'many'", $out->errorOutput());
 
 		[$code, $out] = $this->runProbe(self::arguments(), 'x', '1', '1', 'csv', 'high');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Argument '<level>' expects one of 1, 2, got 'high'", $out->errorOutput());
 	}
 
@@ -337,7 +337,7 @@ class ParametersTest extends TestCase
 	{
 		[$code, $out] = $this->runProbe(self::served(), '--port=http');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Option '--port' expects an integer, got 'http'", $out->errorOutput());
 	}
 

@@ -9,6 +9,7 @@ use Celema\Console\Args;
 use Celema\Console\BufferedIo;
 use Celema\Console\Command;
 use Celema\Console\Commands;
+use Celema\Console\Exception\InvalidUsage;
 use Celema\Console\Io;
 use Celema\Console\Opt;
 use Celema\Console\Runner;
@@ -41,7 +42,7 @@ class RunnerTest extends TestCase
 	{
 		[$code, $errors] = $this->runVariants('--verbos');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString(
 			"Unknown option '--verbos'. Did you mean '--verbose'?",
 			$errors,
@@ -66,7 +67,7 @@ class RunnerTest extends TestCase
 	{
 		[$code, $errors] = $this->runVariants('--completely-different');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Unknown option '--completely-different'", $errors);
 		$this->assertStringNotContainsString('Did you mean', $errors);
 	}
@@ -75,7 +76,7 @@ class RunnerTest extends TestCase
 	{
 		[$code, $errors] = $this->runVariants('--help');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString(
 			"Unknown option '--help'. Use 'php run help help:variants' to show the command's help",
 			$errors,
@@ -98,7 +99,7 @@ class RunnerTest extends TestCase
 	{
 		[$code, $errors] = $this->runVariants('--prune=now');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Option '--prune' does not accept a value", $errors);
 	}
 
@@ -106,7 +107,7 @@ class RunnerTest extends TestCase
 	{
 		[$code, $errors] = $this->runVariants('--host');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Option '--host' requires a value: --host=<host>", $errors);
 	}
 
@@ -114,12 +115,12 @@ class RunnerTest extends TestCase
 	{
 		[$code, $errors] = $this->runVariants('--host', '--host=localhost', 'file.txt');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Option '--host' requires a value: --host=<host>", $errors);
 
 		[$code, $errors] = $this->runVariants('--host=localhost', '--host', 'file.txt');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Option '--host' requires a value: --host=<host>", $errors);
 	}
 
@@ -127,7 +128,7 @@ class RunnerTest extends TestCase
 	{
 		[$code, $errors] = $this->runVariants('--watch', '--watch=src', 'file.txt');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Option '--watch' accepts only one value", $errors);
 	}
 
@@ -208,7 +209,7 @@ class RunnerTest extends TestCase
 	{
 		[$code, $errors] = $this->runVariants();
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Missing required argument '<file>'", $errors);
 	}
 
@@ -224,7 +225,7 @@ class RunnerTest extends TestCase
 	{
 		[$code, $errors] = $this->runVariants('file.txt', 'target', 'extra');
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Unexpected argument 'extra'", $errors);
 	}
 
@@ -262,7 +263,7 @@ class RunnerTest extends TestCase
 				}
 			});
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Missing required argument '<files>'", $out->errorOutput());
 	}
 
@@ -353,7 +354,7 @@ class RunnerTest extends TestCase
 		$_SERVER['argv'] = ['run', 'plain', '--whatever'];
 		$out = new BufferedIo();
 
-		$this->assertSame(1, new Runner(new Commands([new Fixtures\Plain()]), $out)->run());
+		$this->assertSame(2, new Runner(new Commands([new Fixtures\Plain()]), $out)->run());
 		$this->assertStringContainsString("Unknown option '--whatever'", $out->errorOutput());
 	}
 
@@ -362,7 +363,7 @@ class RunnerTest extends TestCase
 		$_SERVER['argv'] = ['run', 'plain', 'extra'];
 		$out = new BufferedIo();
 
-		$this->assertSame(1, new Runner(new Commands([new Fixtures\Plain()]), $out)->run());
+		$this->assertSame(2, new Runner(new Commands([new Fixtures\Plain()]), $out)->run());
 		$this->assertStringContainsString("Unexpected argument 'extra'", $out->errorOutput());
 	}
 
@@ -607,7 +608,7 @@ class RunnerTest extends TestCase
 		$runner = $this->getRunner();
 
 		$this->expectOutputRegex('/Ambiguous.*bar.*:stuff.*foo.*:stuff/s');
-		$this->assertSame(1, $runner->run());
+		$this->assertSame(2, $runner->run());
 	}
 
 	public function testUnprefixedCommandWinsOverPrefixedNamesake(): void
@@ -667,7 +668,7 @@ class RunnerTest extends TestCase
 		$out = new BufferedIo();
 		$code = new Runner(new Commands([new HelpVariants()]), $out)->run();
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Error while running command 'missing'", $out->errorOutput());
 	}
 
@@ -762,6 +763,24 @@ class RunnerTest extends TestCase
 		$this->assertSame(1, $code);
 		$this->assertStringContainsString('Command failure', $out->errorOutput());
 		$this->assertStringNotContainsString('Ambiguous command', $out->errorOutput());
+	}
+
+	public function testInvalidUsageFromTheCommandExitsWithTwo(): void
+	{
+		[$code, $out] = $this->runProbe(new
+			#[Command('probe', 'Rejects its input')]
+			class {
+				public function __invoke(): int
+				{
+					throw new InvalidUsage('--apply and --test-run cannot be combined');
+				}
+			});
+
+		$this->assertSame(2, $code);
+		$this->assertSame(
+			"Error while running command 'probe':\n\n--apply and --test-run cannot be combined\n",
+			$out->errorOutput(),
+		);
 	}
 
 	public function testRunFailingCommandWithDebug(): void
@@ -1122,7 +1141,7 @@ class RunnerTest extends TestCase
 		$contents = (string) file_get_contents($err);
 		unlink($err);
 
-		$this->assertSame(1, $code);
+		$this->assertSame(2, $code);
 		$this->assertSame('', $stdout);
 		$this->assertStringContainsString('Command not found', $contents);
 	}

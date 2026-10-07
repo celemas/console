@@ -16,7 +16,7 @@ A command line interface helper.
 - Arguments and options are `__invoke()` parameters marked `#[Arg]` or `#[Opt]`, converted to their declared types — `string`, `int`, `float`, `bool`, `array`, or a backed enum — with defaults from the signature
 - Option groups: classes bundling `#[Opt]` constructor parameters, shared by several commands
 - Automatic help generation from the `#[Command]` attribute and the `__invoke()` signature
-- Strict by default: the parameters are a command's complete interface — an unknown or malformed option (with a "Did you mean" suggestion), a value of the wrong type, a missing required argument, or an undeclared positional aborts before the command runs; an `array` argument takes open-ended input
+- Strict by default: the parameters are a command's complete interface — an unknown or malformed option (with a "Did you mean" suggestion), a value of the wrong type, a missing required argument, or an undeclared positional aborts with exit code 2 before the command runs; an `array` argument takes open-ended input
 - Raw access to the parsed options and positionals via an injected `Args` object
 - Lazy command construction: factories run only for the invoked command
 - Anonymous classes as lightweight one-off commands — attributes work inline

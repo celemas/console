@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Celema\Console;
 
+use Celema\Console\Exception\InvalidUsage;
 use ReflectionParameter;
-use ValueError;
 
 /**
  * An `#[Opt]` parameter of a command's `__invoke()` or of an option group's
@@ -47,7 +47,7 @@ final class Option
 
 		if ($this->type->name === 'bool') {
 			if ($values !== []) {
-				throw new ValueError("Option '{$this->name}' does not accept a value");
+				throw new InvalidUsage("Option '{$this->name}' does not accept a value");
 			}
 
 			return true;
@@ -57,7 +57,7 @@ final class Option
 		// one: `--host --host=x` must not hide the bare `--host`.
 		if ($args->bare($this->name)) {
 			if ($this->opt->bare === null) {
-				throw new ValueError("Option '{$this->name}' requires a value: {$this->name}=<{$this->label()}>");
+				throw new InvalidUsage("Option '{$this->name}' requires a value: {$this->name}=<{$this->label()}>");
 			}
 
 			$values[] = $this->opt->bare;
@@ -68,12 +68,14 @@ final class Option
 		}
 
 		if (count($values) !== 1) {
-			throw new ValueError("Option '{$this->name}' accepts only one value");
+			throw new InvalidUsage("Option '{$this->name}' accepts only one value");
 		}
 
 		return (
 			$this->type->convert($values[0])
-				?? throw new ValueError("Option '{$this->name}' expects {$this->type->expected()}, got '{$values[0]}'")
+				?? throw new InvalidUsage(
+					"Option '{$this->name}' expects {$this->type->expected()}, got '{$values[0]}'",
+				)
 		);
 	}
 }

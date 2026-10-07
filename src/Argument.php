@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Celema\Console;
 
+use Celema\Console\Exception\InvalidUsage;
 use ReflectionParameter;
-use ValueError;
 
 /**
  * An `#[Arg]` parameter of a command's `__invoke()`.
@@ -38,7 +38,9 @@ final class Argument
 	{
 		return (
 			$this->type->convert($value)
-				?? throw new ValueError("Argument '<{$this->name}>' expects {$this->type->expected()}, got '{$value}'")
+				?? throw new InvalidUsage(
+					"Argument '<{$this->name}>' expects {$this->type->expected()}, got '{$value}'",
+				)
 		);
 	}
 }

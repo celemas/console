@@ -281,9 +281,19 @@ The group's options behave like the command's own: they are validated and conver
 
 #### Validation
 
-The parameters are a command's complete interface; the runner validates every invocation against them before the command runs. An unknown option (with a "Did you mean" suggestion for near misses), a value on a flag, a missing value, a repeated single-value option, a value that does not convert, a missing required argument, or an undeclared positional aborts with exit code 1. So a typo like `--forec` — or an option on a command that takes none — fails loudly instead of being silently ignored.
+The parameters are a command's complete interface; the runner validates every invocation against them before the command runs. An unknown option (with a "Did you mean" suggestion for near misses), a value on a flag, a missing value, a repeated single-value option, a value that does not convert, a missing required argument, or an undeclared positional aborts with exit code 2. So a typo like `--forec` — or an option on a command that takes none — fails loudly instead of being silently ignored.
 
-Declarations are checked when the command runs or renders its help: an option without a default, a flag defaulting to `true`, an unsupported type, a variadic (`...`) parameter, or an argument after the `array` argument is reported as an error.
+Exit code 2 marks every wrong invocation, also an unknown or ambiguous command name, while 1 remains the code of a failed run. Scripts and cron jobs can so tell "called wrong" from "job failed". A command reports its own usage checks the same way by throwing `InvalidUsage`:
+
+```php
+use Celema\Console\Exception\InvalidUsage;
+
+if ($apply && $testRun) {
+    throw new InvalidUsage('--apply and --test-run cannot be combined');
+}
+```
+
+Declarations are checked when the command runs or renders its help: an option without a default, a flag defaulting to `true`, an unsupported type, a variadic (`...`) parameter, or an argument after the `array` argument is reported as an error with exit code 1.
 
 #### Raw Input
 
