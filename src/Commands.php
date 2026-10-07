@@ -10,8 +10,9 @@ use ValueError;
 /**
  * Collects command registrations.
  *
- * Accepts command instances, class-strings of zero-argument constructible
- * commands, and lazy factories keyed by class-string:
+ * Accepts command instances, class-strings, and lazy factories keyed by
+ * class-string. A resolver constructs class-string registrations; without
+ * one, they need a zero-argument constructor:
  *
  *     $commands = new Commands([
  *         new Greet($translator),
@@ -34,8 +35,21 @@ final class Commands
 	/** @var list<Entry> */
 	private array $entries = [];
 
-	public function __construct(array|object|string $commands = [])
-	{
+	/** @var null|Closure(class-string): object */
+	private readonly ?Closure $resolve;
+
+	/**
+	 * The resolver is called only for an invoked class-string registration.
+	 * Instances and explicit factories bypass it. Resolved commands are
+	 * cached per registration, also when added to another collection.
+	 *
+	 * @param null|callable(class-string): object $resolve
+	 */
+	public function __construct(
+		array|object|string $commands = [],
+		?callable $resolve = null,
+	) {
+		$this->resolve = $resolve === null ? null : Closure::fromCallable($resolve);
 		$this->add($commands);
 	}
 
@@ -62,7 +76,11 @@ final class Commands
 		}
 
 		if (is_string($commands)) {
-			$this->entries[] = Entry::fromClass($this->validClass($commands));
+			$class = $this->validClass($commands);
+			$resolve = $this->resolve;
+			$this->entries[] = $resolve === null
+				? Entry::fromClass($class)
+				: Entry::fromFactory($class, static fn() => $resolve($class));
 
 			return;
 		}

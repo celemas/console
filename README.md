@@ -18,7 +18,7 @@ A command line interface helper.
 - Automatic help generation from the `#[Command]` attribute and the `__invoke()` signature
 - Strict by default: the parameters are a command's complete interface — an unknown or malformed option (with a "Did you mean" suggestion), a value of the wrong type, a missing required argument, or an undeclared positional aborts with exit code 2 before the command runs; an `array` argument takes open-ended input
 - Raw access to the parsed options and positionals via an injected `Args` object
-- Lazy command construction: factories run only for the invoked command
+- Lazy command construction: factories or an optional class resolver run only for the invoked command
 - Anonymous classes as lightweight one-off commands — attributes work inline
 - Built-in color support with per-stream terminal detection and `NO_COLOR`/`FORCE_COLOR` handling
 - Command help with `php run help <command>`
@@ -88,6 +88,22 @@ $ php run mycommand alice -b=100
 Running my command for alice in batches of 100
 Command completed!
 ```
+
+## Resolving Commands
+
+Register class names with an optional resolver to construct commands through your container or application runtime:
+
+```php
+$commands = new Commands(
+    [MyCommand::class],
+    resolve: $container->get(...),
+);
+$runner = new Runner($commands);
+```
+
+The resolver receives the registered class name and must return an instance of that class or a subclass. Commands are resolved only when invoked, then cached per registration; instances and explicit factories bypass the resolver. Without a resolver, class names use a zero-argument constructor. Console has no container dependency.
+
+Commands can also receive `Io` through their constructors. Configure the resolver to supply the same `Io` instance you pass to `new Runner($commands, $io)`; Console does not register services in your container. See [Registering Commands](docs/index.md#registering-commands) for details.
 
 ## Mutation testing
 

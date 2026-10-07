@@ -85,6 +85,48 @@ $commands->add(new #[Command('cache:clear', 'Clears the cache')] class {
 
 Commands carry their metadata in the `#[Command]` attribute, which is read without instantiating the class. Factories run only when their command is actually invoked — listing the help never constructs a command.
 
+Pass a resolver to construct class-string registrations through a container or application runtime:
+
+```php
+$commands = new Commands(
+    [Import::class, Cleanup::class],
+    resolve: $container->get(...),
+);
+$commands->add(Report::class);
+```
+
+The resolver can be any callable. It receives the registered class name and must return an instance of that class or a subclass. It applies to class names passed to the constructor or added later; instances and explicit factories bypass it. Adding another `Commands` collection preserves that collection's registrations and resolver rather than applying the receiving collection's resolver.
+
+Resolution happens only after the runner validates the invoked command's signature and input. Help and command listings do not resolve commands. Each registration caches its resolved instance, just like an explicit factory. A resolver error fails the run with exit code 1; there is no fallback to a zero-argument constructor. Without a resolver, class-string registrations still use `new $class()`.
+
+Console has no container dependency and does not configure services or scopes. The application owns that setup. A command can receive `Io` through its constructor instead of its `__invoke()` parameters; the resolver must supply the same instance used by the runner:
+
+```php
+use Celema\Console\{Arg, Command, Commands, Io, Runner};
+
+#[Command('greet', 'Greets a name')]
+final class Greet
+{
+    public function __construct(private readonly Io $io) {}
+
+    public function __invoke(#[Arg('Who to greet')] string $name): int
+    {
+        $this->io->success("Hello, {$name}");
+
+        return 0;
+    }
+}
+
+$io = new Io();
+$commands = new Commands(
+    [Greet::class],
+    resolve: static fn(string $class): object => new $class($io),
+);
+$runner = new Runner($commands, $io);
+```
+
+With a container-backed resolver, register that same `Io` instance in the container using its own registration API.
+
 The runner validates the signature of the invoked command: `__invoke()` must declare the return type `int` — the exit code. Parameters typed `Args` or `Io` are injected, each at most once and in any order; every other parameter must carry `#[Arg]` or `#[Opt]` or take an option group (see [Arguments and Options](#arguments-and-options)).
 
 ### Io Methods

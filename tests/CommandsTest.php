@@ -75,6 +75,95 @@ class CommandsTest extends TestCase
 		$this->assertSame($entry->command(), $entry->command());
 	}
 
+	public function testResolverAppliesToInitialAndAddedClasses(): void
+	{
+		$resolved = [];
+		$commands = new Commands(
+			[Greet::class],
+			resolve: static function (string $class) use (&$resolved): object {
+				$resolved[] = $class;
+
+				return new $class();
+			},
+		);
+		$commands->add(Plain::class);
+
+		$this->assertSame([], $resolved);
+		[$greet, $plain] = $commands->entries();
+		$this->assertInstanceOf(Greet::class, $greet->command());
+		$this->assertSame($greet->command(), $greet->command());
+		$this->assertInstanceOf(Plain::class, $plain->command());
+		$this->assertSame([Greet::class, Plain::class], $resolved);
+	}
+
+	public function testResolverAcceptsMethodCallable(): void
+	{
+		$resolver = new class {
+			public function resolve(string $class): object
+			{
+				return new $class();
+			}
+		};
+		$commands = new Commands(Plain::class, resolve: [$resolver, 'resolve']);
+
+		$this->assertInstanceOf(Plain::class, $commands->entries()[0]->command());
+	}
+
+	public function testInstancesAndExplicitFactoriesBypassResolver(): void
+	{
+		$greet = new Greet();
+		$plain = new Plain();
+		$commands = new Commands(
+			[$greet, Plain::class => static fn(): Plain => $plain],
+			resolve: fn(string $class): object => $this->fail("Unexpected resolution of {$class}"),
+		);
+
+		$this->assertSame($greet, $commands->entries()[0]->command());
+		$this->assertSame($plain, $commands->entries()[1]->command());
+	}
+
+	public function testMergedCommandsKeepTheirResolverAndCachedInstance(): void
+	{
+		$resolved = [];
+		$source = new Commands(
+			[Greet::class, Plain::class],
+			resolve: static function (string $class) use (&$resolved): object {
+				$resolved[] = $class;
+
+				return new $class();
+			},
+		);
+		$greet = $source->entries()[0]->command();
+		$commands = new Commands(
+			resolve: fn(string $class): object => $this->fail("Unexpected resolution of {$class}"),
+		);
+		$commands->add($source);
+
+		$this->assertSame($greet, $commands->entries()[0]->command());
+		$this->assertSame($source->entries()[1]->command(), $commands->entries()[1]->command());
+		$this->assertSame([Greet::class, Plain::class], $resolved);
+	}
+
+	public function testResolverReturningNonObjectFails(): void
+	{
+		$commands = new Commands(Greet::class, resolve: static fn(string $class): mixed => null);
+
+		$this->expectException(ValueError::class);
+		$this->expectExceptionMessage('must return a ' . Greet::class);
+
+		$commands->entries()[0]->command();
+	}
+
+	public function testResolverReturningUnrelatedClassFails(): void
+	{
+		$commands = new Commands(Greet::class, resolve: static fn(string $class): Plain => new Plain());
+
+		$this->expectException(ValueError::class);
+		$this->expectExceptionMessage('must return a ' . Greet::class);
+
+		$commands->entries()[0]->command();
+	}
+
 	public function testInitWithSeveralFactories(): void
 	{
 		$commands = new Commands([

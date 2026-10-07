@@ -16,6 +16,7 @@ use Celema\Console\Runner;
 use Celema\Console\Tests\Fixtures\Greet;
 use Celema\Console\Tests\Fixtures\HelpVariants;
 use Celema\Console\Tests\Fixtures\OptionAliases;
+use RuntimeException;
 use ValueError;
 
 class RunnerTest extends TestCase
@@ -1190,6 +1191,65 @@ class RunnerTest extends TestCase
 
 		$this->expectOutputString('Plain');
 		$runner->run();
+	}
+
+	public function testResolverRunsOnlyForTheInvokedCommand(): void
+	{
+		$resolved = [];
+		$commands = new Commands(
+			[Fixtures\Plain::class, Fixtures\Greet::class],
+			resolve: static function (string $class) use (&$resolved): object {
+				$resolved[] = $class;
+
+				return new $class();
+			},
+		);
+
+		foreach ([['run'], ['run', 'help'], ['run', 'commands'], ['run', 'help', 'greet']] as $argv) {
+			$_SERVER['argv'] = $argv;
+			$out = new BufferedIo();
+
+			$this->assertSame(0, new Runner($commands, $out)->run());
+			$this->assertNotSame('', $out->output());
+			$this->assertSame([], $resolved);
+		}
+
+		$_SERVER['argv'] = ['run', 'greet', '--unknown'];
+		$this->assertSame(2, new Runner($commands, new BufferedIo())->run());
+		$this->assertSame([], $resolved);
+
+		$_SERVER['argv'] = ['run', 'greet', 'Ada'];
+		$out = new BufferedIo();
+
+		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame('Hello, Ada', $out->output());
+		$this->assertSame([Fixtures\Greet::class], $resolved);
+	}
+
+	public function testResolverInjectsIoIntoConstructor(): void
+	{
+		$_SERVER['argv'] = ['run', 'greet:injected', 'Ada'];
+		$out = new BufferedIo();
+		$commands = new Commands(
+			Fixtures\InjectedGreet::class,
+			resolve: static fn(string $class): object => new $class($out),
+		);
+
+		$this->assertSame(0, new Runner($commands, $out)->run());
+		$this->assertSame('Hello, Ada', $out->output());
+	}
+
+	public function testResolverFailureIsReported(): void
+	{
+		$_SERVER['argv'] = ['run', 'greet'];
+		$out = new BufferedIo();
+		$commands = new Commands(
+			Fixtures\Greet::class,
+			resolve: static fn(string $class): object => throw new RuntimeException('Dependencies unavailable'),
+		);
+
+		$this->assertSame(1, new Runner($commands, $out)->run());
+		$this->assertStringContainsString('Dependencies unavailable', $out->errorOutput());
 	}
 
 	public function testRunAnonymousClassCommand(): void
