@@ -50,18 +50,14 @@
 
 - Usage errors exit with code 2 instead of 1: an unknown option, a missing or malformed value, a missing or surplus argument, and an unknown or ambiguous command name. A failed run still exits with 1, so callers can tell a wrong invocation from a failed job. Scripts that check for exit code 1 after a wrong invocation need to accept 2.
 
+- `Commands` is removed; `Runner` registers commands itself. Its constructor takes the registrations `Commands` took — instances, class-strings, and factories keyed by class-string — and defaults to none, and `Runner::add()` registers more and returns the runner: `new Runner(new Commands([new MyCommand()]))` becomes `new Runner([new MyCommand()])`. A package that returned a `Commands` collection returns a registration array instead. Reserved and duplicate names still throw on registration, and a rejected `add()` registers none of its commands.
+
 ### Added
 
-- `Runner` registers commands itself: its constructor takes the registrations `Commands` accepts and defaults to none, and `Runner::add()` registers more and returns the runner, so `new Runner([new MyCommand()])` replaces `new Runner(new Commands([new MyCommand()]))`. An optional `resolve` argument constructs the runner's class-string registrations. Passing a `Commands` collection keeps working; it retains its own resolver and cached instances. Reserved and duplicate names still throw on registration, and a rejected `add()` registers none of its commands.
-- Optional `Commands` class resolver: `new Commands([Import::class], resolve: $container->get(...))` lazily constructs class-string registrations through any callable, without a container dependency. It also applies to classes added later; instances and explicit factories bypass it. Resolved commands are cached per registration, and help and command listings never invoke the resolver.
+- Optional class resolver: `new Runner([Import::class], resolve: $container->get(...))` lazily constructs class-string registrations through any callable, without a container dependency. It also applies to classes added later; instances and explicit factories bypass it. Resolved commands are cached per registration, and help and command listings never invoke the resolver.
 - `Runner::run()` takes an optional argument vector in place of `$_SERVER['argv']`, starting with the script name like it, so tests and embedding code need not change the global. Its script name reaches the help screens and the `--help` hint. `Help` takes a script name as an optional second constructor argument and `Runner::showHelp()` as an optional parameter; both default to `$_SERVER['argv'][0]`.
 - `Celema\Console\Exception\InvalidUsage`: commands throw it for usage checks of their own, such as options that cannot be combined; the runner prints the message and exits with code 2.
 - Option groups: an `__invoke()` parameter typed with a class whose constructor parameters all carry `#[Opt]` receives an instance of that class, created from the command line. Commands share options through a group, and a long option list moves out of the command's signature. The group's options are validated, converted, and listed in the help like the command's own.
-
-### Changed
-
-- `Commands::add()` registers none of a call's commands when it rejects one of them, like `Runner::add()`; it used to keep the registrations preceding the rejected one. It also returns the collection for chaining.
-- `Commands::entries()` is marked `@internal`: it returns the internal objects the runner indexes. Pass a collection to a `Runner` or another `Commands` instead of reading it.
 
 ## [0.5.4](https://codefloe.com/celema/console/src/tag/0.5.4) (2026-10-05)
 

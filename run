@@ -5,18 +5,17 @@ declare(strict_types=1);
 require __DIR__ . '/vendor/autoload.php';
 
 use Celema\Console\Runner;
-use Celema\Console\Commands;
 use Celema\Console\Tests\Fixtures\BarStuff;
 use Celema\Console\Tests\Fixtures\Erring;
 use Celema\Console\Tests\Fixtures\FooDrivel;
 use Celema\Console\Tests\Fixtures\FooStuff;
 
-$runner = new Runner(new Commands([
+$runner = new Runner([
     new BarStuff(),
     new FooStuff(),
     new FooDrivel(),
     new Erring(),
-]));
+]);
 
 exit($runner->run());
 

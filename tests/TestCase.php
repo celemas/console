@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Celema\Console\Tests;
 
-use Celema\Console\Commands;
 use Celema\Console\Runner;
 use PHPUnit\Framework\TestCase as BaseTestCase;
 
@@ -13,14 +12,15 @@ use PHPUnit\Framework\TestCase as BaseTestCase;
  */
 class TestCase extends BaseTestCase
 {
-	public function getCommands(): Commands
+	/** @return list<object> */
+	public function getCommands(): array
 	{
-		return new Commands([
+		return [
 			new Fixtures\FooStuff(),
 			new Fixtures\BarStuff(),
 			new Fixtures\FooDrivel(),
 			new Fixtures\Erring(),
-		]);
+		];
 	}
 
 	public function getRunner(): Runner

@@ -55,9 +55,6 @@ final class Runner
 		$this->add($commands);
 	}
 
-	/**
-	 * An added Commands collection keeps its own resolver.
-	 */
 	public function add(array|object|string $commands): self
 	{
 		// Index into copies so a rejected call registers nothing.
@@ -65,7 +62,7 @@ final class Runner
 		$list = $this->list;
 		$longestName = $this->longestName;
 
-		foreach (new Commands($commands, $this->resolve)->entries() as $entry) {
+		foreach ($this->entries($commands) as $entry) {
 			$meta = $entry->meta;
 
 			if ($meta->prefix === '' && ($meta->name === 'help' || $meta->name === 'commands')) {
@@ -317,5 +314,65 @@ final class Runner
 		}
 
 		throw new InvalidUsage('Command not found');
+	}
+
+	/** @return list<Entry> */
+	private function entries(array|object|string $commands): array
+	{
+		if (!is_array($commands)) {
+			return [$this->entry($commands)];
+		}
+
+		$entries = [];
+
+		foreach ($commands as $key => $item) {
+			if (is_string($key)) {
+				if (!$item instanceof Closure) {
+					throw new ValueError("Factory for command class '{$key}' must be a closure");
+				}
+
+				$entries[] = Entry::fromFactory($this->validClass($key), $item);
+
+				continue;
+			}
+
+			if (!is_object($item) && !is_string($item)) {
+				throw new ValueError('Invalid command registration');
+			}
+
+			$entries[] = $this->entry($item);
+		}
+
+		return $entries;
+	}
+
+	private function entry(object|string $command): Entry
+	{
+		if ($command instanceof Closure) {
+			throw new ValueError(
+				'Closure commands are not supported; use an anonymous class with a #[Command] attribute',
+			);
+		}
+
+		if (is_object($command)) {
+			return Entry::fromInstance($command);
+		}
+
+		$class = $this->validClass($command);
+		$resolve = $this->resolve;
+
+		return $resolve === null
+			? Entry::fromClass($class)
+			: Entry::fromFactory($class, static fn() => $resolve($class));
+	}
+
+	/** @return class-string */
+	private function validClass(string $class): string
+	{
+		if (!class_exists($class)) {
+			throw new ValueError("Unknown command class '{$class}'");
+		}
+
+		return $class;
 	}
 }

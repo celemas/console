@@ -8,7 +8,6 @@ use Celema\Console\Arg;
 use Celema\Console\Args;
 use Celema\Console\BufferedIo;
 use Celema\Console\Command;
-use Celema\Console\Commands;
 use Celema\Console\Exception\InvalidUsage;
 use Celema\Console\Io;
 use Celema\Console\Opt;
@@ -19,6 +18,7 @@ use Celema\Console\Tests\Fixtures\OptionAliases;
 use PHPUnit\Framework\Attributes\BackupGlobals;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use stdClass;
 use ValueError;
 
 class RunnerTest extends TestCase
@@ -28,13 +28,13 @@ class RunnerTest extends TestCase
 	{
 		$out = new BufferedIo();
 
-		return [new Runner(new Commands([$command]), $out)->run(['run', 'probe', ...$args]), $out];
+		return [new Runner([$command], $out)->run(['run', 'probe', ...$args]), $out];
 	}
 
 	private function runVariants(string ...$args): array
 	{
 		$out = new BufferedIo();
-		$runner = new Runner(new Commands([new HelpVariants()]), $out);
+		$runner = new Runner([new HelpVariants()], $out);
 
 		return [$runner->run(['run', 'help:variants', ...$args]), $out->errorOutput()];
 	}
@@ -87,7 +87,7 @@ class RunnerTest extends TestCase
 	public function testHelpFlagHintUsesTheScriptName(): void
 	{
 		$out = new BufferedIo();
-		new Runner(new Commands([new HelpVariants()]), $out)->run(['bin/console', 'help:variants', '--help']);
+		new Runner([new HelpVariants()], $out)->run(['bin/console', 'help:variants', '--help']);
 
 		$this->assertStringContainsString(
 			"Unknown option '--help'. Use 'php bin/console help help:variants' to show the command's help",
@@ -143,7 +143,7 @@ class RunnerTest extends TestCase
 	public function testNormalizesShortOptionsToLongNames(): void
 	{
 		$out = new BufferedIo();
-		$code = new Runner(new Commands(new OptionAliases()), $out)->run([
+		$code = new Runner(new OptionAliases(), $out)->run([
 			'run',
 			'aliases',
 			'-v',
@@ -175,7 +175,7 @@ class RunnerTest extends TestCase
 	public function testSeparatorStopsShortOptionNormalization(): void
 	{
 		$out = new BufferedIo();
-		$code = new Runner(new Commands(new OptionAliases()), $out)->run(['run', 'aliases', '-v', '--', '-w=b']);
+		$code = new Runner(new OptionAliases(), $out)->run(['run', 'aliases', '-v', '--', '-w=b']);
 
 		$this->assertSame(0, $code);
 		$this->assertSame('[true,false,[],[],true,[]]', $out->output());
@@ -360,7 +360,7 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(
 			2,
-			new Runner(new Commands([new Fixtures\Plain()]), $out)->run(['run', 'plain', '--whatever']),
+			new Runner([new Fixtures\Plain()], $out)->run(['run', 'plain', '--whatever']),
 		);
 		$this->assertStringContainsString("Unknown option '--whatever'", $out->errorOutput());
 	}
@@ -369,20 +369,20 @@ class RunnerTest extends TestCase
 	{
 		$out = new BufferedIo();
 
-		$this->assertSame(2, new Runner(new Commands([new Fixtures\Plain()]), $out)->run(['run', 'plain', 'extra']));
+		$this->assertSame(2, new Runner([new Fixtures\Plain()], $out)->run(['run', 'plain', 'extra']));
 		$this->assertStringContainsString("Unexpected argument 'extra'", $out->errorOutput());
 	}
 
 	public function testRejectHelpCommandRegistration(): void
 	{
-		$commands = new Commands([new
+		$commands = [new
 			#[Command('help', 'User help')]
 			class {
 				public function __invoke(): int
 				{
 					return 0;
 				}
-			}]);
+			}];
 
 		$this->expectException(ValueError::class);
 		$this->expectExceptionMessage("Command name 'help' is reserved");
@@ -392,14 +392,14 @@ class RunnerTest extends TestCase
 
 	public function testRejectCommandsCommandRegistration(): void
 	{
-		$commands = new Commands([new
+		$commands = [new
 			#[Command('commands', 'User command list')]
 			class {
 				public function __invoke(): int
 				{
 					return 0;
 				}
-			}]);
+			}];
 
 		$this->expectException(ValueError::class);
 		$this->expectExceptionMessage("Command name 'commands' is reserved");
@@ -412,7 +412,7 @@ class RunnerTest extends TestCase
 		$this->expectException(ValueError::class);
 		$this->expectExceptionMessage("Duplicate command 'plain'");
 
-		new Runner(new Commands([new Fixtures\Plain(), new Fixtures\Plain()]));
+		new Runner([new Fixtures\Plain(), new Fixtures\Plain()]);
 	}
 
 	public function testRunnerWithoutCommandsListsOnlyTheBuiltins(): void
@@ -439,9 +439,10 @@ class RunnerTest extends TestCase
 		$runner = new Runner([new Fixtures\Plain()], $out);
 
 		$this->assertSame($runner, $runner->add(Fixtures\Greet::class));
-		$runner
-			->add([Fixtures\BarStuff::class => static fn(): Fixtures\BarStuff => new Fixtures\BarStuff()])
-			->add(new Commands(new Fixtures\FooStuff()));
+		$runner->add([
+			Fixtures\BarStuff::class => static fn(): Fixtures\BarStuff => new Fixtures\BarStuff(),
+			new Fixtures\FooStuff(),
+		]);
 
 		$runner->run(['run', 'commands']);
 
@@ -490,7 +491,7 @@ class RunnerTest extends TestCase
 		$runner->add(Fixtures\Plain::class);
 	}
 
-	/** @return iterable<string, array{list<object|string>, string}> */
+	/** @return iterable<string, array{array, string}> */
 	public static function rejectedRegistrationProvider(): iterable
 	{
 		yield 'duplicate' => [[Fixtures\BarStuff::class, Fixtures\Plain::class], "Duplicate command 'plain'"];
@@ -512,9 +513,26 @@ class RunnerTest extends TestCase
 			[Fixtures\BarStuff::class, 'Missing\\Command'],
 			"Unknown command class 'Missing\\Command'",
 		];
+		yield 'unknown factory class' => [
+			[Fixtures\BarStuff::class, 'Missing\\Command' => static fn(): Fixtures\Plain => new Fixtures\Plain()],
+			"Unknown command class 'Missing\\Command'",
+		];
+		yield 'non-closure factory' => [
+			[Fixtures\BarStuff::class, Fixtures\Greet::class => new Fixtures\Greet()],
+			"Factory for command class 'Celema\\Console\\Tests\\Fixtures\\Greet' must be a closure",
+		];
+		yield 'closure' => [
+			[Fixtures\BarStuff::class, static fn(): int => 0],
+			'Closure commands are not supported; use an anonymous class with a #[Command] attribute',
+		];
+		yield 'invalid item' => [[Fixtures\BarStuff::class, 42], 'Invalid command registration'];
+		yield 'nested array' => [[Fixtures\BarStuff::class, [new Fixtures\Greet()]], 'Invalid command registration'];
+		yield 'no attribute' => [
+			[Fixtures\BarStuff::class, new stdClass()],
+			"Command class 'stdClass' has no #[Command] attribute",
+		];
 	}
 
-	/** @param list<object|string> $commands */
 	#[DataProvider('rejectedRegistrationProvider')]
 	public function testRejectedAddRegistersNone(array $commands, string $message): void
 	{
@@ -555,42 +573,74 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(0, $runner->run(['run', 'greet:injected', 'Ada']));
 		$this->assertSame(0, $runner->run(['run', 'plain']));
+		$this->assertSame(0, $runner->run(['run', 'plain']));
 
 		$this->assertSame([Fixtures\InjectedGreet::class, Fixtures\Plain::class], $resolved);
 		$this->assertStringContainsString('Hello, Ada', $out->output());
 	}
 
-	public function testAddedCollectionKeepsItsResolverAndCache(): void
+	public function testResolverAcceptsMethodCallable(): void
 	{
-		$calls = [];
-		$commands = new Commands(
-			Fixtures\Plain::class,
-			resolve: static function (string $class) use (&$calls): object {
-				$calls[] = 'collection';
-
+		$resolver = new class {
+			public function resolve(string $class): object
+			{
 				return new $class();
-			},
-		);
-		$resolve = static function (string $class) use (&$calls): object {
-			$calls[] = 'runner';
-
-			return new $class();
+			}
 		};
+		$out = new BufferedIo();
 
-		$this->assertSame(0, new Runner($commands, new BufferedIo(), resolve: $resolve)->run(['run', 'plain']));
 		$this->assertSame(
 			0,
-			new Runner(output: new BufferedIo(), resolve: $resolve)->add($commands)->run(['run', 'plain']),
+			new Runner(Fixtures\Plain::class, $out, resolve: [$resolver, 'resolve'])->run(['run', 'plain']),
 		);
-		$this->assertSame(['collection'], $calls);
+		$this->assertSame('Plain', $out->output());
+	}
+
+	public function testInstancesAndExplicitFactoriesBypassResolver(): void
+	{
+		$out = new BufferedIo();
+		$runner = new Runner(
+			[new Fixtures\Greet(), Fixtures\Plain::class => static fn(): Fixtures\Plain => new Fixtures\Plain()],
+			$out,
+			resolve: fn(string $class): object => $this->fail("Unexpected resolution of {$class}"),
+		);
+
+		$this->assertSame(0, $runner->run(['run', 'greet', 'Ada']));
+		$this->assertSame(0, $runner->run(['run', 'plain']));
+		$this->assertSame('Hello, AdaPlain', $out->output());
+	}
+
+	/** @return iterable<string, array{array, ?callable}> */
+	public static function wrongInstanceProvider(): iterable
+	{
+		yield 'factory returning null' => [[Fixtures\Greet::class => static fn(): mixed => null], null];
+		yield 'factory returning another class' => [
+			[Fixtures\Greet::class => static fn(): Fixtures\Plain => new Fixtures\Plain()],
+			null,
+		];
+		yield 'resolver returning null' => [[Fixtures\Greet::class], static fn(string $class): mixed => null];
+		yield 'resolver returning another class' => [
+			[Fixtures\Greet::class],
+			static fn(string $class): Fixtures\Plain => new Fixtures\Plain(),
+		];
+	}
+
+	#[DataProvider('wrongInstanceProvider')]
+	public function testWrongCommandInstanceFails(array $commands, ?callable $resolve): void
+	{
+		$out = new BufferedIo();
+
+		$this->assertSame(1, new Runner($commands, $out, resolve: $resolve)->run(['run', 'greet']));
+		$this->assertStringContainsString(
+			"Factory for command 'greet' must return a " . Fixtures\Greet::class,
+			$out->errorOutput(),
+		);
 	}
 
 	public function testHelpOverviewLayout(): void
 	{
 		$out = new BufferedIo();
-		$commands = $this->getCommands();
-		$commands->add(new Fixtures\Plain());
-		$code = new Runner($commands, $out)->run(['bin/console']);
+		$code = new Runner($this->getCommands(), $out)->add(new Fixtures\Plain())->run(['bin/console']);
 
 		$this->assertSame(0, $code);
 		$this->assertSame(
@@ -625,7 +675,7 @@ class RunnerTest extends TestCase
 	public function testHelpOverviewListsNumericNamesAndPrefixes(): void
 	{
 		$out = new BufferedIo();
-		$commands = new Commands([
+		$commands = [
 			new
 				#[Command('7', 'Numbered')]
 				class {
@@ -658,7 +708,7 @@ class RunnerTest extends TestCase
 						return 0;
 					}
 				},
-		]);
+		];
 		$code = new Runner($commands, $out)->run(['bin/console']);
 
 		$this->assertSame(0, $code);
@@ -806,7 +856,7 @@ class RunnerTest extends TestCase
 
 	public function testUnprefixedCommandWinsOverPrefixedNamesake(): void
 	{
-		$commands = new Commands([
+		$commands = [
 			new
 				#[Command('deploy', 'Unprefixed')]
 				class {
@@ -827,7 +877,7 @@ class RunnerTest extends TestCase
 						return 0;
 					}
 				},
-		]);
+		];
 
 		$out = new BufferedIo();
 		$this->assertSame(0, new Runner($commands, $out)->run(['run', 'deploy']));
@@ -854,7 +904,7 @@ class RunnerTest extends TestCase
 	public function testHelpForUnknownCommandNamesTheTarget(): void
 	{
 		$out = new BufferedIo();
-		$code = new Runner(new Commands([new HelpVariants()]), $out)->run(['run', 'help', 'missing']);
+		$code = new Runner([new HelpVariants()], $out)->run(['run', 'help', 'missing']);
 
 		$this->assertSame(2, $code);
 		$this->assertStringContainsString("Error while running command 'missing'", $out->errorOutput());
@@ -887,7 +937,7 @@ class RunnerTest extends TestCase
 	public function testUngroupedCommandsShareSingleGeneralHeader(): void
 	{
 		$runner = new Runner(
-			new Commands([new Fixtures\Plain(), new Fixtures\BarStuff()]),
+			[new Fixtures\Plain(), new Fixtures\BarStuff()],
 			output: 'php://output',
 		);
 
@@ -929,14 +979,14 @@ class RunnerTest extends TestCase
 
 	public function testCommandValueErrorIsNotTreatedAsAmbiguous(): void
 	{
-		$commands = new Commands([new
+		$commands = [new
 			#[Command('boom', 'Fails with a ValueError')]
 			class {
 				public function __invoke(): int
 				{
 					throw new ValueError('Command failure', 1);
 				}
-			}]);
+			}];
 		$out = new BufferedIo();
 		$code = new Runner($commands, $out)->run(['run', 'boom']);
 
@@ -987,7 +1037,7 @@ class RunnerTest extends TestCase
 
 	public function testRunReturnsFailureCodeFromCommand(): void
 	{
-		$runner = new Runner(new Commands([new Fixtures\Failing()]));
+		$runner = new Runner([new Fixtures\Failing()]);
 
 		$this->assertSame(1, $runner->run(['run', 'fail']));
 	}
@@ -1321,7 +1371,7 @@ class RunnerTest extends TestCase
 
 	public function testCommandReceivesParsedArgs(): void
 	{
-		$runner = new Runner(new Commands([new Fixtures\Greet()]), output: 'php://output');
+		$runner = new Runner([new Fixtures\Greet()], output: 'php://output');
 
 		$this->expectOutputString('Hi, Ada');
 		$runner->run(['run', 'greet', 'Ada', '--greeting=Hi']);
@@ -1329,7 +1379,7 @@ class RunnerTest extends TestCase
 
 	public function testCommandUsesArgDefaults(): void
 	{
-		$runner = new Runner(new Commands([new Fixtures\Greet()]), output: 'php://output');
+		$runner = new Runner([new Fixtures\Greet()], output: 'php://output');
 
 		$this->expectOutputString('Hello, World');
 		$runner->run(['run', 'greet']);
@@ -1356,7 +1406,7 @@ class RunnerTest extends TestCase
 
 	public function testRunClassStringCommand(): void
 	{
-		$runner = new Runner(new Commands(Fixtures\Plain::class), output: 'php://output');
+		$runner = new Runner(Fixtures\Plain::class, output: 'php://output');
 
 		$this->expectOutputString('Plain');
 		$runner->run(['run', 'plain']);
@@ -1365,29 +1415,30 @@ class RunnerTest extends TestCase
 	public function testResolverRunsOnlyForTheInvokedCommand(): void
 	{
 		$resolved = [];
-		$commands = new Commands(
-			[Fixtures\Plain::class, Fixtures\Greet::class],
-			resolve: static function (string $class) use (&$resolved): object {
-				$resolved[] = $class;
+		$commands = [Fixtures\Plain::class, Fixtures\Greet::class];
+		$resolve = static function (string $class) use (&$resolved): object {
+			$resolved[] = $class;
 
-				return new $class();
-			},
-		);
+			return new $class();
+		};
 
 		foreach ([['run'], ['run', 'help'], ['run', 'commands'], ['run', 'help', 'greet']] as $argv) {
 			$out = new BufferedIo();
 
-			$this->assertSame(0, new Runner($commands, $out)->run($argv));
+			$this->assertSame(0, new Runner($commands, $out, resolve: $resolve)->run($argv));
 			$this->assertNotSame('', $out->output());
 			$this->assertSame([], $resolved);
 		}
 
-		$this->assertSame(2, new Runner($commands, new BufferedIo())->run(['run', 'greet', '--unknown']));
+		$this->assertSame(
+			2,
+			new Runner($commands, new BufferedIo(), resolve: $resolve)->run(['run', 'greet', '--unknown']),
+		);
 		$this->assertSame([], $resolved);
 
 		$out = new BufferedIo();
 
-		$this->assertSame(0, new Runner($commands, $out)->run(['run', 'greet', 'Ada']));
+		$this->assertSame(0, new Runner($commands, $out, resolve: $resolve)->run(['run', 'greet', 'Ada']));
 		$this->assertSame('Hello, Ada', $out->output());
 		$this->assertSame([Fixtures\Greet::class], $resolved);
 	}
@@ -1395,30 +1446,32 @@ class RunnerTest extends TestCase
 	public function testResolverInjectsIoIntoConstructor(): void
 	{
 		$out = new BufferedIo();
-		$commands = new Commands(
+		$runner = new Runner(
 			Fixtures\InjectedGreet::class,
+			$out,
 			resolve: static fn(string $class): object => new $class($out),
 		);
 
-		$this->assertSame(0, new Runner($commands, $out)->run(['run', 'greet:injected', 'Ada']));
+		$this->assertSame(0, $runner->run(['run', 'greet:injected', 'Ada']));
 		$this->assertSame('Hello, Ada', $out->output());
 	}
 
 	public function testResolverFailureIsReported(): void
 	{
 		$out = new BufferedIo();
-		$commands = new Commands(
+		$runner = new Runner(
 			Fixtures\Greet::class,
+			$out,
 			resolve: static fn(string $class): object => throw new RuntimeException('Dependencies unavailable'),
 		);
 
-		$this->assertSame(1, new Runner($commands, $out)->run(['run', 'greet']));
+		$this->assertSame(1, $runner->run(['run', 'greet']));
 		$this->assertStringContainsString('Dependencies unavailable', $out->errorOutput());
 	}
 
 	public function testRunAnonymousClassCommand(): void
 	{
-		$commands = new Commands([new
+		$commands = [new
 			#[Command('cache:clear', 'Clears the cache')]
 			class {
 				public function __invoke(Io $out, #[Arg('What to clear')] string $what): int
@@ -1427,7 +1480,7 @@ class RunnerTest extends TestCase
 
 					return 0;
 				}
-			}]);
+			}];
 		$runner = new Runner($commands, output: 'php://output');
 
 		ob_start();
@@ -1440,14 +1493,14 @@ class RunnerTest extends TestCase
 
 	public function testAnonymousClassCommandAppearsInHelp(): void
 	{
-		$commands = new Commands([new
+		$commands = [new
 			#[Command('cache:clear', 'Clears the cache')]
 			class {
 				public function __invoke(): int
 				{
 					return 0;
 				}
-			}]);
+			}];
 		$runner = new Runner($commands, output: 'php://output');
 
 		$this->expectOutputRegex('/Cache.*cache:.*clear.*Clears the cache/s');
@@ -1467,7 +1520,7 @@ class RunnerTest extends TestCase
 				return 0;
 			}
 		};
-		$commands = new Commands([Fixtures\Greet::class => $factory]);
+		$commands = [Fixtures\Greet::class => $factory];
 
 		$out = new BufferedIo();
 		$this->assertSame(0, new Runner($commands, $out)->run(['run', 'greet', 'Ada', '--greeting=Hi']));
@@ -1487,7 +1540,7 @@ class RunnerTest extends TestCase
 
 			return new Fixtures\Greet();
 		};
-		$commands = new Commands([Fixtures\Greet::class => $factory]);
+		$commands = [Fixtures\Greet::class => $factory];
 
 		ob_start();
 		new Runner($commands, output: 'php://output')->run(['run', 'help']);
@@ -1505,7 +1558,7 @@ class RunnerTest extends TestCase
 	public function testUninvokableCommandFails(): void
 	{
 		$runner = new Runner(
-			new Commands(Fixtures\Uninvokable::class),
+			Fixtures\Uninvokable::class,
 			output: 'php://output',
 			errorOutput: 'php://output',
 		);
@@ -1520,7 +1573,7 @@ class RunnerTest extends TestCase
 
 	public function testHelpOptionRendersEqualsNotation(): void
 	{
-		$runner = new Runner(new Commands([new Fixtures\HelpVariants()]), output: 'php://output');
+		$runner = new Runner([new Fixtures\HelpVariants()], output: 'php://output');
 
 		ob_start();
 		$runner->run(['run', 'help', 'variants']);

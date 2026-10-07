@@ -85,6 +85,15 @@ $runner->add(new #[Command('cache:clear', 'Clears the cache')] class {
 
 `add()` returns the runner, so calls chain. Commands carry their metadata in the `#[Command]` attribute, which is read without instantiating the class. Factories run only when their command is actually invoked — listing the help never constructs a command.
 
+A package ships its command set as a registration array, with factories for commands that need its own dependencies:
+
+```php
+$runner->add([
+    Migrate::class => static fn(): Migrate => new Migrate($connection),
+    Rollback::class => static fn(): Rollback => new Rollback($connection),
+]);
+```
+
 Pass a resolver to construct class-string registrations through a container or application runtime:
 
 ```php
@@ -128,26 +137,6 @@ $runner = new Runner(
 With a container-backed resolver, register that same `Io` instance in the container using its own registration API.
 
 The runner validates the signature of the invoked command: `__invoke()` must declare the return type `int` — the exit code. Parameters typed `Args` or `Io` are injected, each at most once and in any order; every other parameter must carry `#[Arg]` or `#[Opt]` or take an option group (see [Arguments and Options](#arguments-and-options)).
-
-#### Command Collections
-
-`Commands` bundles registrations without a runner, for example a package's command set. It takes the same registrations and an optional resolver of its own, and the runner accepts a collection wherever it accepts registrations:
-
-```php
-use Celema\Console\{Commands, Runner};
-
-$migrations = new Commands(
-    [Migrate::class, Rollback::class],
-    resolve: static fn(string $class): object => new $class($connection),
-);
-
-$runner = new Runner([new MyCommand()]);
-$runner->add($migrations);
-```
-
-A collection keeps its own resolver: the runner's resolver never applies to it. Its resolved instances are cached per registration and shared by every runner or collection it is added to. Registering a collection copies its current registrations; adding to the collection afterwards does not change the runner.
-
-Like `Runner::add()`, `Commands::add()` returns the collection for chaining, and a call that rejects one registration registers none of them.
 
 ### Io Methods
 

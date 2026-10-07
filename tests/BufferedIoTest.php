@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Celema\Console\Tests;
 
 use Celema\Console\BufferedIo;
-use Celema\Console\Commands;
 use Celema\Console\Runner;
 use Celema\Console\Tests\Fixtures\Plain;
 
@@ -53,7 +52,7 @@ class BufferedIoTest extends TestCase
 	public function testRunnerAcceptsAnOutputInstance(): void
 	{
 		$out = new BufferedIo();
-		$runner = new Runner(new Commands([new Plain()]), $out);
+		$runner = new Runner([new Plain()], $out);
 
 		$this->assertSame(0, $runner->run(['run', 'plain']));
 		$this->assertSame('Plain', $out->output());

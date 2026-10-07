@@ -7,7 +7,6 @@ namespace Celema\Console\Tests;
 use Celema\Console\Arg;
 use Celema\Console\BufferedIo;
 use Celema\Console\Command;
-use Celema\Console\Commands;
 use Celema\Console\Io;
 use Celema\Console\Opt;
 use Celema\Console\Runner;
@@ -25,7 +24,7 @@ class ParametersTest extends TestCase
 	{
 		$out = new BufferedIo();
 
-		return [new Runner(new Commands([$command]), $out)->run(['run', 'probe', ...$args]), $out];
+		return [new Runner([$command], $out)->run(['run', 'probe', ...$args]), $out];
 	}
 
 	private static function typed(): object
@@ -369,7 +368,7 @@ class ParametersTest extends TestCase
 	public function testHelpListsTheOptionsOfGroups(): void
 	{
 		$out = new BufferedIo();
-		new Runner(new Commands([self::served()]), $out)->run(['run', 'help', 'probe']);
+		new Runner([self::served()], $out)->run(['run', 'help', 'probe']);
 
 		$this->assertStringContainsString(
 			"Options:\n    -H=<host>, --host=<host>\n        Host to bind to [default: localhost]\n"
