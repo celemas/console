@@ -40,8 +40,11 @@ final class Option
 
 	/**
 	 * Reads the value of the option, which occurs in the input.
+	 *
+	 * @param int $occurrences How often the option occurs, bare or with a
+	 *     value; Args merges the occurrences
 	 */
-	public function value(Args $args): mixed
+	public function value(Args $args, int $occurrences): mixed
 	{
 		$values = $args->opts($this->name);
 
@@ -67,7 +70,7 @@ final class Option
 			return $values;
 		}
 
-		if (count($values) !== 1) {
+		if ($occurrences !== 1) {
 			throw new InvalidUsage("Option '{$this->name}' accepts only one value");
 		}
 

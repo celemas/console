@@ -251,6 +251,32 @@ class ParametersTest extends TestCase
 		$this->assertSame([null, 1, 4], $command->seen);
 	}
 
+	public static function repeatedBareOptionProvider(): array
+	{
+		return [
+			'bare twice' => [['--worker', '--worker']],
+			'bare and short alias' => [['--worker', '-w']],
+			'bare and valued' => [['-w', '--worker=4']],
+		];
+	}
+
+	/** @param list<string> $args */
+	#[DataProvider('repeatedBareOptionProvider')]
+	public function testRejectRepeatedOptionWithBareValue(array $args): void
+	{
+		[$code, $out] = $this->runProbe(new
+			#[Command('probe')]
+			class {
+				public function __invoke(#[Opt(short: '-w', bare: '1')] ?int $worker = null): int
+				{
+					return 0;
+				}
+			}, ...$args);
+
+		$this->assertSame(2, $code);
+		$this->assertStringContainsString("Option '--worker' accepts only one value", $out->errorOutput());
+	}
+
 	public function testVariadicArgumentKeepsItsDefaultWithoutPositionals(): void
 	{
 		$command = new

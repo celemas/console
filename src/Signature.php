@@ -132,7 +132,7 @@ final class Signature
 	 */
 	public function bind(array $tokens, Io $io): array
 	{
-		$args = new Args($this->normalize($tokens));
+		[$args, $counts] = $this->parse($tokens);
 		$values = [];
 
 		foreach ($this->injected as $class => $name) {
@@ -145,9 +145,9 @@ final class Signature
 			$option = $this->options[$name] ?? throw new InvalidUsage($this->unknownOption($name));
 
 			if ($option->group === null) {
-				$values[$option->parameter->name] = $option->value($args);
+				$values[$option->parameter->name] = $option->value($args, $counts[$name]);
 			} else {
-				$grouped[$option->group][$option->parameter->name] = $option->value($args);
+				$grouped[$option->group][$option->parameter->name] = $option->value($args, $counts[$name]);
 			}
 		}
 
@@ -351,14 +351,20 @@ final class Signature
 	}
 
 	/**
-	 * Replaces declared short names with their long names.
+	 * Parses the tokens, replacing declared short names with their long
+	 * names.
+	 *
+	 * Also counts how often each name occurs, since Args merges the
+	 * occurrences: two bare `--worker` must not pass for one value.
+	 * Positionals are counted too, but only option names are looked up.
 	 *
 	 * @param list<string> $tokens
-	 * @return list<string>
+	 * @return array{Args, array<string, int>}
 	 */
-	private function normalize(array $tokens): array
+	private function parse(array $tokens): array
 	{
 		$normalized = [];
+		$counts = [];
 		$literal = false;
 
 		foreach ($tokens as $token) {
@@ -378,12 +384,14 @@ final class Signature
 				? $token
 				: substr(string: $token, offset: 0, length: $separator);
 			$long = $this->aliases[$name] ?? null;
+			$key = $long ?? $name;
+			$counts[$key] = ($counts[$key] ?? 0) + 1;
 			$normalized[] = $long === null
 				? $token
 				: $long . ($separator === false ? '' : substr(string: $token, offset: $separator));
 		}
 
-		return $normalized;
+		return [new Args($normalized), $counts];
 	}
 
 	/**
