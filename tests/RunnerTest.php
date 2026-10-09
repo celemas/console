@@ -547,7 +547,7 @@ class RunnerTest extends TestCase
 			$this->assertSame($message, $e->getMessage());
 		}
 
-		$runner->showCommands();
+		$runner->run(['run', 'commands']);
 		$this->assertSame("plain\n", $out->output());
 	}
 
@@ -735,17 +735,6 @@ class RunnerTest extends TestCase
 		);
 	}
 
-	public function testShowHelpAndShowCommandsArePublic(): void
-	{
-		$out = new Buffer();
-		$runner = new Runner($this->getCommands(), new Io($out));
-
-		$this->assertSame(0, $runner->showCommands());
-		$this->assertSame("bar:stuff\ndrivel\nerr\nerr:err\nfoo:drivel\nfoo:stuff\n", $out->output());
-		$this->assertSame(0, $runner->showHelp());
-		$this->assertStringContainsString('Available commands:', $out->output());
-	}
-
 	public function testCommandNamesAreCaseInsensitive(): void
 	{
 		$out = new Buffer();
@@ -827,7 +816,9 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(0, $runner->run());
 		$this->assertStringContainsString('php bin/console help:variants <file>', $out->output());
-		$this->assertSame(0, $runner->showHelp());
+
+		$_SERVER['argv'] = ['bin/console'];
+		$this->assertSame(0, $runner->run());
 		$this->assertStringContainsString('php bin/console [prefix:]command', $out->output());
 	}
 

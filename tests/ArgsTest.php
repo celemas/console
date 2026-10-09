@@ -54,23 +54,12 @@ class ArgsTest extends TestCase
 		$this->assertSame('sqlite', $args->opt('--conn'));
 	}
 
-	public function testTracksBareOccurrences(): void
-	{
-		$args = new Args(['--force', '--host=localhost', '--tag', '--tag=a']);
-
-		$this->assertTrue($args->bare('--force'));
-		$this->assertFalse($args->bare('--host'));
-		// The bare occurrence survives a later valued repetition.
-		$this->assertTrue($args->bare('--tag'));
-		$this->assertFalse($args->bare('--missing'));
-	}
-
 	public function testBareOccurrenceKeepsEarlierValues(): void
 	{
 		$args = new Args(['--tag=a', '--tag']);
 
 		$this->assertSame(['a'], $args->opts('--tag'));
-		$this->assertTrue($args->bare('--tag'));
+		$this->assertSame(['--tag'], $args->names());
 	}
 
 	public function testSeparatorEndsOptionParsing(): void

@@ -80,12 +80,8 @@ final class Runner
 		return $this;
 	}
 
-	/**
-	 * The script name in the usage line defaults to `$_SERVER['argv'][0]`.
-	 */
-	public function showHelp(?string $script = null): int
+	private function showHelp(string $script): int
 	{
-		$script ??= $_SERVER['argv'][0] ?? '';
 		$this->io->line('<yellow>Usage:</yellow>');
 		$this->io->line("  php %s [prefix:]command [arguments]\n", $script);
 		$this->io->line("Prefixes are optional if the command is unambiguous.\n");
@@ -131,7 +127,7 @@ final class Runner
 	 * unless the bare name belongs to an unprefixed command, which always
 	 * shows since it resolves exactly.
 	 */
-	public function showCommands(): int
+	private function showCommands(): int
 	{
 		$list = [];
 

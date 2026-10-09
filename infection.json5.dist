@@ -103,7 +103,7 @@
 		},
 		// Only the key of a bare occurrence is checked.
 		TrueValue: {
-			ignoreSourceCodeByRegex: ['\\$this->bare\\[\\$token\\] = true;'],
+			ignoreSourceCodeByRegex: ['\\$bare\\[\\$key\\] = true;'],
 		},
 		// Both operands only contribute their combined length.
 		Concat: {

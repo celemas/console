@@ -59,11 +59,13 @@
 
 - Prompts: `secret('Password:')` replaces `ask('Password:', hidden: true)`. `ask()` shows a non-empty default, `Name: [unnamed]`. `choice()` takes `key => label` options and returns the chosen key — for a list its index, no longer the label — and its default is a key, the first option's unless given, instead of a 1-based number: `$io->choice('Environment?', ['dev' => 'Development', 'prod' => 'Production'], default: 'prod')`. Defaults and option labels print as plain text.
 
+- `Runner::showHelp()` and `Runner::showCommands()` are private: run the `help` and `commands` built-ins instead, e.g. `$runner->run(['run', 'commands'])`. `Args::bare()` is gone; it only served the runner's validation.
+
 ### Added
 
 - `Io::interactive()` tells whether someone can see and answer prompts, `Io::width()` the terminal width; `new Buffer(interactive: true, width: 120)` pretends to be such a terminal. `Stdio` takes `colors:` to switch colors on or off regardless of the environment, for example for a `--no-color` flag. Other devices implement the `Terminal` interface.
 - Optional class resolver: `new Runner([Import::class], resolve: $container->get(...))` lazily constructs class-string registrations through any callable, without a container dependency. It also applies to classes added later; instances and explicit factories bypass it. Resolved commands are cached per registration, and help and command listings never invoke the resolver.
-- `Runner::run()` takes an optional argument vector in place of `$_SERVER['argv']`, starting with the script name like it, so tests and embedding code need not change the global. Its script name reaches the help screens and the `--help` hint. `Help` takes a script name as an optional second constructor argument and `Runner::showHelp()` as an optional parameter; both default to `$_SERVER['argv'][0]`.
+- `Runner::run()` takes an optional argument vector in place of `$_SERVER['argv']`, starting with the script name like it, so tests and embedding code need not change the global. Its script name reaches the help screens and the `--help` hint. `Help` takes a script name as an optional second constructor argument, defaulting to `$_SERVER['argv'][0]`.
 - `Celema\Console\Exception\InvalidUsage`: commands throw it for usage checks of their own, such as options that cannot be combined; the runner prints the message and exits with code 2.
 - Option groups: an `__invoke()` parameter typed with a class whose constructor parameters all carry `#[Opt]` receives an instance of that class, created from the command line. Commands share options through a group, and a long option list moves out of the command's signature. The group's options are validated, converted, and listed in the help like the command's own.
 

@@ -23,9 +23,6 @@ final class Args
 	/** @var array<string, list<string>> */
 	private array $options = [];
 
-	/** @var array<string, true> */
-	private array $bare = [];
-
 	/** @var list<string> */
 	private array $positionals = [];
 
@@ -60,16 +57,7 @@ final class Args
 			}
 
 			$this->options[$token] ??= [];
-			$this->bare[$token] = true;
 		}
-	}
-
-	/**
-	 * Whether the option occurred at least once without a value.
-	 */
-	public function bare(string $key): bool
-	{
-		return array_key_exists($key, $this->bare);
 	}
 
 	public function has(string $key): bool

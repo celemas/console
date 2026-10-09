@@ -43,8 +43,9 @@ final class Option
 	 *
 	 * @param int $occurrences How often the option occurs, bare or with a
 	 *     value; Args merges the occurrences
+	 * @param bool $bare Whether one of them has no value
 	 */
-	public function value(Args $args, int $occurrences): mixed
+	public function value(Args $args, int $occurrences, bool $bare): mixed
 	{
 		$values = $args->opts($this->name);
 
@@ -58,7 +59,7 @@ final class Option
 
 		// Every occurrence needs a value, also when a repetition provides
 		// one: `--host --host=x` must not hide the bare `--host`.
-		if ($args->bare($this->name)) {
+		if ($bare) {
 			if ($this->opt->bare === null) {
 				throw new InvalidUsage("Option '{$this->name}' requires a value: {$this->name}=<{$this->label()}>");
 			}

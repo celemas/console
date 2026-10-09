@@ -134,7 +134,7 @@ final class Signature
 	 */
 	public function bind(array $tokens, Io $io, string $script): array
 	{
-		[$args, $counts] = $this->parse($tokens);
+		[$args, $counts, $bare] = $this->parse($tokens);
 		$values = [];
 
 		foreach ($this->injected as $class => $name) {
@@ -146,10 +146,12 @@ final class Signature
 		foreach ($args->names() as $name) {
 			$option = $this->options[$name] ?? throw new InvalidUsage($this->unknownOption($name, $script));
 
+			$value = $option->value($args, $counts[$name], array_key_exists($name, $bare));
+
 			if ($option->group === null) {
-				$values[$option->parameter->name] = $option->value($args, $counts[$name]);
+				$values[$option->parameter->name] = $value;
 			} else {
-				$grouped[$option->group][$option->parameter->name] = $option->value($args, $counts[$name]);
+				$grouped[$option->group][$option->parameter->name] = $value;
 			}
 		}
 
@@ -356,17 +358,20 @@ final class Signature
 	 * Parses the tokens, replacing declared short names with their long
 	 * names.
 	 *
-	 * Also counts how often each name occurs, since Args merges the
-	 * occurrences: two bare `--worker` must not pass for one value.
-	 * Positionals are counted too, but only option names are looked up.
+	 * Also counts how often each name occurs and notes which occur bare,
+	 * without a value, since Args merges the occurrences: two bare
+	 * `--worker` must not pass for one value, nor `--host --host=x` for a
+	 * valued one. Positionals are noted too, but only option names are
+	 * looked up.
 	 *
 	 * @param list<string> $tokens
-	 * @return array{Args, array<string, int>}
+	 * @return array{Args, array<string, int>, array<string, true>}
 	 */
 	private function parse(array $tokens): array
 	{
 		$normalized = [];
 		$counts = [];
+		$bare = [];
 		$literal = false;
 
 		foreach ($tokens as $token) {
@@ -388,12 +393,17 @@ final class Signature
 			$long = $this->aliases[$name] ?? null;
 			$key = $long ?? $name;
 			$counts[$key] = ($counts[$key] ?? 0) + 1;
+
+			if ($separator === false) {
+				$bare[$key] = true;
+			}
+
 			$normalized[] = $long === null
 				? $token
 				: $long . ($separator === false ? '' : substr(string: $token, offset: $separator));
 		}
 
-		return [new Args($normalized), $counts];
+		return [new Args($normalized), $counts, $bare];
 	}
 
 	/**
