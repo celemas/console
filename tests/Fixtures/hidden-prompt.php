@@ -10,11 +10,12 @@ declare(strict_types=1);
  */
 
 use Celema\Console\Io;
+use Celema\Console\Stdio;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 $target = ($argv[1] ?? '') === 'tty' ? (string) posix_ttyname(STDOUT) : 'php://stdin';
-$io = new Io(inputTarget: $target);
+$io = new Io(new Stdio(input: $target));
 
 try {
 	$answer = $io->ask('Password:', hidden: true);

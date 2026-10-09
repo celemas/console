@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Celema\Console\Tests;
 
 use Celema\Console\Arg;
-use Celema\Console\BufferedIo;
+use Celema\Console\Buffer;
 use Celema\Console\Command;
 use Celema\Console\Help;
 use Celema\Console\Io;
+use Celema\Console\Stdio;
 use Celema\Console\Tests\Fixtures\Defaults;
 use Celema\Console\Tests\Fixtures\HelpVariants;
 use Celema\Console\Tests\Fixtures\Plain;
@@ -19,7 +20,7 @@ class HelpTest extends TestCase
 {
 	public function testShowForRendersVariadicArguments(): void
 	{
-		$help = new Help(new Io('php://output'), 'run');
+		$help = new Help(new Io(new Stdio('php://output')), 'run');
 		$command = new
 			#[Command('copy', 'Copies files')]
 			class {
@@ -48,15 +49,16 @@ class HelpTest extends TestCase
 	public function testShowForDefaultsToTheServerScriptName(): void
 	{
 		$_SERVER['argv'] = ['bin/console'];
-		$io = new BufferedIo();
+		$buffer = new Buffer();
+		$io = new Io($buffer);
 		new Help($io)->showFor(Plain::class);
 
-		$this->assertStringContainsString('php bin/console plain', $io->output());
+		$this->assertStringContainsString('php bin/console plain', $buffer->output());
 	}
 
 	public function testShowForRendersOptionsFromAttributes(): void
 	{
-		$help = new Help(new Io('php://output'), 'run');
+		$help = new Help(new Io(new Stdio('php://output')), 'run');
 
 		ob_start();
 		$help->showFor(new HelpVariants());
@@ -73,7 +75,8 @@ class HelpTest extends TestCase
 
 	public function testShowForRendersDefaultsAndChoices(): void
 	{
-		$io = new BufferedIo();
+		$buffer = new Buffer();
+		$io = new Io($buffer);
 
 		new Help($io, 'run')->showFor(Defaults::class);
 
@@ -108,13 +111,13 @@ class HelpTest extends TestCase
 				    --force
 
 				TEXT,
-			$io->output(),
+			$buffer->output(),
 		);
 	}
 
 	public function testShowForClassWithoutOptions(): void
 	{
-		$help = new Help(new Io('php://output'), 'run');
+		$help = new Help(new Io(new Stdio('php://output')), 'run');
 
 		ob_start();
 		$help->showFor(Plain::class);
@@ -129,21 +132,15 @@ class HelpTest extends TestCase
 
 	public function testShowWrapsDescriptionsAtEightyColumns(): void
 	{
-		putenv('COLUMNS=100');
-		$io = new BufferedIo();
-
-		try {
-			new Help($io, 'run')->showFor(Wrapped::class);
-		} finally {
-			putenv('COLUMNS');
-		}
+		$buffer = new Buffer(width: 100);
+		new Help(new Io($buffer), 'run')->showFor(Wrapped::class);
 
 		$block = '        ' . Wrapped::LINE72 . "\n        " . Wrapped::LINE71 . "\n        x\n";
 		$this->assertSame(
 			"Usage:\n  php run wrap <target> [options]\n"
 				. "\nArguments:\n    <target>\n{$block}"
 				. "\nOptions:\n    --long\n{$block}",
-			$io->output(),
+			$buffer->output(),
 		);
 	}
 }

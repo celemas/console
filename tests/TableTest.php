@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Celema\Console\Tests;
 
 use Celema\Console\Align;
-use Celema\Console\BufferedIo;
+use Celema\Console\Buffer;
+use Celema\Console\Io;
 use Celema\Console\Table;
 use ValueError;
 
@@ -30,8 +31,8 @@ class TableTest extends TestCase
 		$table->row(['<strong>Straße</strong>', '<strong>Nr</strong>']);
 		$table->row(['Ring', '7']);
 
-		$out = new BufferedIo();
-		$out->echo($table->render());
+		$out = new Buffer();
+		new Io($out)->echo($table->render());
 
 		$this->assertSame("Straße  Nr\nRing     7\n", $out->output());
 	}

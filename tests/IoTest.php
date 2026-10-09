@@ -5,47 +5,26 @@ declare(strict_types=1);
 namespace Celema\Console\Tests;
 
 use Celema\Console\Align;
-use Celema\Console\BufferedIo;
+use Celema\Console\Buffer;
 use Celema\Console\Io;
-use RuntimeException;
 use ValueError;
 
 class IoTest extends TestCase
 {
-	protected function tearDown(): void
+	public function testRendersMarkupWithColors(): void
 	{
-		// Clear every mutated variable here so a failing assertion cannot
-		// leak state into later tests. COLORTERM is snapshot-restored in
-		// the one test that sets it.
-		putenv('COLUMNS');
-		putenv('NO_COLOR');
-		putenv('FORCE_COLOR');
-		parent::tearDown();
+		$buffer = new Buffer(colors: true);
+		new Io($buffer)->echo('<red>test</red>');
+
+		$this->assertSame("\033[31mtest\033[0m", $buffer->output());
 	}
 
-	public function testRendersMarkupOnColoredStreams(): void
+	public function testStripsMarkupWithoutColors(): void
 	{
-		putenv('FORCE_COLOR=1');
+		$buffer = new Buffer();
+		new Io($buffer)->echo('<red>test</red>');
 
-		ob_start();
-		new Io('php://output')->echo('<red>test</red>');
-		$out = (string) ob_get_clean();
-
-		$this->assertSame("\033[31mtest\033[0m", $out);
-	}
-
-	public function testHasColorSupport(): void
-	{
-		putenv('FORCE_COLOR=1');
-		$io = new Io('php://output');
-
-		ob_start();
-		$io->echo('<red>test</red>');
-		putenv('NO_COLOR=1');
-		$io->echo('<red>test</red>');
-		$out = (string) ob_get_clean();
-
-		$this->assertSame("\033[31mtest\033[0mtest", $out);
+		$this->assertSame('test', $buffer->output());
 	}
 
 	public function testMarkupIsValidatedEvenWithColorsDisabled(): void
@@ -53,101 +32,89 @@ class IoTest extends TestCase
 		$this->expectException(ValueError::class);
 		$this->expectExceptionMessage("Unclosed markup tag '<em>'");
 
-		new BufferedIo()->echoln('<em>test');
-	}
-
-	public function testForceColorZeroDisablesColors(): void
-	{
-		putenv('FORCE_COLOR=0');
-		$io = new Io('php://output');
-
-		ob_start();
-		$io->echo('<red>test</red>');
-		putenv('FORCE_COLOR=false');
-		$io->echo('<red>test</red>');
-		putenv('FORCE_COLOR=FALSE');
-		$io->echo('<red>test</red>');
-		$out = (string) ob_get_clean();
-
-		$this->assertSame('testtesttest', $out);
-	}
-
-	public function testEmptyNoColorIsIgnored(): void
-	{
-		putenv('NO_COLOR=');
-		putenv('FORCE_COLOR=1');
-
-		ob_start();
-		new Io('php://output')->echo('<red>test</red>');
-		$out = (string) ob_get_clean();
-
-		$this->assertSame("\033[31mtest\033[0m", $out);
-	}
-
-	public function testColorTermDoesNotColorRedirectedStreams(): void
-	{
-		putenv('NO_COLOR');
-		putenv('FORCE_COLOR');
-		$colorterm = getenv('COLORTERM');
-		putenv('COLORTERM=truecolor');
-		$out = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
-
-		try {
-			new Io($out)->success('done');
-
-			$this->assertSame("done\n", file_get_contents($out));
-		} finally {
-			unlink($out);
-			putenv($colorterm === false ? 'COLORTERM' : "COLORTERM={$colorterm}");
-		}
-	}
-
-	public function testColorsDisabledWithoutTerminalOrEnvOverride(): void
-	{
-		putenv('NO_COLOR');
-		putenv('FORCE_COLOR');
-		$out = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
-		$err = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
-		$io = new Io($out, $err);
-		$io->echoln('<red>regular</red>');
-		$io->echolnErr('<red>error</red>');
-		$stdout = (string) file_get_contents($out);
-		$stderr = (string) file_get_contents($err);
-		unlink($out);
-		unlink($err);
-
-		$this->assertSame("regular\n", $stdout);
-		$this->assertSame("error\n", $stderr);
+		new Io(new Buffer())->echoln('<em>test');
 	}
 
 	public function testEscapeRendersTagsLiterally(): void
 	{
-		$out = new BufferedIo();
-		$out->echo($out->escape('keep <green>this</green> plain'));
+		$buffer = new Buffer();
+		$io = new Io($buffer);
+		$io->echo($io->escape('keep <green>this</green> plain'));
 
-		$this->assertSame('keep <green>this</green> plain', $out->output());
+		$this->assertSame('keep <green>this</green> plain', $buffer->output());
 	}
 
 	public function testMessageHelpersNeutralizeControlSequences(): void
 	{
-		$out = new BufferedIo();
-		$out->error("evil \033]0;pwned\007 message");
+		$buffer = new Buffer();
+		new Io($buffer)->error("evil \033]0;pwned\007 message");
 
-		$this->assertSame('evil ]0;pwned message' . PHP_EOL, $out->errorOutput());
+		$this->assertSame('evil ]0;pwned message' . PHP_EOL, $buffer->errorOutput());
 	}
 
 	public function testMessageHelpersTreatInputAsPlainText(): void
 	{
-		$out = new BufferedIo();
-		$out->error('broken </em> markup <green>included');
+		$buffer = new Buffer();
+		new Io($buffer)->error('broken </em> markup <green>included');
 
-		$this->assertSame('broken </em> markup <green>included' . PHP_EOL, $out->errorOutput());
+		$this->assertSame('broken </em> markup <green>included' . PHP_EOL, $buffer->errorOutput());
+	}
+
+	public function testMessageHelpers(): void
+	{
+		$buffer = new Buffer(colors: true);
+		$io = new Io($buffer);
+		$io->info('information');
+		$io->success('succeeded');
+		$io->warn('warning');
+		$io->error('failed');
+
+		$this->assertSame("information\n\033[32msucceeded\033[0m\n", $buffer->output());
+		$this->assertSame("\033[33mwarning\033[0m\n\033[31mfailed\033[0m\n", $buffer->errorOutput());
+	}
+
+	public function testMessageHelpersKeepATrailingBackslash(): void
+	{
+		$buffer = new Buffer(colors: true);
+		$io = new Io($buffer);
+		$io->info('Path C:\\');
+		$io->success('Path C:\\');
+		$io->warn('Path C:\\');
+		$io->error('Path C:\\');
+
+		$this->assertSame("Path C:\\\n\033[32mPath C:\\\033[0m\n", $buffer->output());
+		$this->assertSame("\033[33mPath C:\\\033[0m\n\033[31mPath C:\\\033[0m\n", $buffer->errorOutput());
+
+		$plain = new Buffer();
+		new Io($plain)->error('Path C:\\');
+
+		$this->assertSame('Path C:\\' . PHP_EOL, $plain->errorOutput());
+	}
+
+	public function testErrorWritersTargetTheErrorStream(): void
+	{
+		$buffer = new Buffer();
+		$io = new Io($buffer);
+		$io->echoErr('boom ');
+		$io->echolnErr('<red>bang</red>');
+
+		$this->assertSame('', $buffer->output());
+		$this->assertSame("boom bang\n", $buffer->errorOutput());
+	}
+
+	public function testColorsAreDecidedPerStream(): void
+	{
+		$terminal = new Fixtures\ErrorColors();
+		$io = new Io($terminal);
+		$io->echo('<red>out</red>');
+		$io->echoErr('<red>err</red>');
+
+		$this->assertSame([['out', false], ["\033[31merr\033[0m", true]], $terminal->writes);
 	}
 
 	public function testIndent(): void
 	{
-		putenv('COLUMNS');
-		$io = new Io('php://output');
+		$io = new Io(new Buffer());
 		$lorem =
 			'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam '
 			. 'nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, '
@@ -160,9 +127,19 @@ class IoTest extends TestCase
 		$this->assertSame('    erat, sed diam voluptua. At vero eos', $split[4]);
 	}
 
+	public function testIndentWrapsOnTheTerminalWidth(): void
+	{
+		$io = new Io(new Buffer(width: 30));
+		$text = 'Lorem ipsum dolor sit amet consetetur sadipscing';
+
+		$this->assertSame("    Lorem ipsum dolor sit amet\n    consetetur sadipscing", $io->indent($text, 4));
+		$this->assertSame("    Lorem ipsum dolor\n    sit amet consetetur\n    sadipscing", $io->indent($text, 4, 24));
+		$this->assertSame("    Lorem ipsum dolor sit amet\n    consetetur sadipscing", $io->indent($text, 4, 30));
+	}
+
 	public function testIndentWrapsOnTheVisibleMarkupWidth(): void
 	{
-		$io = new Io('php://output');
+		$io = new Io(new Buffer());
 
 		$this->assertSame(
 			'    <green>aaa</green> bbb ccc',
@@ -172,7 +149,7 @@ class IoTest extends TestCase
 
 	public function testIndentWrapsOnTheVisibleMultibyteWidth(): void
 	{
-		$io = new Io('php://output');
+		$io = new Io(new Buffer());
 
 		$this->assertSame(
 			"    Übersicht über\n    die",
@@ -182,7 +159,7 @@ class IoTest extends TestCase
 
 	public function testIndentKeepsBlankLinesEmpty(): void
 	{
-		$io = new Io('php://output');
+		$io = new Io(new Buffer());
 
 		$this->assertSame("    a\n\n    b", $io->indent("a\n\nb", 4, 40));
 		$this->assertSame('', $io->indent('', 4, 40));
@@ -190,7 +167,7 @@ class IoTest extends TestCase
 
 	public function testIndentOverflowsLongWords(): void
 	{
-		$io = new Io('php://output');
+		$io = new Io(new Buffer());
 
 		$this->assertSame(
 			"    overlong-word\n    x",
@@ -198,24 +175,9 @@ class IoTest extends TestCase
 		);
 	}
 
-	public function testIndentUsesColumnsEnvAndCaches(): void
-	{
-		putenv('COLUMNS=40');
-		$io = new Io('php://output');
-		$text = 'Lorem ipsum dolor sit amet consetetur sadipscing';
-
-		$first = explode("\n", $io->indent($text, 4));
-		// The second call is served from the cached width.
-		putenv('COLUMNS=80');
-		$second = explode("\n", $io->indent($text, 4));
-
-		$this->assertSame($first, $second);
-		$this->assertSame('    Lorem ipsum dolor sit amet', $first[0]);
-	}
-
 	public function testPadDefaultsToLeftAlignment(): void
 	{
-		$io = new Io('php://output');
+		$io = new Io(new Buffer());
 
 		$this->assertSame('abc  ', $io->pad('abc', 5));
 		$this->assertSame('  abc', $io->pad('abc', 5, Align::Right));
@@ -223,46 +185,40 @@ class IoTest extends TestCase
 
 	public function testRuleSpansTheTerminalWidth(): void
 	{
-		putenv('COLUMNS=20');
-		$out = new BufferedIo();
-		$out->rule();
+		$buffer = new Buffer(width: 20);
+		new Io($buffer)->rule();
 
-		$this->assertSame(str_repeat('─', 20) . PHP_EOL, $out->output());
+		$this->assertSame(str_repeat('─', 20) . PHP_EOL, $buffer->output());
 	}
 
 	public function testRuleHonorsASingleColumn(): void
 	{
-		putenv('COLUMNS=1');
-		$out = new BufferedIo();
-		$out->rule();
+		$buffer = new Buffer(width: 1);
+		new Io($buffer)->rule();
 
-		$this->assertSame('─' . PHP_EOL, $out->output());
+		$this->assertSame('─' . PHP_EOL, $buffer->output());
 	}
 
 	public function testRuleMaxCapsTheWidth(): void
 	{
-		putenv('COLUMNS=20');
-		$out = new BufferedIo();
-		$out->rule(max: 10);
-		$out->rule('=', max: 40);
+		$buffer = new Buffer(width: 20);
+		$io = new Io($buffer);
+		$io->rule(max: 10);
+		$io->rule('=', max: 40);
 
-		$this->assertSame(str_repeat('─', 10) . PHP_EOL . str_repeat('=', 20) . PHP_EOL, $out->output());
+		$this->assertSame(str_repeat('─', 10) . PHP_EOL . str_repeat('=', 20) . PHP_EOL, $buffer->output());
 	}
 
 	public function testRuleRepeatsOnTheVisibleWidth(): void
 	{
-		putenv('COLUMNS=5');
-		putenv('FORCE_COLOR=1');
-		$io = new Io('php://output');
-
-		ob_start();
+		$buffer = new Buffer(width: 5, colors: true);
+		$io = new Io($buffer);
 		$io->rule('<dim>─</dim>');
 		$io->rule('─ ');
-		$out = (string) ob_get_clean();
 
 		$this->assertSame(
 			str_repeat("\033[2m─\033[0m", 5) . PHP_EOL . '─ ─ ' . PHP_EOL,
-			$out,
+			$buffer->output(),
 		);
 	}
 
@@ -271,199 +227,87 @@ class IoTest extends TestCase
 		$this->expectException(ValueError::class);
 		$this->expectExceptionMessage("Rule char '<dim></dim>' has no visible width");
 
-		new BufferedIo()->rule('<dim></dim>');
+		new Io(new Buffer())->rule('<dim></dim>');
 	}
 
-	public function testMessageHelpers(): void
+	public function testTerminalFacts(): void
 	{
-		putenv('FORCE_COLOR=1');
-		$io = new Io('php://output', 'php://output');
+		$io = new Io(new Buffer(interactive: true, width: 42));
 
-		ob_start();
-		$io->info('information');
-		$io->success('succeeded');
-		$io->warn('warning');
-		$io->error('failed');
-		$result = (string) ob_get_clean();
-
-		$this->assertStringContainsString("information\n", $result);
-		$this->assertStringContainsString("\033[32msucceeded\033[0m\n", $result);
-		$this->assertStringContainsString("\033[33mwarning\033[0m\n", $result);
-		$this->assertStringContainsString("\033[31mfailed\033[0m\n", $result);
-	}
-
-	public function testMessageHelpersKeepATrailingBackslash(): void
-	{
-		putenv('FORCE_COLOR=1');
-		$io = new Io('php://output', 'php://output');
-
-		ob_start();
-		$io->info('Path C:\\');
-		$io->success('Path C:\\');
-		$io->warn('Path C:\\');
-		$io->error('Path C:\\');
-		$result = (string) ob_get_clean();
-
-		$this->assertSame(
-			"Path C:\\\n\033[32mPath C:\\\033[0m\n\033[33mPath C:\\\033[0m\n\033[31mPath C:\\\033[0m\n",
-			$result,
-		);
-
-		$plain = new BufferedIo();
-		$plain->error('Path C:\\');
-
-		$this->assertSame('Path C:\\' . PHP_EOL, $plain->errorOutput());
-	}
-
-	public function testMessageHelperStreams(): void
-	{
-		putenv('NO_COLOR=1');
-		$err = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
-		$io = new Io('php://output', $err);
-
-		ob_start();
-		$io->info('information');
-		$io->success('succeeded');
-		$io->warn('warning');
-		$io->error('failed');
-		$stdout = (string) ob_get_clean();
-
-		$contents = (string) file_get_contents($err);
-		unlink($err);
-
-		$this->assertSame("information\nsucceeded\n", $stdout);
-		$this->assertSame("warning\nfailed\n", $contents);
-	}
-
-	public function testErrorWritersTargetTheErrorStream(): void
-	{
-		$err = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
-		$io = new Io('php://output', $err);
-
-		ob_start();
-		$io->echoErr('boom');
-		$io->echolnErr('<red>bang</red>');
-		$stdout = (string) ob_get_clean();
-
-		$contents = (string) file_get_contents($err);
-		unlink($err);
-
-		$this->assertSame('', $stdout);
-		$this->assertStringContainsString('boom', $contents);
-		$this->assertStringContainsString('bang', $contents);
-	}
-
-	public function testAskReadsFromTheInputTarget(): void
-	{
-		$in = (string) tempnam(sys_get_temp_dir(), prefix: 'cli');
-		file_put_contents($in, data: "Charly\n");
-		$io = new Io('php://output', inputTarget: $in);
-
-		ob_start();
-		$answer = $io->ask('Name?');
-		ob_end_clean();
-		unlink($in);
-
-		$this->assertSame('Charly', $answer);
+		$this->assertTrue($io->interactive());
+		$this->assertSame(42, $io->width());
+		$this->assertFalse(new Io(new Buffer())->interactive());
 	}
 
 	public function testAskReturnsTheTrimmedAnswer(): void
 	{
-		$out = new BufferedIo("  Charly  \n");
+		$buffer = new Buffer("  Charly  \n");
 
-		$this->assertSame('Charly', $out->ask('Name?'));
-		$this->assertSame('Name? ', $out->output());
+		$this->assertSame('Charly', new Io($buffer)->ask('Name?'));
+		$this->assertSame('Name? ', $buffer->output());
 	}
 
 	public function testAskFallsBackToTheDefault(): void
 	{
-		$out = new BufferedIo("\n");
-
-		$this->assertSame('World', $out->ask('Name?', default: 'World'));
+		$this->assertSame('World', new Io(new Buffer("\n"))->ask('Name?', default: 'World'));
 	}
 
 	public function testAskFallsBackToTheDefaultOnEndOfInput(): void
 	{
-		$out = new BufferedIo();
-
-		$this->assertSame('World', $out->ask('Name?', default: 'World'));
-	}
-
-	public function testAskHiddenReadsPlainlyWithoutTerminal(): void
-	{
-		$out = new BufferedIo("secret\n");
-
-		$this->assertSame('secret', $out->ask('Password?', hidden: true));
+		$this->assertSame('World', new Io(new Buffer())->ask('Name?', default: 'World'));
 	}
 
 	public function testAskHiddenKeepsWhitespaceInTheAnswer(): void
 	{
-		$out = new BufferedIo("  secret pass  \n");
-
-		$this->assertSame('  secret pass  ', $out->ask('Password?', hidden: true));
+		$this->assertSame('  secret pass  ', new Io(new Buffer("  secret pass  \n"))->ask('Password?', hidden: true));
 	}
 
-	public function testUnopenableTargetThrows(): void
+	public function testAskHiddenFallsBackToTheDefault(): void
 	{
-		$this->expectException(RuntimeException::class);
-		$this->expectExceptionMessage("Could not open stream '/nonexistent/dir/out'");
-
-		new Io('/nonexistent/dir/out')->echo('test');
-	}
-
-	public function testUnopenableTargetDoesNotEmitWarning(): void
-	{
-		error_clear_last();
-
-		try {
-			new Io('/nonexistent/dir/out')->echo('test');
-			$this->fail('RuntimeException was not thrown');
-		} catch (RuntimeException) {
-			$this->assertNull(error_get_last());
-		}
+		$this->assertSame('none', new Io(new Buffer())->ask('Password?', 'none', hidden: true));
 	}
 
 	public function testAskReadsOneLinePerPrompt(): void
 	{
-		$out = new BufferedIo("Charly\ny\n");
+		$io = new Io(new Buffer("Charly\ny\n"));
 
-		$this->assertSame('Charly', $out->ask('Name?'));
-		$this->assertTrue($out->confirm('Sure?'));
+		$this->assertSame('Charly', $io->ask('Name?'));
+		$this->assertTrue($io->confirm('Sure?'));
 	}
 
 	public function testChoiceReturnsTheChosenOption(): void
 	{
-		$out = new BufferedIo("2\n");
+		$buffer = new Buffer("2\n");
 
-		$this->assertSame('staging', $out->choice('Environment?', ['dev', 'staging', 'prod']));
-		$this->assertSame("Environment?\n  1) dev\n  2) staging\n  3) prod\n[1] ", $out->output());
+		$this->assertSame('staging', new Io($buffer)->choice('Environment?', ['dev', 'staging', 'prod']));
+		$this->assertSame("Environment?\n  1) dev\n  2) staging\n  3) prod\n[1] ", $buffer->output());
 	}
 
 	public function testChoiceFallsBackToTheDefault(): void
 	{
-		$this->assertSame('dev', new BufferedIo("\n")->choice('Env?', ['dev', 'prod']));
-		$this->assertSame('prod', new BufferedIo("\n")->choice('Env?', ['dev', 'prod'], default: 2));
+		$this->assertSame('dev', new Io(new Buffer("\n"))->choice('Env?', ['dev', 'prod']));
+		$this->assertSame('prod', new Io(new Buffer("\n"))->choice('Env?', ['dev', 'prod'], default: 2));
 		// End of input also yields the default.
-		$this->assertSame('dev', new BufferedIo()->choice('Env?', ['dev', 'prod']));
+		$this->assertSame('dev', new Io(new Buffer())->choice('Env?', ['dev', 'prod']));
 	}
 
 	public function testChoiceAcceptsTheFirstOptionByNumber(): void
 	{
-		$this->assertSame('dev', new BufferedIo("1\n")->choice('Env?', ['dev', 'prod'], default: 2));
+		$this->assertSame('dev', new Io(new Buffer("1\n"))->choice('Env?', ['dev', 'prod'], default: 2));
 	}
 
 	public function testChoiceReturnsTheDefaultRightAfterAnEmptyAnswer(): void
 	{
-		$this->assertSame('dev', new BufferedIo("\n2\n")->choice('Env?', ['dev', 'prod']));
+		$this->assertSame('dev', new Io(new Buffer("\n2\n"))->choice('Env?', ['dev', 'prod']));
 	}
 
 	public function testChoiceAsksAgainOnInvalidAnswers(): void
 	{
 		// Only plain numbers count, not ones PHP would cast into range.
-		$out = new BufferedIo("x\n0\n9\n+1\n1x\n1.0\n2\n");
+		$buffer = new Buffer("x\n0\n9\n+1\n1x\n1.0\n2\n");
 
-		$this->assertSame('prod', $out->choice('Env?', ['dev', 'prod']));
-		$this->assertStringEndsWith('[1] [1] [1] [1] [1] [1] [1] ', $out->output());
+		$this->assertSame('prod', new Io($buffer)->choice('Env?', ['dev', 'prod']));
+		$this->assertStringEndsWith('[1] [1] [1] [1] [1] [1] [1] ', $buffer->output());
 	}
 
 	public function testChoiceWithoutOptionsThrows(): void
@@ -471,7 +315,7 @@ class IoTest extends TestCase
 		$this->expectException(ValueError::class);
 		$this->expectExceptionMessage('Choice needs options');
 
-		new BufferedIo()->choice('Env?', []);
+		new Io(new Buffer())->choice('Env?', []);
 	}
 
 	public function testChoiceDefaultOutOfRangeThrows(): void
@@ -479,33 +323,33 @@ class IoTest extends TestCase
 		$this->expectException(ValueError::class);
 		$this->expectExceptionMessage('Choice default 3 is out of range');
 
-		new BufferedIo()->choice('Env?', ['dev', 'prod'], default: 3);
+		new Io(new Buffer())->choice('Env?', ['dev', 'prod'], default: 3);
 	}
 
 	public function testConfirmAnswers(): void
 	{
-		$this->assertTrue(new BufferedIo("y\n")->confirm('Sure?'));
-		$this->assertTrue(new BufferedIo("YES\n")->confirm('Sure?'));
-		$this->assertFalse(new BufferedIo("n\n")->confirm('Sure?'));
-		$this->assertFalse(new BufferedIo("whatever\n")->confirm('Sure?'));
+		$this->assertTrue(new Io(new Buffer("y\n"))->confirm('Sure?'));
+		$this->assertTrue(new Io(new Buffer("YES\n"))->confirm('Sure?'));
+		$this->assertFalse(new Io(new Buffer("n\n"))->confirm('Sure?'));
+		$this->assertFalse(new Io(new Buffer("whatever\n"))->confirm('Sure?'));
 	}
 
 	public function testConfirmFallsBackToTheDefault(): void
 	{
-		$this->assertFalse(new BufferedIo("\n")->confirm('Sure?'));
-		$this->assertTrue(new BufferedIo("\n")->confirm('Sure?', default: true));
+		$this->assertFalse(new Io(new Buffer("\n"))->confirm('Sure?'));
+		$this->assertTrue(new Io(new Buffer("\n"))->confirm('Sure?', default: true));
 	}
 
 	public function testConfirmRendersTheDefaultInThePrompt(): void
 	{
-		$out = new BufferedIo("\n");
-		$out->confirm('Sure?');
+		$buffer = new Buffer("\n");
+		new Io($buffer)->confirm('Sure?');
 
-		$this->assertSame('Sure? [y/N] ', $out->output());
+		$this->assertSame('Sure? [y/N] ', $buffer->output());
 
-		$out = new BufferedIo("\n");
-		$out->confirm('Sure?', default: true);
+		$buffer = new Buffer("\n");
+		new Io($buffer)->confirm('Sure?', default: true);
 
-		$this->assertSame('Sure? [Y/n] ', $out->output());
+		$this->assertSame('Sure? [Y/n] ', $buffer->output());
 	}
 }

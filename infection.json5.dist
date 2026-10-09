@@ -30,13 +30,7 @@
 		NotIdentical: {
 			ignoreSourceCodeByRegex: ['if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
 		},
-		LogicalAnd: {
-			ignoreSourceCodeByRegex: ['if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
-		},
 		LogicalAndAllSubExprNegation: {
-			ignoreSourceCodeByRegex: ['if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
-		},
-		LogicalAndSingleSubExprNegation: {
 			ignoreSourceCodeByRegex: ['if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
 		},
 		LogicalAndNegation: {
@@ -45,6 +39,24 @@
 		LessThanNegotiation: {
 			ignoreSourceCodeByRegex: ['if \\(\\$columns < 1 && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
 		},
+		// Likewise interactive(): the tests have neither input nor output on a TTY.
+		LogicalAnd: {
+			ignoreSourceCodeByRegex: [
+				'if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{',
+				'return stream_isatty\\(\\$this->stdin\\(\\)\\) && stream_isatty\\(\\$this->stdout\\(\\)\\);',
+			],
+		},
+		LogicalAndSingleSubExprNegation: {
+			ignoreSourceCodeByRegex: [
+				'if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{',
+				'return stream_isatty\\(\\$this->stdin\\(\\)\\) && stream_isatty\\(\\$this->stdout\\(\\)\\);',
+			],
+		},
+		// Defaults of the Terminal flags: Buffer ignores them, and Stdio's
+		// streams differ only on a terminal.
+		FalseValue: {
+			ignoreSourceCodeByRegex: ['public function (read|colors)\\(bool \\$(hidden|error) = false\\): .+'],
+		},
 		// Flushing only matters for real output streams.
 		FunctionCallRemoval: {
 			ignoreSourceCodeByRegex: ['fflush\\(\\$stream\\);'],
@@ -52,9 +64,6 @@
 
 		// Memoization and fast paths: dropping the cache or early return
 		// recomputes the same value.
-		AssignCoalesce: {
-			ignore: ['Celema\\Console\\Io::stdin'],
-		},
 		ReturnRemoval: {
 			ignore: ['Celema\\Console\\Markup::render'],
 		},
@@ -107,7 +116,7 @@
 		},
 		// fopen() reports failures through the handler and does not throw.
 		UnwrapFinally: {
-			ignore: ['Celema\\Console\\Io::open'],
+			ignore: ['Celema\\Console\\Stdio::open'],
 		},
 	},
 }

@@ -153,8 +153,22 @@ The runner validates the signature of the invoked command: `__invoke()` must dec
 - `rule(string $char = '─', ?int $max = null)` - Output a horizontal rule spanning the terminal width; `max` caps it. The char may be a multi-char pattern and carry markup — the repeat count uses its visible width: `$io->rule('<dim>─</dim>')` draws a dim line
 - `pad(string $text, int $width, Align $align = Align::Left)` - Pad the text with spaces to the visible width `width`; markup tags and multibyte characters don't count, wider text is returned unchanged. `Align::Left`, `Align::Right`, or `Align::Center`
 - `indent(string $text, int $indent, ?int $max = null)` Indent and wrap text on its visible width; `max` caps the total line width, indent included
+- `interactive()` - Whether someone can see the prompts and answer them
+- `width()` - The terminal width in columns
 
-The constructor takes the output, error, and input targets (`php://stdout`, `php://stderr`, and `php://stdin` by default). A target that cannot be opened raises a `RuntimeException` on first use. Tests that capture output via output buffering can pass `php://output` instead; note that color detection reports no terminal for it.
+### Terminals
+
+`Io` writes to and reads from a `Terminal`. `new Io()` uses `Stdio`, the process streams. `Stdio` also takes other targets, opened on first use; one that cannot be opened raises a `RuntimeException` then:
+
+```php
+use Celema\Console\{Io, Stdio};
+
+$io = new Io(new Stdio(input: '/dev/tty'));               // prompts read from the terminal device
+$io = new Io(new Stdio('build.log', 'build.log'));         // output and errors to a file
+$io = new Io(new Stdio(colors: $noColor ? false : null));  // a --no-color flag
+```
+
+`Stdio` is interactive when both its input and its output are terminals. Its width comes from `COLUMNS`, else from the terminal (`tput cols`), else it is 80. Tests use `Buffer` instead (see [Testing Commands](#testing-commands)). Other devices implement the `Terminal` interface: `write()`, `read()` (one line, with `$hidden` input that must not show), `colors()`, `interactive()`, and `width()`.
 
 ### Prompts
 
@@ -179,30 +193,32 @@ public function __invoke(Io $io): int
 - `hidden` disables terminal echo while typing — for passwords — and keeps the answer's whitespace; only the trailing newline is stripped. The previous terminal state is restored afterwards, also when reading fails. If the echo cannot be switched off on a terminal, for example without `stty`, `ask()` throws a `RuntimeException` instead of reading visibly. On Windows, or without a terminal (piped input, tests), the line is simply read as is, visibly.
 - `confirm()` renders the default as `[y/N]` or `[Y/n]`; an answer starting with `y`/`Y` means yes, an empty one means the default, anything else no.
 - `choice()` lists the options numbered from 1, prompts with the default number as `[1]`, and returns the chosen option (not its number). An answer that is no listed number asks again. A default out of range, or an empty option list, throws a `ValueError`.
-- The input stream is the third `Io` constructor argument, `php://stdin` by default.
+- Answers are read from the terminal's input, for `Stdio` its `input` target, `php://stdin` by default.
 
 ### Testing Commands
 
-`BufferedIo` captures both streams in memory and disables colors, so assertions need no escape-code stripping. Its constructor accepts prompt answers, one line each:
+`Buffer` is a terminal in memory. It captures the output and the error output separately and disables colors, so assertions need no escape-code stripping. Its constructor accepts prompt answers, one line each:
 
 ```php
-use Celema\Console\BufferedIo;
+use Celema\Console\{Buffer, Io};
 
-$io = new BufferedIo("yes\n");
-$exitCode = new MyCommand()(io: $io, name: 'Ada', verbose: true);
+$buffer = new Buffer("yes\n");
+$exitCode = new MyCommand()(io: new Io($buffer), name: 'Ada', verbose: true);
 
 $this->assertSame(0, $exitCode);
-$this->assertStringContainsString('done', $io->output());
-$this->assertSame('', $io->errorOutput());
+$this->assertStringContainsString('done', $buffer->output());
+$this->assertSame('', $buffer->errorOutput());
 ```
 
-A command is a plain callable, so a test passes its parameters by name, already converted, and leaves out those that keep their defaults. To test the command line itself — parsing, validation, and conversion — run the command through a `Runner`, which also accepts a ready `Io` instance in place of its output target string: `new Runner([new MyCommand()], $io)`.
+A `Buffer` can also pretend to be an interactive terminal of a given width, or one with colors: `new Buffer(interactive: true, width: 120, colors: true)`.
+
+A command is a plain callable, so a test passes its parameters by name, already converted, and leaves out those that keep their defaults. To test the command line itself — parsing, validation, and conversion — run the command through a `Runner`, which takes the `Io` as its second argument: `new Runner([new MyCommand()], new Io($buffer))`.
 
 `run()` reads `$_SERVER['argv']` unless it is given an argument vector of the same shape, starting with the script name, so a test need not change the global:
 
 ```php
-$io = new BufferedIo();
-$exitCode = new Runner([new MyCommand()], $io)->run(['run', 'mycommand', 'Ada', '--verbose']);
+$buffer = new Buffer();
+$exitCode = new Runner([new MyCommand()], new Io($buffer))->run(['run', 'mycommand', 'Ada', '--verbose']);
 ```
 
 ### Markup
@@ -220,7 +236,7 @@ $io->echoln('Made <strong>bold</strong>, <green>green</green>, and <u>underlined
 
 Tags compose by nesting, and the innermost tag wins on conflict. Only exact known tags are parsed: `<info@example.com>`, generics, and unknown names pass through untouched, so most text needs no escaping. For text that must print literally — say, user data or exception messages — use `$io->escape()`: it escapes known tags and strips control characters (keeping newlines and tabs), so untrusted text cannot inject terminal escape sequences. Its result is meant for the `Io` output methods: escaped text ending in a backslash carries an invisible marker so that a tag right after it, as in `'<red>' . $io->escape($path) . '</red>'`, stays a tag. Broken markup (a mismatched, dangling, or unclosed tag) throws a `ValueError`, also when colors are disabled, so mistakes surface in tests. The message helpers `info()`, `success()`, `warn()`, and `error()` escape their input and treat it as plain text.
 
-Whether codes are actually emitted is decided per stream: a non-empty `NO_COLOR` disables colors, `FORCE_COLOR` forces them on (`FORCE_COLOR=0` or `false` forces them off), and otherwise codes are only written when the stream is a terminal. `COLORTERM` alone does not color redirected output, so redirecting one stream to a file never garbles it while the other stays colored.
+Whether `Stdio` emits codes is decided per stream: a non-empty `NO_COLOR` disables colors, `FORCE_COLOR` forces them on (`FORCE_COLOR=0` or `false` forces them off), and otherwise codes are only written when the stream is a terminal. `COLORTERM` alone does not color redirected output, so redirecting one stream to a file never garbles it while the other stays colored. Its `colors` argument overrides all of this for both streams.
 
 ### Tables
 

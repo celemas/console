@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Celema\Console;
 
-use RuntimeException;
 use ValueError;
 
 /**
@@ -13,46 +12,39 @@ use ValueError;
  * set and passthrough rules. Use `escape()` for text that must print
  * literally. The message helpers treat their input as plain text.
  *
+ * The terminal decides where the text goes and what it supports: the
+ * process streams by default, a Buffer in tests.
+ *
  * @api
  */
-class Io
+final class Io
 {
 	private readonly Markup $markup;
-	private mixed $stream = null;
-	private mixed $errorStream = null;
-	private mixed $inputStream = null;
-	private ?int $width = null;
 
 	public function __construct(
-		protected readonly string $target = 'php://stdout',
-		protected readonly string $errorTarget = 'php://stderr',
-		protected readonly string $inputTarget = 'php://stdin',
+		private readonly Terminal $terminal = new Stdio(),
 	) {
 		$this->markup = new Markup();
 	}
 
 	public function echo(string $text): void
 	{
-		$stream = $this->stdout();
-		$this->write($stream, $this->markup->render($text, $this->hasColorSupport($stream)));
+		$this->write($text, error: false);
 	}
 
 	public function echoln(string $text): void
 	{
-		$stream = $this->stdout();
-		$this->write($stream, $this->markup->render($text, $this->hasColorSupport($stream)) . PHP_EOL);
+		$this->write($text . PHP_EOL, error: false);
 	}
 
 	public function echoErr(string $text): void
 	{
-		$stream = $this->stderr();
-		$this->write($stream, $this->markup->render($text, $this->hasColorSupport($stream)));
+		$this->write($text, error: true);
 	}
 
 	public function echolnErr(string $text): void
 	{
-		$stream = $this->stderr();
-		$this->write($stream, $this->markup->render($text, $this->hasColorSupport($stream)) . PHP_EOL);
+		$this->write($text . PHP_EOL, error: true);
 	}
 
 	/**
@@ -107,7 +99,7 @@ class Io
 	 */
 	public function rule(string $char = '─', ?int $max = null): void
 	{
-		$width = $this->terminalWidth();
+		$width = $this->terminal->width();
 
 		if ($max !== null && $max < $width) {
 			$width = $max;
@@ -135,8 +127,8 @@ class Io
 	public function ask(string $question, string $default = '', bool $hidden = false): string
 	{
 		$this->echo($question . ' ');
-		$line = $this->readline($hidden);
-		$answer = $hidden ? rtrim($line, characters: "\r\n") : trim($line);
+		$line = $this->terminal->read($hidden) ?? '';
+		$answer = $hidden ? $line : trim($line);
 
 		return $answer === '' ? $default : $answer;
 	}
@@ -197,70 +189,25 @@ class Io
 		}
 	}
 
-	private function readline(bool $hidden): string
+	/**
+	 * Whether someone can see the prompts and answer them.
+	 */
+	public function interactive(): bool
 	{
-		$stream = $this->stdin();
-
-		// No stty on Windows: hidden input reads visibly there.
-		if ($hidden && DIRECTORY_SEPARATOR !== '\\' && stream_isatty($stream)) {
-			// @codeCoverageIgnoreStart
-			// Needs a real terminal; HiddenInputTest drives this in a child
-			// process, outside the coverage run.
-			$previous = $this->stty($stream, '-g');
-			$this->stty($stream, '-echo');
-
-			try {
-				return (string) fgets($stream);
-			} finally {
-				// Restore the saved terminal state rather than assuming
-				// echo was on, even when reading throws.
-				$this->stty($stream, $previous === '' ? 'echo' : $previous);
-				$this->echo(PHP_EOL);
-			}
-
-			// @codeCoverageIgnoreEnd
-		}
-
-		return (string) fgets($stream);
+		return $this->terminal->interactive();
 	}
 
 	/**
-	 * Runs stty on the input terminal and returns its output.
-	 *
-	 * The stream becomes stty's STDIN: the process STDIN may be another
-	 * file, e.g. when only the prompts read from `/dev/tty`. Failures
-	 * throw, so a hidden prompt never reads while echo is still on.
-	 *
-	 * @codeCoverageIgnore
+	 * The terminal width in columns.
 	 */
-	private function stty(mixed $stream, string $arg): string
+	public function width(): int
 	{
-		set_error_handler(static fn(): bool => true);
-
-		try {
-			$process = proc_open(['stty', $arg], [0 => $stream, 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
-		} finally {
-			restore_error_handler();
-		}
-
-		if ($process === false) {
-			throw new RuntimeException('Could not run stty to hide the input');
-		}
-
-		$output = (string) stream_get_contents($pipes[1]);
-		$error = trim((string) stream_get_contents($pipes[2]));
-
-		if (proc_close($process) !== 0) {
-			throw new RuntimeException('Could not switch the terminal echo for hidden input: ' . $error);
-		}
-
-		return trim($output);
+		return $this->terminal->width();
 	}
 
-	private function write(mixed $stream, string $text): void
+	private function write(string $text, bool $error): void
 	{
-		fwrite($stream, $text);
-		fflush($stream);
+		$this->terminal->write($this->markup->render($text, $this->terminal->colors($error)), $error);
 	}
 
 	/**
@@ -274,7 +221,7 @@ class Io
 		?int $max = null,
 	): string {
 		$spaces = str_repeat(' ', $indent);
-		$terminal = $this->terminalWidth();
+		$terminal = $this->terminal->width();
 
 		if ($max !== null && $max < $terminal) {
 			$terminal = $max;
@@ -325,92 +272,5 @@ class Io
 		$lines[] = (string) $current;
 
 		return $lines;
-	}
-
-	private function terminalWidth(): int
-	{
-		if ($this->width !== null) {
-			return $this->width;
-		}
-
-		$columns = (int) getenv('COLUMNS');
-
-		// No tput on Windows; shell_exec would leak its error output.
-		if ($columns < 1 && DIRECTORY_SEPARATOR !== '\\' && stream_isatty($this->stdout())) {
-			// @codeCoverageIgnoreStart
-			/** @psalm-suppress ForbiddenCode */
-			$columns = (int) shell_exec('tput cols');
-
-			// @codeCoverageIgnoreEnd
-		}
-
-		if ($columns < 1) {
-			// @codeCoverageIgnoreStart
-			$columns = 80;
-
-			// @codeCoverageIgnoreEnd
-		}
-
-		return $this->width = $columns;
-	}
-
-	protected function stdout(): mixed
-	{
-		return $this->stream ??= $this->open($this->target, 'w');
-	}
-
-	protected function stderr(): mixed
-	{
-		return $this->errorStream ??= $this->open($this->errorTarget, 'w');
-	}
-
-	protected function stdin(): mixed
-	{
-		return $this->inputStream ??= $this->open($this->inputTarget, 'r');
-	}
-
-	private function open(string $target, string $mode): mixed
-	{
-		set_error_handler(static fn(): bool => true);
-
-		try {
-			$stream = fopen($target, $mode);
-		} finally {
-			restore_error_handler();
-		}
-
-		if ($stream === false) {
-			throw new RuntimeException("Could not open stream '{$target}'");
-		}
-
-		return $stream;
-	}
-
-	protected function hasColorSupport(mixed $stream): bool
-	{
-		$noColor = getenv('NO_COLOR');
-
-		if ($noColor !== false && $noColor !== '') {
-			return false;
-		}
-
-		$force = getenv('FORCE_COLOR');
-
-		if ($force !== false) {
-			return $force !== '0' && strtolower($force) !== 'false';
-		}
-
-		$terminal = stream_isatty($stream);
-
-		// @codeCoverageIgnoreStart
-		if (DIRECTORY_SEPARATOR === '\\' && $terminal) {
-			// VT100 processing is off by default in cmd/PowerShell;
-			// enabling it reports whether the console supports it.
-			return sapi_windows_vt100_support($stream, enable: true);
-		}
-
-		// @codeCoverageIgnoreEnd
-
-		return $terminal;
 	}
 }

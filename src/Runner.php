@@ -29,7 +29,6 @@ final class Runner
 	 * @var array<string, list<Entry>>
 	 */
 	private array $list = [];
-	private Io $io;
 
 	/** The widest listed name; the built-in `commands` sets the minimum. */
 	private int $longestName = 8;
@@ -37,20 +36,13 @@ final class Runner
 	/** @var null|Closure(class-string): object */
 	private readonly ?Closure $resolve;
 
-	/**
-	 * An Io instance given as `$output` is used as is; `$errorOutput`
-	 * then has no effect.
-	 *
-	 * @param null|callable(class-string): object $resolve
-	 */
+	/** @param null|callable(class-string): object $resolve */
 	public function __construct(
 		array|object|string $commands = [],
-		string|Io $output = 'php://stdout',
-		string $errorOutput = 'php://stderr',
+		private readonly Io $io = new Io(),
 		private bool $debug = false,
 		?callable $resolve = null,
 	) {
-		$this->io = is_string($output) ? new Io($output, $errorOutput) : $output;
 		$this->resolve = $resolve === null ? null : Closure::fromCallable($resolve);
 		$this->add($commands);
 	}

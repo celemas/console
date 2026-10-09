@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Celema\Console\Tests;
 
+use Celema\Console\Io;
 use Celema\Console\Runner;
+use Celema\Console\Stdio;
 use PHPUnit\Framework\TestCase as BaseTestCase;
 
 /**
@@ -27,6 +29,6 @@ class TestCase extends BaseTestCase
 	{
 		// Route the error stream into the same buffer so output assertions
 		// can capture messages that now go to STDERR.
-		return new Runner($this->getCommands(), output: 'php://output', errorOutput: 'php://output');
+		return new Runner($this->getCommands(), new Io(new Stdio('php://output', 'php://output')));
 	}
 }
