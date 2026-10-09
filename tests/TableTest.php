@@ -32,7 +32,7 @@ class TableTest extends TestCase
 		$table->row(['Ring', '7']);
 
 		$out = new Buffer();
-		new Io($out)->echo($table->render());
+		new Io($out)->write($table->render());
 
 		$this->assertSame("Straße  Nr\nRing     7\n", $out->output());
 	}

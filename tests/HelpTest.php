@@ -56,6 +56,17 @@ class HelpTest extends TestCase
 		$this->assertStringContainsString('php bin/console plain', $buffer->output());
 	}
 
+	public function testShowForRendersTheDescriptionAndUsage(): void
+	{
+		$buffer = new Buffer();
+		new Help(new Io($buffer), 'run')->showFor(Plain::class);
+
+		$this->assertSame(
+			"Description:\n  An ungrouped command\n\nUsage:\n  php run plain\n",
+			$buffer->output(),
+		);
+	}
+
 	public function testShowForRendersOptionsFromAttributes(): void
 	{
 		$help = new Help(new Io(new Stdio('php://output')), 'run');

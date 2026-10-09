@@ -13,7 +13,7 @@ class BarStuff
 {
 	public function __invoke(Args $args, Io $output): int
 	{
-		$output->echo("Bar's stuff");
+		$output->write("Bar's stuff");
 
 		return 0;
 	}

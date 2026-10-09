@@ -12,7 +12,7 @@ class Plain
 {
 	public function __invoke(Io $output): int
 	{
-		$output->echo('Plain');
+		$output->write('Plain');
 
 		return 0;
 	}

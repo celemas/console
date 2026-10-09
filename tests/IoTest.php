@@ -14,7 +14,7 @@ class IoTest extends TestCase
 	public function testRendersMarkupWithColors(): void
 	{
 		$buffer = new Buffer(colors: true);
-		new Io($buffer)->echo('<red>test</red>');
+		new Io($buffer)->write('<red>test</red>');
 
 		$this->assertSame("\033[31mtest\033[0m", $buffer->output());
 	}
@@ -22,94 +22,150 @@ class IoTest extends TestCase
 	public function testStripsMarkupWithoutColors(): void
 	{
 		$buffer = new Buffer();
-		new Io($buffer)->echo('<red>test</red>');
+		new Io($buffer)->write('<red>test</red>');
 
 		$this->assertSame('test', $buffer->output());
 	}
 
-	public function testMarkupIsValidatedEvenWithColorsDisabled(): void
+	public function testLineEndsTheLine(): void
+	{
+		$buffer = new Buffer();
+		$io = new Io($buffer);
+		$io->line('one');
+		$io->line();
+		$io->write('two');
+
+		$this->assertSame("one\n\ntwo", $buffer->output());
+	}
+
+	public function testArgumentsFillTheTemplate(): void
+	{
+		$buffer = new Buffer(colors: true);
+		$io = new Io($buffer);
+		$io->line('<green>%s</green> holds %d items, %05.1f%% full', 'Cart', 3, 42.25);
+		$io->line('%2$s %1$s', 'world', 'hello');
+
+		$this->assertSame("\033[32mCart\033[0m holds 3 items, 042.2% full\nhello world\n", $buffer->output());
+	}
+
+	public function testNamedArgumentsFillTheTemplateInOrder(): void
+	{
+		$buffer = new Buffer();
+		new Io($buffer)->line('%s-%s', first: 'a', second: 'b');
+
+		$this->assertSame("a-b\n", $buffer->output());
+	}
+
+	public function testArgumentsPrintAsPlainText(): void
+	{
+		$buffer = new Buffer(colors: true);
+		new Io($buffer)->line('Path: <strong>%s</strong>', '<red>C:\\</red>');
+
+		$this->assertSame("Path: \033[1m<red>C:\\</red>\033[0m\n", $buffer->output());
+	}
+
+	public function testControlCharactersAreDropped(): void
+	{
+		$buffer = new Buffer();
+		$io = new Io($buffer);
+		$io->line('%s', "evil \033]0;pwned\007 message");
+		$io->line("raw \033[31mred\r\tand\x7f tab");
+
+		$this->assertSame("evil ]0;pwned message\nraw [31mred\tand tab\n", $buffer->output());
+	}
+
+	public function testTemplateWithoutArgumentsIsNotFormatted(): void
+	{
+		$buffer = new Buffer();
+		new Io($buffer)->line('100% of %s and %%');
+
+		$this->assertSame("100% of %s and %%\n", $buffer->output());
+	}
+
+	public function testMissingArgumentThrows(): void
 	{
 		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage("Unclosed markup tag '<em>'");
+		$this->expectExceptionMessage("Missing argument 2 for '%d'");
 
-		new Io(new Buffer())->echoln('<em>test');
+		new Io(new Buffer())->line('%s has %d', 'Cart');
+	}
+
+	public function testMissingPositionalArgumentThrows(): void
+	{
+		$this->expectException(ValueError::class);
+		$this->expectExceptionMessage("Missing argument 3 for '%3\$s'");
+
+		new Io(new Buffer())->line('%1$s %3$s', 'a', 'b');
+	}
+
+	public function testUnpairedTagsPrintLiterally(): void
+	{
+		$buffer = new Buffer(colors: true);
+		new Io($buffer)->line('broken </em> markup <green>included');
+
+		$this->assertSame("broken </em> markup <green>included\n", $buffer->output());
 	}
 
 	public function testEscapeRendersTagsLiterally(): void
 	{
 		$buffer = new Buffer();
 		$io = new Io($buffer);
-		$io->echo($io->escape('keep <green>this</green> plain'));
+		$io->write('<green>' . $io->escape('keep <green>this</green> plain') . '</green>');
 
 		$this->assertSame('keep <green>this</green> plain', $buffer->output());
-	}
-
-	public function testMessageHelpersNeutralizeControlSequences(): void
-	{
-		$buffer = new Buffer();
-		new Io($buffer)->error("evil \033]0;pwned\007 message");
-
-		$this->assertSame('evil ]0;pwned message' . PHP_EOL, $buffer->errorOutput());
-	}
-
-	public function testMessageHelpersTreatInputAsPlainText(): void
-	{
-		$buffer = new Buffer();
-		new Io($buffer)->error('broken </em> markup <green>included');
-
-		$this->assertSame('broken </em> markup <green>included' . PHP_EOL, $buffer->errorOutput());
 	}
 
 	public function testMessageHelpers(): void
 	{
 		$buffer = new Buffer(colors: true);
 		$io = new Io($buffer);
-		$io->info('information');
 		$io->success('succeeded');
 		$io->warn('warning');
 		$io->error('failed');
 
-		$this->assertSame("information\n\033[32msucceeded\033[0m\n", $buffer->output());
+		$this->assertSame("\033[32msucceeded\033[0m\n", $buffer->output());
 		$this->assertSame("\033[33mwarning\033[0m\n\033[31mfailed\033[0m\n", $buffer->errorOutput());
+	}
+
+	public function testMessageHelpersStyleAroundTheTemplate(): void
+	{
+		$buffer = new Buffer(colors: true);
+		new Io($buffer)->success('Created <strong>%d</strong> files', 3);
+
+		$this->assertSame("\033[32mCreated \033[1m3\033[0m\033[32m files\033[0m\n", $buffer->output());
+	}
+
+	public function testMessageHelpersWithoutColors(): void
+	{
+		$buffer = new Buffer();
+		$io = new Io($buffer);
+		$io->success('Saved <strong>%s</strong>', 'a.txt');
+		$io->warn('Skipped %s', 'b.txt');
+		$io->error('Cannot read <em>%s', 'c.txt');
+
+		$this->assertSame("Saved a.txt\n", $buffer->output());
+		$this->assertSame("Skipped b.txt\nCannot read <em>c.txt\n", $buffer->errorOutput());
 	}
 
 	public function testMessageHelpersKeepATrailingBackslash(): void
 	{
 		$buffer = new Buffer(colors: true);
 		$io = new Io($buffer);
-		$io->info('Path C:\\');
 		$io->success('Path C:\\');
-		$io->warn('Path C:\\');
-		$io->error('Path C:\\');
+		$io->error('Path %s', 'C:\\');
 
-		$this->assertSame("Path C:\\\n\033[32mPath C:\\\033[0m\n", $buffer->output());
-		$this->assertSame("\033[33mPath C:\\\033[0m\n\033[31mPath C:\\\033[0m\n", $buffer->errorOutput());
-
-		$plain = new Buffer();
-		new Io($plain)->error('Path C:\\');
-
-		$this->assertSame('Path C:\\' . PHP_EOL, $plain->errorOutput());
-	}
-
-	public function testErrorWritersTargetTheErrorStream(): void
-	{
-		$buffer = new Buffer();
-		$io = new Io($buffer);
-		$io->echoErr('boom ');
-		$io->echolnErr('<red>bang</red>');
-
-		$this->assertSame('', $buffer->output());
-		$this->assertSame("boom bang\n", $buffer->errorOutput());
+		$this->assertSame("\033[32mPath C:\\\033[0m\n", $buffer->output());
+		$this->assertSame("\033[31mPath C:\\\033[0m\n", $buffer->errorOutput());
 	}
 
 	public function testColorsAreDecidedPerStream(): void
 	{
 		$terminal = new Fixtures\ErrorColors();
 		$io = new Io($terminal);
-		$io->echo('<red>out</red>');
-		$io->echoErr('<red>err</red>');
+		$io->write('<red>out</red>');
+		$io->error('err');
 
-		$this->assertSame([['out', false], ["\033[31merr\033[0m", true]], $terminal->writes);
+		$this->assertSame([['out', false], ["\033[31merr\033[0m\n", true]], $terminal->writes);
 	}
 
 	public function testIndent(): void

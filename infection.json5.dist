@@ -62,12 +62,6 @@
 			ignoreSourceCodeByRegex: ['fflush\\(\\$stream\\);'],
 		},
 
-		// Memoization and fast paths: dropping the cache or early return
-		// recomputes the same value.
-		ReturnRemoval: {
-			ignore: ['Celema\\Console\\Markup::render'],
-		},
-
 		// Casts of values that cannot be anything else: preg_* results
 		// with valid patterns, numeric-string answers compared as numbers,
 		// and the last wrapped line, which explode() always provides.
@@ -75,14 +69,15 @@
 			ignore: [
 				'Celema\\Console\\Io::wrap',
 				'Celema\\Console\\Markup::escape',
-				'Celema\\Console\\Markup::width',
+				'Celema\\Console\\Markup::format',
+				'Celema\\Console\\Markup::render',
 			],
 		},
 		CastArray: {
-			ignore: ['Celema\\Console\\Markup::render'],
+			ignore: ['Celema\\Console\\Markup::markup'],
 		},
 		CastInt: {
-			ignore: ['Celema\\Console\\Io::choice'],
+			ignore: ['Celema\\Console\\Io::choice', 'Celema\\Console\\Markup::format'],
 		},
 
 		// Boundaries where the equal case yields the same result: a cap equal

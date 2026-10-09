@@ -24,7 +24,7 @@ A command line interface helper.
 - Command help with `php run help <command>`
 - Built-in `commands` command for shell autocomplete
 - `--key=value` options (repeatable) and boolean `--flag` / `-h` flags; `--` ends option parsing
-- Io helpers for output: `info()`, `success()`, `warn()`, `error()`, `echoln()` (warnings and errors go to STDERR)
+- Output from markup templates and data arguments: `$io->error('Cannot read <strong>%s</strong>', $path)` needs no escaping; `line()`, `write()`, `success()`, `warn()`, and `error()` (warnings and errors go to STDERR)
 - Inline markup for styled output: `<strong>`, `<em>`, `<dim>`, `<u>`, the ANSI colors — `<green>`, `<bright-red>`, `<bg-blue>`, ... — and truecolor hex tags: `<#ff7313>`, `<bg-#ff7313>`
 - Interactive prompts: `ask()` (optionally with hidden input), `confirm()`, and `choice()`
 - `Buffer`, a terminal in memory for testing commands without output buffering or escape-code stripping
@@ -57,7 +57,7 @@ class MyCommand
         #[Opt('Skip the safety net')]
         bool $force = false,
     ): int {
-        $io->info("Running my command for {$name} in batches of {$batch}");
+        $io->line('Running my command for %s in batches of %d', $name, $batch);
         $io->success('Command completed!');
 
         return 0;

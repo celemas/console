@@ -86,13 +86,13 @@ final class Runner
 	public function showHelp(?string $script = null): int
 	{
 		$script ??= $_SERVER['argv'][0] ?? '';
-		$this->io->echo("<yellow>Usage:</yellow>\n");
-		$this->io->echo("  php {$script} [prefix:]command [arguments]\n\n");
-		$this->io->echo("Prefixes are optional if the command is unambiguous.\n\n");
-		$this->io->echo("Available commands:\n");
-		$this->echoGroup('General');
-		$this->echoCommand('', 'commands', 'Lists all available commands');
-		$this->echoCommand('', 'help', 'Displays this overview');
+		$this->io->line('<yellow>Usage:</yellow>');
+		$this->io->line("  php %s [prefix:]command [arguments]\n", $script);
+		$this->io->line("Prefixes are optional if the command is unambiguous.\n");
+		$this->io->line('Available commands:');
+		$this->showGroup('General');
+		$this->showCommand('', 'commands', 'Lists all available commands');
+		$this->showCommand('', 'help', 'Displays this overview');
 
 		// Render from the metadata, not the keys: PHP turns numeric
 		// keys like '2026' into integers.
@@ -100,7 +100,7 @@ final class Runner
 		ksort($general);
 
 		foreach ($general as $entry) {
-			$this->echoCommand('', $entry->meta->name, $entry->meta->description);
+			$this->showCommand('', $entry->meta->name, $entry->meta->description);
 		}
 
 		$toc = $this->toc;
@@ -111,12 +111,12 @@ final class Runner
 				continue;
 			}
 
-			$this->echoGroup($group['title']);
+			$this->showGroup($group['title']);
 			$commands = $group['commands'];
 			ksort($commands);
 
 			foreach ($commands as $entry) {
-				$this->echoCommand($entry->meta->prefix, $entry->meta->name, $entry->meta->description);
+				$this->showCommand($entry->meta->prefix, $entry->meta->name, $entry->meta->description);
 			}
 		}
 
@@ -152,7 +152,7 @@ final class Runner
 
 		foreach ($list as $name => $count) {
 			if ($count === 1 || array_key_exists($name, $this->toc['']['commands'] ?? [])) {
-				$this->io->echo("{$name}\n");
+				$this->io->line('%s', $name);
 			}
 		}
 
@@ -214,16 +214,15 @@ final class Runner
 
 			return $this->runCommand($entry, $tokens, $script);
 		} catch (Throwable $e) {
-			// Escape the arbitrary strings: a message containing markup
-			// (or broken markup) must never throw while reporting. `$arg`
-			// names the effective target, e.g. `x` for `help x`.
-			$this->io->echoErr("Error while running command '");
-			$this->io->echoErr($this->io->escape($arg ?? '<no command given>'));
-			$this->io->echoErr("':\n\n" . $this->io->escape($e->getMessage()) . "\n");
+			// `$arg` names the effective target, e.g. `x` for `help x`.
+			$this->io->error(
+				"Error while running command '%s':\n\n%s",
+				$arg ?? '<no command given>',
+				$e->getMessage(),
+			);
 
 			if ($this->debug) {
-				$this->io->echolnErr("\n<yellow>Traceback:</yellow>");
-				$this->io->echolnErr($this->io->escape($e->getTraceAsString()));
+				$this->io->error("\n<yellow>Traceback:</yellow>\n%s", $e->getTraceAsString());
 			}
 
 			return $e instanceof InvalidUsage ? 2 : 1;
@@ -252,29 +251,33 @@ final class Runner
 		return 0;
 	}
 
-	private function echoGroup(string $title): void
+	private function showGroup(string $title): void
 	{
-		$this->io->echo("\n<yellow>{$title}</yellow>\n");
+		$this->io->line("\n<yellow>%s</yellow>", $title);
 	}
 
-	private function echoCommand(string $prefix, string $name, string $desc): void
+	/**
+	 * The description is markup; the names are data.
+	 */
+	private function showCommand(string $prefix, string $name, string $desc): void
 	{
 		$prefix = $prefix === '' ? '' : $prefix . ':';
 
-		// Pad on the visible length; the markup tags don't print. The
-		// longest name includes every listed one, so the gap is at least 2.
+		// The longest name includes every listed one, so the gap is at
+		// least 2.
 		$pad = str_repeat(' ', $this->longestName + 2 - strlen($prefix . $name));
-		$this->io->echoln("  {$prefix}<green>{$name}</green>{$pad}{$desc}");
+		$this->io->write('  %s<green>%s</green>%s', $prefix, $name, $pad);
+		$this->io->line($desc);
 	}
 
 	private function showAmbiguousMessage(string $cmd): int
 	{
-		$this->io->echoErr("Ambiguous command. Please add the group name:\n\n");
+		$this->io->error("Ambiguous command. Please add the group name:\n");
 		$entries = $this->list[$cmd];
 		usort($entries, static fn(Entry $a, Entry $b): int => strcmp($a->meta->full(), $b->meta->full()));
 
 		foreach ($entries as $entry) {
-			$this->io->echolnErr("  <yellow>{$entry->meta->prefix}</yellow>:{$entry->meta->name}");
+			$this->io->error('  <yellow>%s</yellow>:%s', $entry->meta->prefix, $entry->meta->name);
 		}
 
 		return 2;

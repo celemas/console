@@ -13,7 +13,7 @@ class FooDrivel
 {
 	public function __invoke(Args $args, Io $output): int
 	{
-		$output->echo("Foo's drivel");
+		$output->write("Foo's drivel");
 
 		return 0;
 	}

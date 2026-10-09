@@ -17,7 +17,7 @@ final class InjectedGreet
 
 	public function __invoke(#[Arg('Who to greet')] string $name): int
 	{
-		$this->io->echo("Hello, {$name}");
+		$this->io->write("Hello, {$name}");
 
 		return 0;
 	}

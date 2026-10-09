@@ -7,13 +7,12 @@ namespace Celema\Console\Tests;
 use Celema\Console\Align;
 use Celema\Console\Markup;
 use PHPUnit\Framework\Attributes\DataProvider;
-use ValueError;
 
 class MarkupTest extends TestCase
 {
 	private function render(string $text, bool $colors = true): string
 	{
-		return new Markup()->render($text, $colors);
+		return new Markup()->render($text, colors: $colors);
 	}
 
 	public static function tagProvider(): array
@@ -133,36 +132,40 @@ class MarkupTest extends TestCase
 		$this->assertSame('a <green>b</green>', $this->render('a \<green>b\</green>', colors: false));
 	}
 
-	public function testDanglingClosingTagThrows(): void
+	/** @return iterable<string, array{string}> */
+	public static function unpairedProvider(): iterable
 	{
-		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage("Markup tag '</green>' has no opening tag");
-
-		$this->render('a</green>');
+		yield 'dangling closing tag' => ['a</green>'];
+		yield 'mismatched closing tag' => ['<em>a</green>'];
+		yield 'unclosed tags' => ['<em><green>a'];
+		yield 'crossed tags' => ['<em>a <green>b</em>'];
 	}
 
-	public function testMismatchedClosingTagThrows(): void
+	#[DataProvider('unpairedProvider')]
+	public function testUnpairedTagsPrintLiterally(string $text): void
 	{
-		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage("Markup tag '<em>' closed by '</green>'");
-
-		$this->render('<em>a</green>');
+		$this->assertSame($text, $this->render($text));
+		$this->assertSame($text, $this->render($text, colors: false));
 	}
 
-	public function testUnclosedTagThrows(): void
+	public function testUnpairedTagInsideAPairPrintsLiterally(): void
 	{
-		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage("Unclosed markup tag '<green>'");
-
-		$this->render('<em><green>a');
+		$this->assertSame("\033[3ma</green> b\033[0m", $this->render('<em>a</green> b</em>'));
+		$this->assertSame("a <em>\033[32mb\033[0m", $this->render('a <em><green>b</green>'));
+		$this->assertSame("a</green> \033[3mb\033[0m", $this->render('a</green> <em>b</em>'));
+		$this->assertSame("<em>a</green> \033[1mb\033[0m", $this->render('<em>a</green> <strong>b</strong>'));
 	}
 
-	public function testValidatesWithoutColors(): void
+	public function testStyleEnclosesTheText(): void
 	{
-		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage("Unclosed markup tag '<em>'");
+		$markup = new Markup();
 
-		$this->render('<em>a', colors: false);
+		$this->assertSame(
+			"\033[31ma \033[1mb\033[0m\033[31m c\033[0m",
+			$markup->render('a <strong>b</strong> c', colors: true, style: 'red'),
+		);
+		$this->assertSame("\033[31m\033[0m", $markup->render('', colors: true, style: 'red'));
+		$this->assertSame('a b', $markup->render('a <strong>b</strong>', style: 'red'));
 	}
 
 	public function testEscapePrefixesKnownTags(): void
@@ -184,6 +187,8 @@ class MarkupTest extends TestCase
 		$this->assertSame(7, $markup->width('\<green>'));
 		$this->assertSame(9, $markup->width('Übersicht'));
 		$this->assertSame(5, $markup->width('<foo>'));
+		$this->assertSame(8, $markup->width('<green>a'));
+		$this->assertSame(1, $markup->width("\033a"));
 	}
 
 	public function testPadsToTheVisibleWidth(): void
@@ -219,6 +224,7 @@ class MarkupTest extends TestCase
 		$text = 'broken </em> markup <green>and\<red> escapes';
 
 		$this->assertSame($text, $markup->render($markup->escape($text), colors: true));
+		$this->assertSame($text, $markup->render('%s', [$text], colors: true));
 	}
 
 	public function testEscapedTrailingBackslashLeavesAFollowingTagIntact(): void

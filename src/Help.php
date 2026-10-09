@@ -41,17 +41,19 @@ final class Help
 		$script = $this->script ?? $_SERVER['argv'][0] ?? '';
 
 		if ($meta->description !== '') {
-			$this->io->echo("<yellow>Description:</yellow>\n  {$meta->description}\n\n");
+			$this->io->line('<yellow>Description:</yellow>');
+			$this->io->line('  ' . $meta->description . "\n");
 		}
 
-		$usage = "<yellow>Usage:</yellow>\n  php {$script} {$meta->full()}";
+		$usage = "php {$script} {$meta->full()}";
 
 		foreach ($arguments as $argument) {
 			$name = $this->argumentName($argument);
 			$usage .= $argument->optional() ? " [{$name}]" : " {$name}";
 		}
 
-		$this->io->echo($usage . ($options === [] ? "\n" : " [options]\n"));
+		$this->io->line('<yellow>Usage:</yellow>');
+		$this->io->line('  %s', $usage . ($options === [] ? '' : ' [options]'));
 		$this->showArguments($arguments);
 		$this->showOptions($options);
 	}
@@ -63,10 +65,10 @@ final class Help
 			return;
 		}
 
-		$this->io->echo("\n<yellow>Arguments:</yellow>\n");
+		$this->io->line("\n<yellow>Arguments:</yellow>");
 
 		foreach ($arguments as $argument) {
-			$this->io->echo("    <green>{$this->argumentName($argument)}</green>\n");
+			$this->io->line('    <green>%s</green>', $this->argumentName($argument));
 			$this->showDescription($argument->arg->description, $argument->parameter, $argument->type);
 		}
 	}
@@ -78,7 +80,7 @@ final class Help
 			return;
 		}
 
-		$this->io->echo("\n<yellow>Options:</yellow>\n");
+		$this->io->line("\n<yellow>Options:</yellow>");
 
 		foreach ($options as $option) {
 			$suffix = match (true) {
@@ -90,19 +92,19 @@ final class Help
 			$short = $option->opt->short;
 			$flags = $short === '' ? $option->name . $suffix : "{$short}{$suffix}, {$option->name}{$suffix}";
 
-			$this->io->echo('    <green>' . $this->io->escape($flags) . "</green>\n");
+			$this->io->line('    <green>%s</green>', $flags);
 			$this->showDescription($option->opt->description, $option->parameter, $option->type);
 		}
 	}
 
 	private function argumentName(Argument $argument): string
 	{
-		// Escaped: the <name> notation must not parse as markup.
-		return $this->io->escape("<{$argument->name}>") . ($argument->variadic() ? '...' : '');
+		return "<{$argument->name}>" . ($argument->variadic() ? '...' : '');
 	}
 
 	/**
-	 * Renders the description followed by the choices and the default.
+	 * Renders the description, which is markup, followed by the choices
+	 * and the default.
 	 */
 	private function showDescription(string $description, ReflectionParameter $parameter, Type $type): void
 	{
@@ -120,7 +122,7 @@ final class Help
 		}
 
 		if ($parts !== []) {
-			$this->io->echo($this->io->indent(implode(' ', $parts), 8, 80) . "\n");
+			$this->io->line($this->io->indent(implode(' ', $parts), 8, 80));
 		}
 	}
 

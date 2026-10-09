@@ -4,13 +4,20 @@ declare(strict_types=1);
 
 namespace Celema\Console;
 
+use Stringable;
 use ValueError;
 
 /**
- * The echo methods render the inline console markup, e.g.
- * `<green>done</green>` or `<strong>1</strong>`; see Markup for the tag
- * set and passthrough rules. Use `escape()` for text that must print
- * literally. The message helpers treat their input as plain text.
+ * The output methods take a template and its arguments: the template is
+ * markup, e.g. `<green>done</green>` or `<strong>%d</strong>`, the
+ * arguments are data. They fill the template's sprintf() conversions
+ * and print as plain text, so no escaping is needed:
+ *
+ *     $io->error('Cannot read <strong>%s</strong>', $path);
+ *
+ * Without arguments the template is not formatted, so `%` needs no
+ * doubling. Markup never fails: a tag without its partner prints
+ * literally. See Markup for the tag set.
  *
  * The terminal decides where the text goes and what it supports: the
  * process streams by default, a Buffer in tests.
@@ -27,57 +34,52 @@ final class Io
 		$this->markup = new Markup();
 	}
 
-	public function echo(string $text): void
+	public function line(string $template = '', float|int|string|Stringable ...$args): void
 	{
-		$this->write($text, error: false);
+		$this->output($template, $args, PHP_EOL);
 	}
 
-	public function echoln(string $text): void
+	/**
+	 * Like line(), without the line break.
+	 */
+	public function write(string $template, float|int|string|Stringable ...$args): void
 	{
-		$this->write($text . PHP_EOL, error: false);
+		$this->output($template, $args, '');
 	}
 
-	public function echoErr(string $text): void
+	public function success(string $template, float|int|string|Stringable ...$args): void
 	{
-		$this->write($text, error: true);
+		$this->output($template, $args, PHP_EOL, style: 'green');
 	}
 
-	public function echolnErr(string $text): void
+	/**
+	 * Writes a yellow line to the error output.
+	 */
+	public function warn(string $template, float|int|string|Stringable ...$args): void
 	{
-		$this->write($text . PHP_EOL, error: true);
+		$this->output($template, $args, PHP_EOL, error: true, style: 'yellow');
+	}
+
+	/**
+	 * Writes a red line to the error output.
+	 */
+	public function error(string $template, float|int|string|Stringable ...$args): void
+	{
+		$this->output($template, $args, PHP_EOL, error: true, style: 'red');
 	}
 
 	/**
 	 * Escapes markup tags and strips control characters (keeping
-	 * newlines and tabs) so the text prints literally.
+	 * newlines and tabs) so the text prints literally where it is
+	 * concatenated into a template; arguments need no escaping.
 	 *
-	 * The result is meant for the echo methods: text ending in a
+	 * The result is meant for the output methods: text ending in a
 	 * backslash gets an invisible marker that keeps a following tag
 	 * from reading as escaped.
 	 */
 	public function escape(string $text): string
 	{
 		return $this->markup->escape($text);
-	}
-
-	public function info(string $message): void
-	{
-		$this->echoln($this->escape($message));
-	}
-
-	public function success(string $message): void
-	{
-		$this->echoln('<green>' . $this->escape($message) . '</green>');
-	}
-
-	public function warn(string $message): void
-	{
-		$this->echolnErr('<yellow>' . $this->escape($message) . '</yellow>');
-	}
-
-	public function error(string $message): void
-	{
-		$this->echolnErr('<red>' . $this->escape($message) . '</red>');
 	}
 
 	/**
@@ -111,7 +113,7 @@ final class Io
 			throw new ValueError("Rule char '{$char}' has no visible width");
 		}
 
-		$this->echoln(str_repeat($char, intdiv($width, $unit)));
+		$this->line(str_repeat($char, intdiv($width, $unit)));
 	}
 
 	/**
@@ -126,7 +128,7 @@ final class Io
 	 */
 	public function ask(string $question, string $default = '', bool $hidden = false): string
 	{
-		$this->echo($question . ' ');
+		$this->write($question . ' ');
 		$line = $this->terminal->read($hidden) ?? '';
 		$answer = $hidden ? $line : trim($line);
 
@@ -170,10 +172,10 @@ final class Io
 			throw new ValueError("Choice default {$default} is out of range");
 		}
 
-		$this->echoln($question);
+		$this->line($question);
 
 		foreach ($options as $i => $option) {
-			$this->echoln('  ' . ($i + 1) . ') ' . $option);
+			$this->line('  ' . ($i + 1) . ') ' . $option);
 		}
 
 		while (true) {
@@ -205,9 +207,11 @@ final class Io
 		return $this->terminal->width();
 	}
 
-	private function write(string $text, bool $error): void
+	/** @param array<float|int|string|Stringable> $args */
+	private function output(string $template, array $args, string $end, bool $error = false, string $style = ''): void
 	{
-		$this->terminal->write($this->markup->render($text, $this->terminal->colors($error)), $error);
+		$text = $this->markup->render($template, array_values($args), $this->terminal->colors($error), $style);
+		$this->terminal->write($text . $end, $error);
 	}
 
 	/**

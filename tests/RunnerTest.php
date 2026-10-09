@@ -196,7 +196,7 @@ class RunnerTest extends TestCase
 						#[Arg('Remaining tokens')]
 						array $rest = [],
 					): int {
-						$io->echo((string) json_encode([$verbose, $rest]));
+						$io->write((string) json_encode([$verbose, $rest]));
 
 						return 0;
 					}
@@ -864,7 +864,7 @@ class RunnerTest extends TestCase
 				class {
 					public function __invoke(Io $io): int
 					{
-						$io->echo('plain deploy');
+						$io->write('plain deploy');
 
 						return 0;
 					}
@@ -874,7 +874,7 @@ class RunnerTest extends TestCase
 				class {
 					public function __invoke(Io $io): int
 					{
-						$io->echo('ops deploy');
+						$io->write('ops deploy');
 
 						return 0;
 					}
@@ -1059,7 +1059,7 @@ class RunnerTest extends TestCase
 			class {
 				public function __invoke(Io $io): int
 				{
-					$io->echo('io only');
+					$io->write('io only');
 
 					return 0;
 				}
@@ -1110,7 +1110,7 @@ class RunnerTest extends TestCase
 			class {
 				public function __invoke(#[Arg('The when')] string $when, Io $io, Args $args): int
 				{
-					$io->echo("swapped {$when} " . (string) $args->positional(0));
+					$io->write("swapped {$when} " . (string) $args->positional(0));
 
 					return 0;
 				}
@@ -1395,7 +1395,7 @@ class RunnerTest extends TestCase
 			class {
 				public function __invoke(Io $io, #[Opt('Show this help', short: '-h')] bool $help = false): int
 				{
-					$io->echo($help ? 'own help' : 'no help');
+					$io->write($help ? 'own help' : 'no help');
 
 					return 0;
 				}
@@ -1478,7 +1478,7 @@ class RunnerTest extends TestCase
 			class {
 				public function __invoke(Io $out, #[Arg('What to clear')] string $what): int
 				{
-					$out->echo("cleared {$what}");
+					$out->write("cleared {$what}");
 
 					return 0;
 				}
@@ -1517,7 +1517,7 @@ class RunnerTest extends TestCase
 			#[\Override]
 			public function __invoke(Io $io, string $who = 'World', string $salutation = 'Hey'): int
 			{
-				$io->echo("{$salutation}, {$who}!");
+				$io->write("{$salutation}, {$who}!");
 
 				return 0;
 			}

@@ -19,7 +19,7 @@ class Greet
 		#[Opt('The greeting to use')]
 		string $greeting = 'Hello',
 	): int {
-		$output->echo("{$greeting}, {$name}");
+		$output->write("{$greeting}, {$name}");
 
 		return 0;
 	}

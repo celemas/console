@@ -27,7 +27,7 @@ class FooStuff
 		)]
 		string $stuff = '',
 	): int {
-		$output->echo("Foo's stuff");
+		$output->write("Foo's stuff");
 
 		return 0;
 	}

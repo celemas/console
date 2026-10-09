@@ -54,6 +54,9 @@
 
 - `Io` is final and writes through a `Terminal`. `new Io()` uses `Stdio`, the process streams, and `new Io(new Stdio('build.log', input: '/dev/tty'))` replaces the target arguments. `Buffer`, a terminal in memory, replaces `BufferedIo`: `$buffer = new Buffer("yes\n"); $command(io: new Io($buffer)); $buffer->output()`. `Runner` takes an `Io` in place of its `output` and `errorOutput` targets: `new Runner($commands, new Io($buffer))`. The protected `stdout()`, `stderr()`, `stdin()`, `hasColorSupport()`, and target properties are gone.
 
+- Output comes from markup templates and data arguments. `line()` and `write()` replace `echoln()` and `echo()`, and `success()`, `warn()`, and `error()` take the same template and arguments. The arguments fill the template's `sprintf()` conversions and print as plain text, so `$io->echolnErr('<red>Cannot read ' . $io->escape($path) . '</red>')` becomes `$io->error('Cannot read %s', $path)`. `info()` is gone in favor of `line()`, `echoErr()` and `echolnErr()` in favor of `warn()` and `error()`. The message helpers no longer escape their input: their template is markup like any other. Without arguments a template is not formatted, so a `%` needs no doubling.
+- Markup never throws: a tag without its partner — dangling, mismatched, or unclosed — prints literally instead of raising a `ValueError`. Control characters other than newlines and tabs are dropped from all output, not only from escaped text. The runner reports failures and ambiguous command names through `error()`, in red.
+
 ### Added
 
 - `Io::interactive()` tells whether someone can see and answer prompts, `Io::width()` the terminal width; `new Buffer(interactive: true, width: 120)` pretends to be such a terminal. `Stdio` takes `colors:` to switch colors on or off regardless of the environment, for example for a `--no-color` flag. Other devices implement the `Terminal` interface.

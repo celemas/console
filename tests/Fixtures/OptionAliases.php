@@ -24,7 +24,7 @@ final class OptionAliases
 		#[Opt('Files to watch', short: '-w', value: 'file')]
 		array $watch = [],
 	): int {
-		$io->echo((string) json_encode([
+		$io->write((string) json_encode([
 			$args->has('--verbose'),
 			$args->has('-v'),
 			$args->opts('--watch'),

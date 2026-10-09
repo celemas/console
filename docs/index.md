@@ -40,16 +40,16 @@ class MyCommand
         #[Opt('Enable verbose output', short: '-v')]
         bool $verbose = false,
     ): int {
-        $io->echo("Run my command for {$name}\n");
+        // The template is markup, the arguments are data
+        $io->line('Run my command for <strong>%s</strong>', $name);
 
-        // Output helpers with color support (warn/error go to STDERR)
-        $io->info('Informational message');
-        $io->success('Success message');
-        $io->warn('Warning message');
-        $io->error('Error message');
+        // Styled lines; warn() and error() go to STDERR
+        $io->success('Imported %d rows', 120);
+        $io->warn('Skipped %s', $name);
+        $io->error('Connection %s failed', $conn);
 
-        // echoln adds a newline automatically
-        $io->echoln('Message with automatic newline');
+        // write() leaves out the line break
+        $io->write('Working ... ');
 
         return 0;
     }
@@ -120,7 +120,7 @@ final class Greet
 
     public function __invoke(#[Arg('Who to greet')] string $name): int
     {
-        $this->io->success("Hello, {$name}");
+        $this->io->success('Hello, %s', $name);
 
         return 0;
     }
@@ -140,16 +140,15 @@ The runner validates the signature of the invoked command: `__invoke()` must dec
 
 ### Io Methods
 
-- `echo(string $text)` - Output text, rendering inline markup
+- `line(string $template = '', ...$args)` - Output a line; see [Output](#output)
+- `write(string $template, ...$args)` - Output text without a line break
+- `success(string $template, ...$args)` - Output a green line
+- `warn(string $template, ...$args)` - Output a yellow line to STDERR
+- `error(string $template, ...$args)` - Output a red line to STDERR
 - `ask(string $question, string $default = '', bool $hidden = false)` - Prompt for one line of input; `hidden` turns off terminal echo, e.g. for passwords
 - `confirm(string $question, bool $default = false)` - Ask a yes/no question, rendered as `[y/N]` or `[Y/n]`
-- `echoln(string $text)` - Output text with newline, rendering inline markup
-- `info(string $message)` - Output an informational message
-- `success(string $message)` - Output a success message (green)
-- `warn(string $message)` - Output a warning message (yellow, to STDERR)
-- `error(string $message)` - Output an error message (red, to STDERR)
 - `choice(string $question, array $options, int $default = 1)` - Prompt to pick from a numbered list of options
-- `escape(string $text)` - Escape markup tags so the text prints literally
+- `escape(string $text)` - Escape markup tags so the text prints literally where it is concatenated into a template
 - `rule(string $char = '─', ?int $max = null)` - Output a horizontal rule spanning the terminal width; `max` caps it. The char may be a multi-char pattern and carry markup — the repeat count uses its visible width: `$io->rule('<dim>─</dim>')` draws a dim line
 - `pad(string $text, int $width, Align $align = Align::Left)` - Pad the text with spaces to the visible width `width`; markup tags and multibyte characters don't count, wider text is returned unchanged. `Align::Left`, `Align::Right`, or `Align::Center`
 - `indent(string $text, int $indent, ?int $max = null)` Indent and wrap text on its visible width; `max` caps the total line width, indent included
@@ -221,12 +220,28 @@ $buffer = new Buffer();
 $exitCode = new Runner([new MyCommand()], new Io($buffer))->run(['run', 'mycommand', 'Ada', '--verbose']);
 ```
 
-### Markup
+### Output
 
-The echo methods render inline markup:
+Every output method takes a template and its arguments. The template is markup; the arguments are data. They fill the template's `sprintf()` conversions — `%s`, `%d`, `%05.2f`, `%1$s` — and print as plain text, never as markup:
 
 ```php
-$io->echoln('Made <strong>bold</strong>, <green>green</green>, and <u>underlined</u>');
+$io->line('Imported <strong>%d</strong> rows from %s', $count, $path);
+$io->error('Cannot read <strong>%s</strong>', $path);
+$io->error('%s', $e->getMessage());
+```
+
+Arguments are strings, numbers, or `Stringable` objects; a template that names more arguments than given throws a `ValueError`. Without arguments the template is not formatted, so a `%` needs no doubling there: `$io->line('100% done')`. With arguments, write a literal `%` as `%%`, as in `sprintf()`.
+
+Control characters other than newlines and tabs are dropped from templates and arguments alike, so no text can inject terminal escape sequences. Markup never fails: a tag without its partner prints literally. So even a message passed as the template, `$io->error($e->getMessage())`, prints safely — at worst a known tag in it renders as style. Pass untrusted text as an argument to be sure.
+
+`success()`, `warn()`, and `error()` color the whole line; tags in the template style parts of it: `$io->success('Created <strong>%d</strong> files', $count)`.
+
+### Markup
+
+The templates render inline markup:
+
+```php
+$io->line('Made <strong>bold</strong>, <green>green</green>, and <u>underlined</u>');
 ```
 
 - Style tags: `<strong>`, `<em>`, `<dim>`, `<u>`
@@ -234,7 +249,9 @@ $io->echoln('Made <strong>bold</strong>, <green>green</green>, and <u>underlined
 - Background tags: the same names with a `bg-` prefix — `<bg-red>`, `<bg-bright-red>`, `<bg-gray>`
 - Hex color tags: a lowercase six-digit code — `<#ff7313>`, `<bg-#ff7313>` — emitting 24-bit truecolor
 
-Tags compose by nesting, and the innermost tag wins on conflict. Only exact known tags are parsed: `<info@example.com>`, generics, and unknown names pass through untouched, so most text needs no escaping. For text that must print literally — say, user data or exception messages — use `$io->escape()`: it escapes known tags and strips control characters (keeping newlines and tabs), so untrusted text cannot inject terminal escape sequences. Its result is meant for the `Io` output methods: escaped text ending in a backslash carries an invisible marker so that a tag right after it, as in `'<red>' . $io->escape($path) . '</red>'`, stays a tag. Broken markup (a mismatched, dangling, or unclosed tag) throws a `ValueError`, also when colors are disabled, so mistakes surface in tests. The message helpers `info()`, `success()`, `warn()`, and `error()` escape their input and treat it as plain text.
+Tags compose by nesting, and the innermost tag wins on conflict. Only exact known tags are parsed: `<info@example.com>`, generics, and unknown names pass through untouched. A backslash prints a known tag literally: `\<green>`. A closing tag pairs with the innermost open tag if that has its name; a tag without a partner — dangling, mismatched, or unclosed — prints as it is.
+
+Arguments need no escaping. Text you concatenate into a template yourself does: `$io->escape()` escapes known tags and strips control characters (keeping newlines and tabs). Its result is meant for the `Io` output methods: escaped text ending in a backslash carries an invisible marker so that a tag right after it, as in `'<red>' . $io->escape($path) . '</red>'`, stays a tag.
 
 Whether `Stdio` emits codes is decided per stream: a non-empty `NO_COLOR` disables colors, `FORCE_COLOR` forces them on (`FORCE_COLOR=0` or `false` forces them off), and otherwise codes are only written when the stream is a terminal. `COLORTERM` alone does not color redirected output, so redirecting one stream to a file never garbles it while the other stays colored. Its `colors` argument overrides all of this for both streams.
 
@@ -251,7 +268,7 @@ $table->rule();
 $table->row(['PHP', '11', '1,711']);
 $table->rule();
 $table->row(['<em>Total</em>', '11', '1,711']);
-$io->echo($table->render());
+$io->write($table->render());
 ```
 
 Columns size to their widest cell and are separated by two spaces; alignment is per column (`Align::Left` for unlisted columns), and `rule()` inserts a separator line spanning the table, with the same char handling as `Io::rule()`. A short row leaves its remaining cells empty. Cells don't wrap — a table wider than the terminal simply overflows — so keep cells short.
@@ -262,7 +279,7 @@ Box-like highlights need no box feature: pad each line to a uniform width, wrap 
 
 ```php
 foreach (['', '  Import failed', '  3 of 120 pages skipped', ''] as $line) {
-    $io->echoln($io->indent('<bg-red>' . $io->pad($line, 44) . '</bg-red>', 2));
+    $io->line($io->indent('<bg-red>' . $io->pad($line, 44) . '</bg-red>', 2));
 }
 ```
 

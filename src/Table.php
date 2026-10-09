@@ -13,14 +13,14 @@ use ValueError;
  *
  * Columns size to their widest cell and are separated by two spaces;
  * `rule()` inserts a separator line spanning the table. Cells don't
- * wrap: a table wider than the terminal simply overflows. Render the
- * result through the Io echo methods:
+ * wrap: a table wider than the terminal simply overflows. Write the
+ * result as a template:
  *
  *     $table = new Table(align: [Align::Left, Align::Right]);
  *     $table->row(['<strong>Language</strong>', '<strong>Lines</strong>']);
  *     $table->rule();
  *     $table->row(['PHP', '1,075']);
- *     $io->echo($table->render());
+ *     $io->write($table->render());
  *
  * @api
  */

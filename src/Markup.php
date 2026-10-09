@@ -17,9 +17,12 @@ use ValueError;
  *
  * Only exact known tags are parsed; everything else — `<info@example.com>`,
  * generics, unknown names — passes through untouched. A backslash renders
- * a known tag literally: `\<green>`. Structural mistakes (a mismatched,
- * dangling, or unclosed tag) throw a ValueError, also when colors are
- * disabled, so they surface in tests.
+ * a known tag literally: `\<green>`. A tag without its partner — dangling,
+ * mismatched, or unclosed — prints literally too: rendering never fails.
+ *
+ * Arguments fill the template's sprintf() conversions and print as plain
+ * text, never as markup. Control characters other than newlines and tabs
+ * are dropped from both, so no text can inject terminal escape sequences.
  *
  * @internal
  */
@@ -31,10 +34,20 @@ final class Markup
 	 * Follows a trailing backslash of escaped text, so that a tag placed
 	 * right after it stays a tag: without it, `C:\` + `</red>` would read
 	 * as an escaped `</red>`. escape() strips control characters from its
-	 * input, so untrusted text cannot forge it; render() and width() drop
-	 * it again.
+	 * input, so untrusted text cannot forge it; render() drops it again.
 	 */
 	private const string BOUNDARY = "\x1F";
+
+	/** Stands in for a formatted argument while the markup is parsed. */
+	private const string SLOT = "\x00";
+
+	private const string CONTROLS = '/[\x00-\x08\x0B-\x1F\x7F]/';
+
+	/** Like CONTROLS, but keeps the boundaries of escaped text. */
+	private const string TEMPLATE_CONTROLS = '/[\x00-\x08\x0B-\x1E\x7F]/';
+
+	/** A sprintf() conversion, `%1$s` and `%%` included. */
+	private const string CONVERSION = '/%(?:%|(?:(\d+)\$)?((?:[-+ 0]|\'.)*\d*(?:\.\d+)?[bcdeEfFgGhHosuxX]))/';
 
 	/** SGR codes by tag name. */
 	private const array TAGS = [
@@ -92,73 +105,146 @@ final class Markup
 	}
 
 	/**
-	 * Renders the markup as escape codes, or strips it without `$colors`.
+	 * Renders the template as escape codes, or strips the markup without
+	 * `$colors`. A `$style` tag encloses the whole text.
+	 *
+	 * @param list<float|int|string|\Stringable> $args
 	 */
-	public function render(string $text, bool $colors): string
+	public function render(string $template, array $args = [], bool $colors = false, string $style = ''): string
 	{
-		if (!str_contains($text, '<')) {
-			return $this->unbound($text);
+		$text = (string) preg_replace(self::TEMPLATE_CONTROLS, replacement: '', subject: $template);
+		$values = [];
+
+		if ($args !== []) {
+			[$text, $values] = $this->format($text, $args);
 		}
 
+		$parts = explode(self::SLOT, str_replace(self::BOUNDARY, '', $this->markup($text, $colors, $style)));
+		$out = array_shift($parts);
+
+		foreach ($parts as $i => $part) {
+			$out .= $values[$i] . $part;
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Replaces the conversions with slots and formats their arguments.
+	 *
+	 * @param list<float|int|string|\Stringable> $args
+	 *
+	 * @return array{string, list<string>}
+	 */
+	private function format(string $template, array $args): array
+	{
+		$values = [];
+		$next = 0;
+		$text = (string) preg_replace_callback(
+			self::CONVERSION,
+			static function (array $match) use ($args, &$values, &$next): string {
+				if ($match[0] === '%%') {
+					return '%';
+				}
+
+				$index = $match[1] === '' ? $next++ : (int) $match[1] - 1;
+
+				if (!array_key_exists($index, $args)) {
+					throw new ValueError('Missing argument ' . ($index + 1) . " for '{$match[0]}'");
+				}
+
+				$values[] = (string) preg_replace(
+					self::CONTROLS,
+					replacement: '',
+					subject: sprintf('%' . $match[2], $args[$index]),
+				);
+
+				return self::SLOT;
+			},
+			$template,
+		);
+
+		return [$text, $values];
+	}
+
+	private function markup(string $text, bool $colors, string $style): string
+	{
 		/** @var list<string> $parts */
 		$parts = (array) preg_split(
 			$this->split,
 			$text,
 			flags: PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY,
 		);
-		$out = '';
-		$stack = [];
+		$paired = $this->paired($parts);
+		$stack = $style === '' ? [] : [$style];
+		$out = $colors ? $this->codes($stack) : '';
 
-		foreach ($parts as $part) {
-			if (preg_match($this->tag, $part) !== 1) {
-				$out .= $part;
-
-				continue;
-			}
-
-			if ($part[0] === '\\') {
-				$out .= substr($part, offset: 1);
+		foreach ($parts as $i => $part) {
+			if (!in_array($i, $paired, strict: true)) {
+				$escaped = $part[0] === '\\' && preg_match($this->tag, $part) === 1;
+				$out .= $escaped ? substr($part, offset: 1) : $part;
 
 				continue;
 			}
 
 			if ($part[1] === '/') {
-				$name = substr($part, offset: 2, length: -1);
-				$last = array_pop($stack);
+				array_pop($stack);
 
-				if ($last === null) {
-					throw new ValueError("Markup tag '</{$name}>' has no opening tag");
-				}
-
-				if ($last !== $name) {
-					throw new ValueError("Markup tag '<{$last}>' closed by '</{$name}>'");
-				}
-
-				if ($colors) {
-					// A blanket reset, then re-apply the enclosing tags.
-					$out .= self::RESET;
-
-					foreach ($stack as $open) {
-						$out .= "\033[" . $this->sgr($open) . 'm';
-					}
-				}
+				// A blanket reset, then re-apply the enclosing tags.
+				$out .= $colors ? self::RESET . $this->codes($stack) : '';
 
 				continue;
 			}
 
 			$name = substr($part, offset: 1, length: -1);
 			$stack[] = $name;
+			$out .= $colors ? $this->codes([$name]) : '';
+		}
 
-			if ($colors) {
-				$out .= "\033[" . $this->sgr($name) . 'm';
+		return $colors && $style !== '' ? $out . self::RESET : $out;
+	}
+
+	/**
+	 * The indexes of the tags that have a partner: a closing tag pairs
+	 * with the innermost open tag if that has its name, else with none.
+	 *
+	 * @param list<string> $parts
+	 *
+	 * @return list<int>
+	 */
+	private function paired(array $parts): array
+	{
+		$paired = [];
+		$open = [];
+
+		foreach ($parts as $i => $part) {
+			if ($part[0] === '\\' || preg_match($this->tag, $part) !== 1) {
+				continue;
 			}
+
+			if ($part[1] !== '/') {
+				$open[] = [$i, substr($part, offset: 1, length: -1)];
+
+				continue;
+			}
+
+			$last = end($open);
+
+			if ($last === false || $last[1] !== substr($part, offset: 2, length: -1)) {
+				continue;
+			}
+
+			array_pop($open);
+			array_push($paired, $last[0], $i);
 		}
 
-		if ($stack !== []) {
-			throw new ValueError("Unclosed markup tag '<{$stack[array_key_last($stack)]}>'");
-		}
+		return $paired;
+	}
 
-		return $this->unbound($out);
+	/** @param list<string> $names */
+	private function codes(array $names): string
+	{
+		return implode('', array_map(fn(string $name): string => "\033[" . $this->sgr($name) . 'm', $names));
 	}
 
 	/** The SGR code for a tag name: a named lookup or a truecolor hex tag. */
@@ -184,16 +270,10 @@ final class Markup
 	 */
 	public function escape(string $text): string
 	{
-		$text = (string) preg_replace('/[\x00-\x08\x0B-\x1F\x7F]/', replacement: '', subject: $text);
+		$text = (string) preg_replace(self::CONTROLS, replacement: '', subject: $text);
 		$text = (string) preg_replace($this->split, replacement: '\\\\$0', subject: $text);
 
 		return str_ends_with($text, '\\') ? $text . self::BOUNDARY : $text;
-	}
-
-	/** Drops the boundaries that escape() appends after a backslash. */
-	private function unbound(string $text): string
-	{
-		return str_replace('\\' . self::BOUNDARY, '\\', $text);
 	}
 
 	/**
@@ -218,23 +298,11 @@ final class Markup
 	}
 
 	/**
-	 * The visible width of the text: tags collapse to nothing, an
-	 * escaped tag to the tag without its backslash.
+	 * The visible width of the text as rendered: tags collapse to
+	 * nothing, unpaired and escaped ones print.
 	 */
 	public function width(string $text): int
 	{
-		if (str_contains($text, '<')) {
-			$text = (string) preg_replace_callback(
-				$this->split,
-				static function (array $match): string {
-					[$tag] = $match;
-
-					return str_starts_with($tag, '\\') ? substr($tag, offset: 1) : '';
-				},
-				$text,
-			);
-		}
-
-		return mb_strwidth($this->unbound($text));
+		return mb_strwidth($this->render($text));
 	}
 }
