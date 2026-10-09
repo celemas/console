@@ -43,7 +43,7 @@ final class HiddenInputTest extends TestCase
 	}
 
 	#[DataProvider('inputs')]
-	public function testAskHiddenDisablesEchoWhileReading(string $input): void
+	public function testSecretDisablesEchoWhileReading(string $input): void
 	{
 		$this->spawn($input);
 		$this->expect('Password:');
@@ -58,7 +58,7 @@ final class HiddenInputTest extends TestCase
 		$this->assertSame(0, $this->finish());
 	}
 
-	public function testAskHiddenRefusesToReadWhenEchoCannotBeDisabled(): void
+	public function testSecretRefusesToReadWhenEchoCannotBeDisabled(): void
 	{
 		// Without stty on the PATH the echo cannot be switched off.
 		$this->spawn('stdin', ['PATH' => '/nonexistent']);

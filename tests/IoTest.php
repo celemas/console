@@ -160,7 +160,7 @@ class IoTest extends TestCase
 
 	public function testColorsAreDecidedPerStream(): void
 	{
-		$terminal = new Fixtures\ErrorColors();
+		$terminal = new Fixtures\Recorder();
 		$io = new Io($terminal);
 		$io->write('<red>out</red>');
 		$io->error('err');
@@ -303,9 +303,20 @@ class IoTest extends TestCase
 		$this->assertSame('Name? ', $buffer->output());
 	}
 
-	public function testAskFallsBackToTheDefault(): void
+	public function testAskShowsAndFallsBackToTheDefault(): void
 	{
-		$this->assertSame('World', new Io(new Buffer("\n"))->ask('Name?', default: 'World'));
+		$buffer = new Buffer("\n");
+
+		$this->assertSame('World', new Io($buffer)->ask('Name?', 'World'));
+		$this->assertSame('Name? [World] ', $buffer->output());
+	}
+
+	public function testAskShowsTheDefaultAsPlainText(): void
+	{
+		$buffer = new Buffer(colors: true);
+		new Io($buffer)->ask('<em>Tag?</em>', '<red>%s</red>');
+
+		$this->assertSame("\033[3mTag?\033[0m [<red>%s</red>] ", $buffer->output());
 	}
 
 	public function testAskFallsBackToTheDefaultOnEndOfInput(): void
@@ -313,14 +324,12 @@ class IoTest extends TestCase
 		$this->assertSame('World', new Io(new Buffer())->ask('Name?', default: 'World'));
 	}
 
-	public function testAskHiddenKeepsWhitespaceInTheAnswer(): void
+	public function testAskReadsVisibly(): void
 	{
-		$this->assertSame('  secret pass  ', new Io(new Buffer("  secret pass  \n"))->ask('Password?', hidden: true));
-	}
+		$terminal = new Fixtures\Recorder(['Charly']);
+		new Io($terminal)->ask('Name?');
 
-	public function testAskHiddenFallsBackToTheDefault(): void
-	{
-		$this->assertSame('none', new Io(new Buffer())->ask('Password?', 'none', hidden: true));
+		$this->assertSame([false], $terminal->reads);
 	}
 
 	public function testAskReadsOneLinePerPrompt(): void
@@ -331,30 +340,71 @@ class IoTest extends TestCase
 		$this->assertTrue($io->confirm('Sure?'));
 	}
 
-	public function testChoiceReturnsTheChosenOption(): void
+	public function testSecretReadsHidden(): void
+	{
+		$terminal = new Fixtures\Recorder(['  secret pass  ']);
+
+		$this->assertSame('  secret pass  ', new Io($terminal)->secret('Password:'));
+		$this->assertSame([true], $terminal->reads);
+		$this->assertSame([['Password: ', false]], $terminal->writes);
+	}
+
+	public function testSecretIsEmptyAtTheEndOfInput(): void
+	{
+		$this->assertSame('', new Io(new Buffer())->secret('Password:'));
+	}
+
+	public function testChoiceReturnsTheChosenKey(): void
 	{
 		$buffer = new Buffer("2\n");
+		$options = ['dev' => 'Development', 'staging' => 'Staging', 'prod' => 'Production'];
 
-		$this->assertSame('staging', new Io($buffer)->choice('Environment?', ['dev', 'staging', 'prod']));
-		$this->assertSame("Environment?\n  1) dev\n  2) staging\n  3) prod\n[1] ", $buffer->output());
+		$this->assertSame('staging', new Io($buffer)->choice('Environment?', $options));
+		$this->assertSame(
+			"Environment?\n  1) Development\n  2) Staging\n  3) Production\n[1] ",
+			$buffer->output(),
+		);
+	}
+
+	public function testChoiceReturnsTheIndexOfAList(): void
+	{
+		$this->assertSame(2, new Io(new Buffer("3\n"))->choice('Env?', ['dev', 'staging', 'prod']));
+	}
+
+	public function testChoiceListsTheLabelsAsPlainText(): void
+	{
+		$buffer = new Buffer("\n", colors: true);
+		new Io($buffer)->choice('Pick', ['a' => '<red>%s</red>']);
+
+		$this->assertSame("Pick\n  1) <red>%s</red>\n[1] ", $buffer->output());
 	}
 
 	public function testChoiceFallsBackToTheDefault(): void
 	{
-		$this->assertSame('dev', new Io(new Buffer("\n"))->choice('Env?', ['dev', 'prod']));
-		$this->assertSame('prod', new Io(new Buffer("\n"))->choice('Env?', ['dev', 'prod'], default: 2));
+		$options = ['dev' => 'Development', 'prod' => 'Production'];
+
+		$this->assertSame('dev', new Io(new Buffer("\n"))->choice('Env?', $options));
 		// End of input also yields the default.
-		$this->assertSame('dev', new Io(new Buffer())->choice('Env?', ['dev', 'prod']));
+		$this->assertSame('dev', new Io(new Buffer())->choice('Env?', $options));
+	}
+
+	public function testChoiceDefaultsByKey(): void
+	{
+		$buffer = new Buffer("\n");
+
+		$this->assertSame('prod', new Io($buffer)->choice('Env?', ['dev' => 'D', 'prod' => 'P'], default: 'prod'));
+		$this->assertStringEndsWith('[2] ', $buffer->output());
+		$this->assertSame(1, new Io(new Buffer("\n"))->choice('Env?', [1 => 'a', 2 => 'b'], default: '1'));
 	}
 
 	public function testChoiceAcceptsTheFirstOptionByNumber(): void
 	{
-		$this->assertSame('dev', new Io(new Buffer("1\n"))->choice('Env?', ['dev', 'prod'], default: 2));
+		$this->assertSame(0, new Io(new Buffer("1\n"))->choice('Env?', ['dev', 'prod'], default: 1));
 	}
 
 	public function testChoiceReturnsTheDefaultRightAfterAnEmptyAnswer(): void
 	{
-		$this->assertSame('dev', new Io(new Buffer("\n2\n"))->choice('Env?', ['dev', 'prod']));
+		$this->assertSame(0, new Io(new Buffer("\n2\n"))->choice('Env?', ['dev', 'prod']));
 	}
 
 	public function testChoiceAsksAgainOnInvalidAnswers(): void
@@ -362,7 +412,7 @@ class IoTest extends TestCase
 		// Only plain numbers count, not ones PHP would cast into range.
 		$buffer = new Buffer("x\n0\n9\n+1\n1x\n1.0\n2\n");
 
-		$this->assertSame('prod', new Io($buffer)->choice('Env?', ['dev', 'prod']));
+		$this->assertSame(1, new Io($buffer)->choice('Env?', ['dev', 'prod']));
 		$this->assertStringEndsWith('[1] [1] [1] [1] [1] [1] [1] ', $buffer->output());
 	}
 
@@ -374,12 +424,12 @@ class IoTest extends TestCase
 		new Io(new Buffer())->choice('Env?', []);
 	}
 
-	public function testChoiceDefaultOutOfRangeThrows(): void
+	public function testChoiceDefaultThatIsNoOptionThrows(): void
 	{
 		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage('Choice default 3 is out of range');
+		$this->expectExceptionMessage("Choice default 'test' is not an option");
 
-		new Io(new Buffer())->choice('Env?', ['dev', 'prod'], default: 3);
+		new Io(new Buffer())->choice('Env?', ['dev' => 'D', 'prod' => 'P'], default: 'test');
 	}
 
 	public function testConfirmAnswers(): void

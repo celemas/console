@@ -26,7 +26,7 @@ A command line interface helper.
 - `--key=value` options (repeatable) and boolean `--flag` / `-h` flags; `--` ends option parsing
 - Output from markup templates and data arguments: `$io->error('Cannot read <strong>%s</strong>', $path)` needs no escaping; `line()`, `write()`, `success()`, `warn()`, and `error()` (warnings and errors go to STDERR)
 - Inline markup for styled output: `<strong>`, `<em>`, `<dim>`, `<u>`, the ANSI colors — `<green>`, `<bright-red>`, `<bg-blue>`, ... — and truecolor hex tags: `<#ff7313>`, `<bg-#ff7313>`
-- Interactive prompts: `ask()` (optionally with hidden input), `confirm()`, and `choice()`
+- Interactive prompts: `ask()`, `secret()` for hidden input, `confirm()`, and `choice()`
 - `Buffer`, a terminal in memory for testing commands without output buffering or escape-code stripping
 - Text formatting helpers: `indent()` wraps, `pad()` aligns, `rule()` separates — all on the visible width, markup and multibyte aware
 - `Table` for minimal scc-style column output — no borders, no cell wrapping

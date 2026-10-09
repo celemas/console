@@ -18,7 +18,7 @@ $target = ($argv[1] ?? '') === 'tty' ? (string) posix_ttyname(STDOUT) : 'php://s
 $io = new Io(new Stdio(input: $target));
 
 try {
-	$answer = $io->ask('Password:', hidden: true);
+	$answer = $io->secret('Password:');
 } catch (RuntimeException $e) {
 	echo 'refused: ', $e->getMessage(), "\n";
 

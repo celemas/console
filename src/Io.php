@@ -117,22 +117,35 @@ final class Io
 	}
 
 	/**
-	 * Prints the question and reads one line from the input stream.
-	 *
-	 * A trimmed empty answer (or end of input) yields the default. With
-	 * `hidden` the terminal echo is switched off while typing, for example
-	 * for passwords, and the answer keeps its whitespace; only the trailing
-	 * newline is stripped. If the echo cannot be switched off on a terminal,
-	 * a RuntimeException is thrown before reading. On Windows, or without
-	 * a terminal, the input is simply read as is, visibly.
+	 * Prints the question, and the default if there is one, and reads one
+	 * line. A trimmed empty answer, or the end of input, yields the
+	 * default.
 	 */
-	public function ask(string $question, string $default = '', bool $hidden = false): string
+	public function ask(string $question, string $default = ''): string
 	{
-		$this->write($question . ' ');
-		$line = $this->terminal->read($hidden) ?? '';
-		$answer = $hidden ? $line : trim($line);
+		$this->write($question);
+
+		if ($default !== '') {
+			$this->write(' [%s]', $default);
+		}
+
+		$this->write(' ');
+		$answer = trim($this->terminal->read() ?? '');
 
 		return $answer === '' ? $default : $answer;
+	}
+
+	/**
+	 * Asks for input that must not show while typing, such as a password.
+	 *
+	 * The answer keeps its whitespace. Where the terminal cannot hide the
+	 * input, it throws rather than reading visibly; see Stdio::read().
+	 */
+	public function secret(string $question): string
+	{
+		$this->write($question . ' ');
+
+		return $this->terminal->read(hidden: true) ?? '';
 	}
 
 	/**
@@ -153,40 +166,49 @@ final class Io
 	}
 
 	/**
-	 * Asks to pick from a numbered list and returns the chosen option.
+	 * Asks to pick one of the options and returns its key.
 	 *
-	 * The options render one per line, numbered from 1, then the
-	 * prompt shows the default number: `[1]`. An empty answer (or end
-	 * of input) yields the default's option; anything else must be a
-	 * listed number — an invalid answer asks again.
+	 * The labels are listed numbered from 1, and the prompt shows the
+	 * default's number: `[1]`. An empty answer, or the end of input,
+	 * yields the default, the first option unless given; any other answer
+	 * must be a listed number — an invalid one asks again.
 	 *
-	 * @param list<string> $options
+	 * @template K of array-key
+	 *
+	 * @param array<K, string> $options
+	 * @param K|null $default
+	 *
+	 * @return K
 	 */
-	public function choice(string $question, array $options, int $default = 1): string
+	public function choice(string $question, array $options, int|string|null $default = null): int|string
 	{
 		if ($options === []) {
 			throw new ValueError('Choice needs options');
 		}
 
-		if ($default < 1 || $default > count($options)) {
-			throw new ValueError("Choice default {$default} is out of range");
+		$default ??= array_key_first($options);
+
+		if (!array_key_exists($default, $options)) {
+			throw new ValueError("Choice default '{$default}' is not an option");
 		}
 
+		$keys = array_keys($options);
+		$number = array_flip($keys)[$default] + 1;
 		$this->line($question);
 
-		foreach ($options as $i => $option) {
-			$this->line('  ' . ($i + 1) . ') ' . $option);
+		foreach (array_values($options) as $i => $label) {
+			$this->line('  %d) %s', $i + 1, $label);
 		}
 
 		while (true) {
-			$answer = $this->ask("[{$default}]");
+			$answer = $this->ask("[{$number}]");
 
 			if ($answer === '') {
-				return $options[$default - 1];
+				return $keys[$number - 1];
 			}
 
-			if (preg_match('/^\d+\z/', $answer) === 1 && (int) $answer >= 1 && (int) $answer <= count($options)) {
-				return $options[(int) $answer - 1];
+			if (preg_match('/^\d+\z/', $answer) === 1 && (int) $answer >= 1 && (int) $answer <= count($keys)) {
+				return $keys[(int) $answer - 1];
 			}
 		}
 	}

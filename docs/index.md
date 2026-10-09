@@ -145,9 +145,10 @@ The runner validates the signature of the invoked command: `__invoke()` must dec
 - `success(string $template, ...$args)` - Output a green line
 - `warn(string $template, ...$args)` - Output a yellow line to STDERR
 - `error(string $template, ...$args)` - Output a red line to STDERR
-- `ask(string $question, string $default = '', bool $hidden = false)` - Prompt for one line of input; `hidden` turns off terminal echo, e.g. for passwords
+- `ask(string $question, string $default = '')` - Prompt for one line of input
+- `secret(string $question)` - Prompt for input that must not show while typing, e.g. a password
 - `confirm(string $question, bool $default = false)` - Ask a yes/no question, rendered as `[y/N]` or `[Y/n]`
-- `choice(string $question, array $options, int $default = 1)` - Prompt to pick from a numbered list of options
+- `choice(string $question, array $options, int|string|null $default = null)` - Prompt to pick one of the options; returns its key
 - `escape(string $text)` - Escape markup tags so the text prints literally where it is concatenated into a template
 - `rule(string $char = '─', ?int $max = null)` - Output a horizontal rule spanning the terminal width; `max` caps it. The char may be a multi-char pattern and carry markup — the repeat count uses its visible width: `$io->rule('<dim>─</dim>')` draws a dim line
 - `pad(string $text, int $width, Align $align = Align::Left)` - Pad the text with spaces to the visible width `width`; markup tags and multibyte characters don't count, wider text is returned unchanged. `Align::Left`, `Align::Right`, or `Align::Center`
@@ -171,14 +172,14 @@ $io = new Io(new Stdio(colors: $noColor ? false : null));  // a --no-color flag
 
 ### Prompts
 
-`Io` also reads: `ask()` prompts for one line of input, `confirm()` for a yes/no answer, `choice()` for one of a numbered list.
+`Io` also reads: `ask()` prompts for one line of input, `secret()` for input that must not show, `confirm()` for a yes/no answer, `choice()` for one of a numbered list.
 
 ```php
 public function __invoke(Io $io): int
 {
     $name = $io->ask('Migration name:', default: 'unnamed');
-    $password = $io->ask('Password:', hidden: true);
-    $env = $io->choice('Environment?', ['dev', 'staging', 'prod'], default: 3);
+    $password = $io->secret('Password:');
+    $env = $io->choice('Environment?', ['dev' => 'Development', 'prod' => 'Production'], default: 'prod');
 
     if (!$io->confirm('Apply the migrations?')) {
         return 1;
@@ -188,10 +189,11 @@ public function __invoke(Io $io): int
 }
 ```
 
-- An empty answer (or end of input) yields the default.
-- `hidden` disables terminal echo while typing — for passwords — and keeps the answer's whitespace; only the trailing newline is stripped. The previous terminal state is restored afterwards, also when reading fails. If the echo cannot be switched off on a terminal, for example without `stty`, `ask()` throws a `RuntimeException` instead of reading visibly. On Windows, or without a terminal (piped input, tests), the line is simply read as is, visibly.
+- `ask()` shows a non-empty default in brackets, `Migration name: [unnamed]`; an empty answer, or the end of input, yields it.
+- `secret()` disables the terminal echo while typing — for passwords — and keeps the answer's whitespace; only the trailing newline is stripped. `Stdio` restores the previous terminal state afterwards, also when reading fails. If it cannot switch the echo off on a terminal, for example without `stty`, `secret()` throws a `RuntimeException` instead of reading visibly. On Windows, or without a terminal (piped input, tests), the line is simply read as is, visibly.
 - `confirm()` renders the default as `[y/N]` or `[Y/n]`; an answer starting with `y`/`Y` means yes, an empty one means the default, anything else no.
-- `choice()` lists the options numbered from 1, prompts with the default number as `[1]`, and returns the chosen option (not its number). An answer that is no listed number asks again. A default out of range, or an empty option list, throws a `ValueError`.
+- `choice()` lists the option labels numbered from 1 and returns the chosen option's key, the index for a list. The prompt shows the default's number, `[2]`; the default is a key, the first option's unless given. An answer that is no listed number asks again. A default that is no key, or an empty option list, throws a `ValueError`.
+- Questions are markup; defaults and option labels print as plain text.
 - Answers are read from the terminal's input, for `Stdio` its `input` target, `php://stdin` by default.
 
 ### Testing Commands
