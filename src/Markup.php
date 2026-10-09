@@ -22,7 +22,8 @@ use ValueError;
  *
  * Arguments fill the template's sprintf() conversions and print as plain
  * text, never as markup. Control characters other than newlines and tabs
- * are dropped from both, so no text can inject terminal escape sequences.
+ * are dropped from both, so no text can inject terminal escape sequences;
+ * only templates keep carriage returns, which redraw a progress line.
  *
  * @internal
  */
@@ -43,8 +44,8 @@ final class Markup
 
 	private const string CONTROLS = '/[\x00-\x08\x0B-\x1F\x7F]/';
 
-	/** Like CONTROLS, but keeps the boundaries of escaped text. */
-	private const string TEMPLATE_CONTROLS = '/[\x00-\x08\x0B-\x1E\x7F]/';
+	/** Like CONTROLS, but keeps carriage returns and the boundaries of escaped text. */
+	private const string TEMPLATE_CONTROLS = '/[\x00-\x08\x0B\x0C\x0E-\x1E\x7F]/';
 
 	/** A sprintf() conversion, `%1$s` and `%%` included. */
 	private const string CONVERSION = '/%(?:%|(?:(\d+)\$)?((?:[-+ 0]|\'.)*\d*(?:\.\d+)?[bcdeEfFgGhHosuxX]))/';

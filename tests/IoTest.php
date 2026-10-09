@@ -69,9 +69,18 @@ class IoTest extends TestCase
 		$buffer = new Buffer();
 		$io = new Io($buffer);
 		$io->line('%s', "evil \033]0;pwned\007 message");
-		$io->line("raw \033[31mred\r\tand\x7f tab");
+		$io->line("raw \033[31mred\tand\x7f tab");
+		$io->line('%s', "spoofed\rline");
 
-		$this->assertSame("evil ]0;pwned message\nraw [31mred\tand tab\n", $buffer->output());
+		$this->assertSame("evil ]0;pwned message\nraw [31mred\tand tab\nspoofedline\n", $buffer->output());
+	}
+
+	public function testTemplatesKeepCarriageReturns(): void
+	{
+		$buffer = new Buffer();
+		new Io($buffer)->write("\r%3d%%", 50);
+
+		$this->assertSame("\r 50%", $buffer->output());
 	}
 
 	public function testTemplateWithoutArgumentsIsNotFormatted(): void

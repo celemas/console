@@ -234,7 +234,7 @@ $io->error('%s', $e->getMessage());
 
 Arguments are strings, numbers, or `Stringable` objects; a template that names more arguments than given throws a `ValueError`. Without arguments the template is not formatted, so a `%` needs no doubling there: `$io->line('100% done')`. With arguments, write a literal `%` as `%%`, as in `sprintf()`.
 
-Control characters other than newlines and tabs are dropped from templates and arguments alike, so no text can inject terminal escape sequences. Markup never fails: a tag without its partner prints literally. So even a message passed as the template, `$io->error($e->getMessage())`, prints safely — at worst a known tag in it renders as style. Pass untrusted text as an argument to be sure.
+Control characters other than newlines and tabs are dropped from arguments and templates, so no text can inject terminal escape sequences. Only templates keep carriage returns, so a progress line can redraw itself: `$io->write("\r%3d%%", $percent)`. Markup never fails: a tag without its partner prints literally. So even a message passed as the template, `$io->error($e->getMessage())`, prints safely — at worst a known tag in it renders as style. Pass untrusted text as an argument to be sure.
 
 `success()`, `warn()`, and `error()` color the whole line; tags in the template style parts of it: `$io->success('Created <strong>%d</strong> files', $count)`.
 
