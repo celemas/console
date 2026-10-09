@@ -217,7 +217,8 @@ final class Runner
 				$e->getMessage(),
 			);
 
-			if ($this->debug) {
+			// A usage error is the input's fault; its trace shows nothing.
+			if ($this->debug && !$e instanceof InvalidUsage) {
 				$this->io->error("\n<yellow>Traceback:</yellow>\n%s", $e->getTraceAsString());
 			}
 

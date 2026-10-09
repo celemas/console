@@ -1018,6 +1018,17 @@ class RunnerTest extends TestCase
 		$runner->run(['run', 'err']);
 	}
 
+	public function testDebugShowsNoTracebackForUsageErrors(): void
+	{
+		$buffer = new Buffer();
+		$runner = new Runner([new Fixtures\Plain()], new Io($buffer), debug: true);
+
+		$this->assertSame(2, $runner->run(['run', 'plain', '--unknown']));
+		$this->assertSame(2, $runner->run(['run', 'missing']));
+		$this->assertStringContainsString("Unknown option '--unknown'", $buffer->errorOutput());
+		$this->assertStringNotContainsString('Traceback', $buffer->errorOutput());
+	}
+
 	public function testRunReturnsSuccessCode(): void
 	{
 		ob_start();
