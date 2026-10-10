@@ -62,6 +62,15 @@ class ArgsTest extends TestCase
 		$this->assertSame(['--tag'], $args->names());
 	}
 
+	public function testNumericOptionNamesStayStrings(): void
+	{
+		$args = new Args(['-5', '--tag=a', '-12=x']);
+
+		$this->assertSame(['-5', '--tag', '-12'], $args->names());
+		$this->assertTrue($args->has('-5'));
+		$this->assertSame('x', $args->opt('-12'));
+	}
+
 	public function testSeparatorEndsOptionParsing(): void
 	{
 		$args = new Args(['up', '--tag=a', '--', '--tag=b', '-v', '--']);

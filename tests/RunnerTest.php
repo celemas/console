@@ -366,6 +366,37 @@ class RunnerTest extends TestCase
 		$this->assertStringContainsString("Unknown option '--whatever'", $out->errorOutput());
 	}
 
+	public function testRejectUndeclaredNumericOption(): void
+	{
+		$out = new Buffer();
+
+		$this->assertSame(
+			2,
+			new Runner([new Fixtures\Plain()], new Io($out))->run(['run', 'plain', '-5']),
+		);
+		$this->assertStringContainsString("Unknown option '-5'", $out->errorOutput());
+	}
+
+	public function testSuggestsANumericShortAlias(): void
+	{
+		[$code, $out] = $this->runProbe(
+			new
+				#[Command('probe', 'Numeric alias')]
+				class {
+					public function __invoke(
+						#[Opt('One per line', short: '-1')]
+						bool $single = false,
+					): int {
+						return 0;
+					}
+				},
+			'-2',
+		);
+
+		$this->assertSame(2, $code);
+		$this->assertStringContainsString("Unknown option '-2'. Did you mean '-1'?", $out->errorOutput());
+	}
+
 	public function testRejectUndeclaredPositional(): void
 	{
 		$out = new Buffer();

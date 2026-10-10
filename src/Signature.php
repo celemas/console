@@ -461,7 +461,10 @@ final class Signature
 		$best = '';
 		$bestDistance = PHP_INT_MAX;
 
-		foreach ([...array_keys($this->options), ...array_keys($this->aliases)] as $candidate) {
+		// PHP turns a numeric short name like '-1' into an integer key.
+		$shorts = array_map(strval(...), array_keys($this->aliases));
+
+		foreach ([...array_keys($this->options), ...$shorts] as $candidate) {
 			$distance = levenshtein($name, $candidate);
 
 			if ($distance < $bestDistance) {

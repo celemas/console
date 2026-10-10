@@ -61,6 +61,10 @@
 
 - `Runner::showHelp()` and `Runner::showCommands()` are private: run the `help` and `commands` built-ins instead, e.g. `$runner->run(['run', 'commands'])`. `Args::bare()` is gone; it only served the runner's validation.
 
+### Fixed
+
+- A numeric token like `-5` is reported as an unknown option, with exit code 2, instead of failing with a `TypeError`: `Args::names()` returned such a name as an integer and now returns strings only. An unknown option on a command declaring a numeric short name, like `short: '-1'`, failed the same way while looking for a suggestion.
+
 ### Added
 
 - `Io::interactive()` tells whether someone can see and answer prompts, `Io::width()` the terminal width; `new Buffer(interactive: true, width: 120)` pretends to be such a terminal. `Stdio` takes `colors:` to switch colors on or off regardless of the environment, for example for a `--no-color` flag. Other devices implement the `Terminal` interface.

@@ -72,7 +72,8 @@ final class Args
 	 */
 	public function names(): array
 	{
-		return array_keys($this->options);
+		// PHP turns numeric keys like '-5' into integers.
+		return array_map(strval(...), array_keys($this->options));
 	}
 
 	public function opt(string $key, string $default = ''): string
