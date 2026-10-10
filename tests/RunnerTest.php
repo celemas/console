@@ -74,26 +74,78 @@ class RunnerTest extends TestCase
 		$this->assertStringNotContainsString('Did you mean', $errors);
 	}
 
-	public function testUndeclaredHelpFlagHintsAtTheHelpCommand(): void
+	public function testHelpFlagShowsTheCommandHelp(): void
 	{
-		[$code, $errors] = $this->runVariants('--help');
+		$help = new Buffer();
+		new Runner([new Greet()], new Io($help))->run(['run', 'help', 'greet']);
 
-		$this->assertSame(2, $code);
-		$this->assertStringContainsString(
-			"Unknown option '--help'. Use 'php run help help:variants' to show the command's help",
-			$errors,
-		);
+		$this->assertStringContainsString('php run greet [<name>] [options]', $help->output());
+
+		foreach (['--help', '-h'] as $flag) {
+			$out = new Buffer();
+
+			$this->assertSame(0, new Runner([new Greet()], new Io($out))->run(['run', 'greet', 'Ada', $flag]));
+			$this->assertSame($help->output(), $out->output());
+			$this->assertSame('', $out->errorOutput());
+		}
 	}
 
-	public function testHelpFlagHintUsesTheScriptName(): void
+	public function testHelpFlagComesBeforeValidation(): void
+	{
+		// The required <file> is missing, and --unknown is no option.
+		$out = new Buffer();
+		$code = new Runner([new HelpVariants()], new Io($out))->run(['run', 'help:variants', '--unknown', '--help']);
+
+		$this->assertSame(0, $code);
+		$this->assertStringContainsString('php run help:variants <file>', $out->output());
+		$this->assertSame('', $out->errorOutput());
+	}
+
+	public function testDeclaredShortNameKeepsItsOption(): void
+	{
+		// HelpVariants declares -h as the short name of --host.
+		$out = new Buffer();
+		$runner = new Runner([new HelpVariants()], new Io($out));
+
+		$this->assertSame(0, $runner->run(['run', 'help:variants', 'data.csv', '-h=example.com']));
+		$this->assertSame('', $out->output());
+
+		$this->assertSame(2, $runner->run(['run', 'help:variants', 'data.csv', '-h']));
+		$this->assertStringContainsString("Option '--host' requires a value", $out->errorOutput());
+	}
+
+	public function testHelpFlagAfterTheSeparatorIsAPositional(): void
 	{
 		$out = new Buffer();
-		new Runner([new HelpVariants()], new Io($out))->run(['bin/console', 'help:variants', '--help']);
 
-		$this->assertStringContainsString(
-			"Unknown option '--help'. Use 'php bin/console help help:variants' to show the command's help",
-			$out->errorOutput(),
-		);
+		$this->assertSame(0, new Runner([new Greet()], new Io($out))->run(['run', 'greet', '--', '--help']));
+		$this->assertSame('Hello, --help', $out->output());
+	}
+
+	public function testRejectValueOnHelpFlag(): void
+	{
+		foreach (['--help', '-h'] as $flag) {
+			$out = new Buffer();
+
+			$this->assertSame(2, new Runner([new Greet()], new Io($out))->run(['run', 'greet', "{$flag}=yes"]));
+			$this->assertSame('', $out->output());
+			$this->assertStringContainsString("Option '{$flag}' does not accept a value", $out->errorOutput());
+		}
+	}
+
+	public function testLeadingHelpFlagActsAsTheHelpCommand(): void
+	{
+		foreach ([[], ['greet']] as $target) {
+			$help = new Buffer();
+			new Runner([new Greet()], new Io($help))->run(['run', 'help', ...$target]);
+
+			foreach (['--help', '-h'] as $flag) {
+				$out = new Buffer();
+
+				$this->assertSame(0, new Runner([new Greet()], new Io($out))->run(['run', $flag, ...$target]));
+				$this->assertSame($help->output(), $out->output());
+			}
+		}
 	}
 
 	public function testRejectValueOnBooleanOption(): void
@@ -858,6 +910,7 @@ class RunnerTest extends TestCase
 		yield 'overview' => [['bin/tool'], 'php bin/tool [prefix:]command'];
 		yield 'help command' => [['bin/tool', 'help'], 'php bin/tool [prefix:]command'];
 		yield 'command help' => [['bin/tool', 'help', 'help:variants'], 'php bin/tool help:variants <file>'];
+		yield 'help flag' => [['bin/tool', 'help:variants', '--help'], 'php bin/tool help:variants <file>'];
 	}
 
 	/** @param list<string> $argv */
@@ -1421,21 +1474,37 @@ class RunnerTest extends TestCase
 
 	public function testDeclaredHelpFlagReachesTheCommand(): void
 	{
-		// The runner does not intercept --help/-h; a command that declares
-		// the flag reads it itself. Help stays on `run help <command>`.
+		foreach (['--help', '-h'] as $flag) {
+			[$code, $out] = $this->runProbe(new
+				#[Command('probe', 'Help probe')]
+				class {
+					public function __invoke(Io $io, #[Opt('Show this help', short: '-h')] bool $help = false): int
+					{
+						$io->write($help ? 'own help' : 'no help');
+
+						return 0;
+					}
+				}, $flag);
+
+			$this->assertSame(0, $code);
+			$this->assertSame('own help', $out->output());
+		}
+	}
+
+	public function testDeclaredHelpFlagLeavesShortHelpUnanswered(): void
+	{
 		[$code, $out] = $this->runProbe(new
 			#[Command('probe', 'Help probe')]
 			class {
-				public function __invoke(Io $io, #[Opt('Show this help', short: '-h')] bool $help = false): int
+				public function __invoke(#[Opt('Explain the format')] bool $help = false): int
 				{
-					$io->write($help ? 'own help' : 'no help');
-
 					return 0;
 				}
-			}, '--help');
+			}, '-h');
 
-		$this->assertSame(0, $code);
-		$this->assertSame('own help', $out->output());
+		$this->assertSame(2, $code);
+		$this->assertSame('', $out->output());
+		$this->assertStringContainsString("Unknown option '-h'", $out->errorOutput());
 	}
 
 	public function testRunClassStringCommand(): void
@@ -1456,7 +1525,15 @@ class RunnerTest extends TestCase
 			return new $class();
 		};
 
-		foreach ([['run'], ['run', 'help'], ['run', 'commands'], ['run', 'help', 'greet']] as $argv) {
+		$listings = [
+			['run'],
+			['run', 'help'],
+			['run', 'commands'],
+			['run', 'help', 'greet'],
+			['run', 'greet', '--help'],
+		];
+
+		foreach ($listings as $argv) {
 			$out = new Buffer();
 
 			$this->assertSame(0, new Runner($commands, new Io($out), resolve: $resolve)->run($argv));

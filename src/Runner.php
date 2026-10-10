@@ -177,7 +177,7 @@ final class Runner
 			$cmd = strtolower($arg);
 			$isHelpCall = false;
 
-			if ($cmd === 'help') {
+			if ($cmd === 'help' || $arg === '--help' || $arg === '-h') {
 				$isHelpCall = true;
 				$arg = $argv[2] ?? null;
 
@@ -230,7 +230,12 @@ final class Runner
 	private function runCommand(Entry $entry, array $tokens, string $script): int
 	{
 		$signature = $entry->signature();
-		$values = $signature->bind($tokens, $this->io, $script);
+
+		if ($signature->asksForHelp($tokens)) {
+			return $this->showCommandHelp($entry, $script);
+		}
+
+		$values = $signature->bind($tokens, $this->io);
 
 		// The signature checked that __invoke() exists; PHP requires it
 		// to be public.

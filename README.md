@@ -21,7 +21,7 @@ A command line interface helper.
 - Lazy command construction: factories or an optional class resolver run only for the invoked command
 - Anonymous classes as lightweight one-off commands — attributes work inline
 - Built-in color support with per-stream terminal detection and `NO_COLOR`/`FORCE_COLOR` handling
-- Command help with `php run help <command>`
+- Command help with `php run help <command>` or `php run <command> --help`
 - Built-in `commands` command for shell autocomplete
 - `--key=value` options (repeatable) and boolean `--flag` / `-h` flags; `--` ends option parsing
 - Output from markup templates and data arguments: `$io->error('Cannot read <strong>%s</strong>', $path)` needs no escaping; `line()`, `write()`, `success()`, `warn()`, and `error()` (warnings and errors go to STDERR)

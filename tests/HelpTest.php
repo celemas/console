@@ -14,7 +14,6 @@ use Celema\Console\Tests\Fixtures\Defaults;
 use Celema\Console\Tests\Fixtures\HelpVariants;
 use Celema\Console\Tests\Fixtures\Plain;
 use Celema\Console\Tests\Fixtures\Wrapped;
-use PHPUnit\Framework\Attributes\BackupGlobals;
 
 class HelpTest extends TestCase
 {
@@ -43,17 +42,6 @@ class HelpTest extends TestCase
 		$this->assertStringContainsString('php run copy <target> [<files>...]', $out);
 		$this->assertStringContainsString("Arguments:\n    <target>\n        The target", $out);
 		$this->assertStringContainsString("<files>...\n        The files", $out);
-	}
-
-	#[BackupGlobals(true)]
-	public function testShowForDefaultsToTheServerScriptName(): void
-	{
-		$_SERVER['argv'] = ['bin/console'];
-		$buffer = new Buffer();
-		$io = new Io($buffer);
-		new Help($io)->showFor(Plain::class);
-
-		$this->assertStringContainsString('php bin/console plain', $buffer->output());
 	}
 
 	public function testShowForRendersTheDescriptionAndUsage(): void

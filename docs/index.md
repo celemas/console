@@ -405,7 +405,7 @@ $args->names();                  // names of all provided options
 
 ### Command Help
 
-`php run help <command>` renders the description and usage line from the `#[Command]` attribute, an "Arguments:" entry per `#[Arg]` parameter, and an "Options:" entry per `#[Opt]` parameter:
+`php run help <command>` and `php run <command> --help` render the description and usage line from the `#[Command]` attribute, an "Arguments:" entry per `#[Arg]` parameter, and an "Options:" entry per `#[Opt]` parameter:
 
 - `#[Arg] string $file` renders `<file>` in the usage line and under "Arguments:". With a default, it renders `[<file>]`; as an `array`, `<file>...`.
 - `#[Opt(short: '-s')] string $stuff = ''` renders `-s=<stuff>, --stuff=<stuff>`; `value: 'path'` changes the label to `<path>`.
@@ -421,30 +421,12 @@ The descriptions are followed by `[choices: csv, json]` for an enum and `[defaul
 
 The unprefixed names `help` and `commands` are reserved, and duplicate full command names are rejected: registering either throws a `ValueError`, and the rejected call registers none of its commands.
 
-The runner reserves no flags, so `--help`/`-h` (and every other flag) belong to your command; use `php run help <command>` for a command's help screen.
+Every command also answers `--help` and `-h` with its help screen: `php run db:import --help` shows the same as `php run help db:import`. The runner looks for the flag before it validates the input, so it works without the required arguments and next to a mistyped option. A leading flag acts as the `help` command: `php run --help` shows the overview. After a `--` separator, `--help` is a positional like any other token.
 
-A command that wants to answer `--help` itself can render the same screen with the `Help` renderer. It declares the flag like any other option, or validation rejects it first:
+The runner only takes what a command leaves free:
 
-```php
-use Celema\Console\{Help, Opt, Io};
-
-public function __invoke(
-    Io $io,
-    #[Opt('Show this help', short: '-h')]
-    bool $help = false,
-    // ... the command's other parameters ...
-): int {
-    if ($help) {
-        new Help($io)->showFor($this);
-
-        return 0;
-    }
-
-    // ...
-}
-```
-
-`showFor()` reads the `#[Command]` attribute and the `__invoke()` signature off the instance or class, so the flag-triggered screen cannot drift from `php run help <command>`. The usage line shows the script name from `$_SERVER['argv'][0]`; pass another as the second constructor argument: `new Help($io, 'bin/console')`.
+- A command that declares `-h` as the short name of another option, such as `--host`, keeps it; `--help` still shows its help.
+- A command that declares `--help` itself receives the flag like any other option. The runner then answers neither `--help` nor `-h`.
 
 ### Debug Mode
 

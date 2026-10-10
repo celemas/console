@@ -8,21 +8,16 @@ use BackedEnum;
 use ReflectionParameter;
 
 /**
- * Renders a command's help screen from its declaration.
+ * Renders a command's help screen from its declaration, for the runner's
+ * `help <command>` and `--help`.
  *
- * Used by the Runner for `help <command>`; commands that intercept a
- * `--help` flag themselves can render the same screen via `showFor()`.
- *
- * @api
+ * @internal
  */
 final class Help
 {
-	/**
-	 * The script name in the usage line defaults to `$_SERVER['argv'][0]`.
-	 */
 	public function __construct(
 		private readonly Io $io,
-		private readonly ?string $script = null,
+		private readonly string $script,
 	) {}
 
 	/**
@@ -38,14 +33,13 @@ final class Help
 		$signature = Signature::of($class, $meta->full());
 		$arguments = $signature->arguments();
 		$options = $signature->options();
-		$script = $this->script ?? $_SERVER['argv'][0] ?? '';
 
 		if ($meta->description !== '') {
 			$this->io->line('<yellow>Description:</yellow>');
 			$this->io->line('  ' . $meta->description . "\n");
 		}
 
-		$usage = "php {$script} {$meta->full()}";
+		$usage = "php {$this->script} {$meta->full()}";
 
 		foreach ($arguments as $argument) {
 			$name = $this->argumentName($argument);

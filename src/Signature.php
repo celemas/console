@@ -119,6 +119,41 @@ final class Signature
 	}
 
 	/**
+	 * Whether the tokens ask the runner for the help screen, with `--help`
+	 * or `-h`.
+	 *
+	 * A command declaring `--help` answers both itself, and a `-h` declared
+	 * as the short name of another option stays that option's.
+	 *
+	 * @throws InvalidUsage
+	 *
+	 * @param list<string> $tokens
+	 */
+	public function asksForHelp(array $tokens): bool
+	{
+		if (array_key_exists('--help', $this->options)) {
+			return false;
+		}
+
+		// Parsing replaces a declared `-h` with its long name.
+		[$args] = $this->parse($tokens);
+
+		foreach (['--help', '-h'] as $name) {
+			if (!$args->has($name)) {
+				continue;
+			}
+
+			if ($args->opts($name) !== []) {
+				throw new InvalidUsage("Option '{$name}' does not accept a value");
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Validates the command-line tokens against the declarations and
 	 * converts them to the named arguments of `__invoke()`.
 	 *
@@ -127,12 +162,10 @@ final class Signature
 	 * Absent options and optional arguments are left out, so the
 	 * parameters' defaults apply.
 	 *
-	 * `$script` names the runner script in the `--help` hint.
-	 *
 	 * @param list<string> $tokens
 	 * @return array<string, mixed>
 	 */
-	public function bind(array $tokens, Io $io, string $script): array
+	public function bind(array $tokens, Io $io): array
 	{
 		[$args, $counts, $bare] = $this->parse($tokens);
 		$values = [];
@@ -144,7 +177,7 @@ final class Signature
 		$grouped = [];
 
 		foreach ($args->names() as $name) {
-			$option = $this->options[$name] ?? throw new InvalidUsage($this->unknownOption($name, $script));
+			$option = $this->options[$name] ?? throw new InvalidUsage($this->unknownOption($name));
 
 			$value = $option->value($args, $counts[$name], array_key_exists($name, $bare));
 
@@ -451,12 +484,8 @@ final class Signature
 		return $values;
 	}
 
-	private function unknownOption(string $name, string $script): string
+	private function unknownOption(string $name): string
 	{
-		if ($name === '--help' || $name === '-h') {
-			return "Unknown option '{$name}'. Use 'php {$script} help {$this->full}' to show the command's help";
-		}
-
 		$message = "Unknown option '{$name}'";
 		$best = '';
 		$bestDistance = PHP_INT_MAX;

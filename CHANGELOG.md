@@ -44,7 +44,7 @@
   - Supported types are `string`, `int`, `float`, `bool`, `array`, and backed enums, also nullable. A value that does not convert, like `--batch=many`, aborts the command before it runs, as does a single-value option given more than once; previously the first value won. An enum accepts its backing values, and the help lists them as `[choices: ...]`.
   - `#[Arg]` takes only a description. An argument with a default is optional (formerly `optional: true`); an `array` argument takes the remaining positionals (formerly `variadic: true`).
   - `#[Opt]` takes a description, `short`, `value` (the help label, now defaulting to the option name), and `bare`. Every option needs a default, which the help renders as `[default: ...]` (formerly the `default:` string, which the runner never applied). A `bool` option is a flag and must default to `false`; an `array` option is repeatable. `bare` replaces `optionalValue`: it is the value a bare `--name` stands for, so `#[Opt('Worker count', bare: '1')] ?int $worker = null` receives `null`, `1`, or the given count.
-  - Removed `Arg::$name`, `Arg::$optional`, `Arg::$variadic`, `Opt::$long`, `Opt::$optionalValue`, `Opt::$default`, `Arg::of()`, `Opt::of()`, and `Help::show()`. `Help::showFor()` renders from the `#[Command]` attribute and the `__invoke()` signature.
+  - Removed `Arg::$name`, `Arg::$optional`, `Arg::$variadic`, `Opt::$long`, `Opt::$optionalValue`, `Opt::$default`, `Arg::of()`, and `Opt::of()`.
   - `__invoke()` parameters other than `Args` and `Io` must carry `#[Arg]` or `#[Opt]`. `Args` stays injectable for raw access; it holds the validated strings.
   - Commands are plain callables, so tests call them with named arguments, already converted, instead of building `Args`: `$command(io: $io, file: 'data.csv', batch: 10)`.
 
@@ -61,15 +61,18 @@
 
 - `Runner::showHelp()` and `Runner::showCommands()` are private: run the `help` and `commands` built-ins instead, e.g. `$runner->run(['run', 'commands'])`. `Args::bare()` is gone; it only served the runner's validation.
 
+- `Help` is internal: the runner answers `--help` itself, see below. A command that declared the flag only to render the screen with `new Help($io)->showFor($this)` drops both.
+
 ### Fixed
 
 - A numeric token like `-5` is reported as an unknown option, with exit code 2, instead of failing with a `TypeError`: `Args::names()` returned such a name as an integer and now returns strings only. An unknown option on a command declaring a numeric short name, like `short: '-1'`, failed the same way while looking for a suggestion.
 
 ### Added
 
+- Built-in `--help`: `php run db:import --help`, or `-h`, shows the command's help screen like `php run help db:import`; both were usage errors unless the command declared them. The runner looks for the flag before it validates the input, so it works without the required arguments. A leading flag acts as the `help` command: `php run --help` shows the overview. A `-h` declared as the short name of another option, like `--host`, stays that option's, and a command that declares `--help` itself still receives it; the runner then answers neither flag.
 - `Io::interactive()` tells whether someone can see and answer prompts, `Io::width()` the terminal width; `new Buffer(interactive: true, width: 120)` pretends to be such a terminal. `Stdio` takes `colors:` to switch colors on or off regardless of the environment, for example for a `--no-color` flag. Other devices implement the `Terminal` interface.
 - Optional class resolver: `new Runner([Import::class], resolve: $container->get(...))` lazily constructs class-string registrations through any callable, without a container dependency. It also applies to classes added later; instances and explicit factories bypass it. Resolved commands are cached per registration, and help and command listings never invoke the resolver.
-- `Runner::run()` takes an optional argument vector in place of `$_SERVER['argv']`, starting with the script name like it, so tests and embedding code need not change the global. Its script name reaches the help screens and the `--help` hint. `Help` takes a script name as an optional second constructor argument, defaulting to `$_SERVER['argv'][0]`.
+- `Runner::run()` takes an optional argument vector in place of `$_SERVER['argv']`, starting with the script name like it, so tests and embedding code need not change the global. Its script name reaches the help screens.
 - `Celema\Console\Exception\InvalidUsage`: commands throw it for usage checks of their own, such as options that cannot be combined; the runner prints the message and exits with code 2.
 - Option groups: an `__invoke()` parameter typed with a class whose constructor parameters all carry `#[Opt]` receives an instance of that class, created from the command line. Commands share options through a group, and a long option list moves out of the command's signature. The group's options are validated, converted, and listed in the help like the command's own.
 
