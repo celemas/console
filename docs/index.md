@@ -324,7 +324,7 @@ php run db:import data.csv json -b=100 --tag=news --tag=events --dry-run
 - The supported types are `string`, `int`, `float`, `bool`, `array`, and backed enums, also nullable. An enum accepts its backing values. A value that does not convert, like `--batch=many` or `--format=xml`, aborts the command.
 - Positionals match the arguments in declaration order. An argument with a default is optional. An `array` argument must be the last one and takes the remaining positionals as strings: at least one, or any number when it has a default.
 - Every option needs a default, which the command receives when the option is absent; use a nullable type for "not given", like `?int $limit = null`. A `bool` option is a flag without value and must default to `false`. An `array` option is repeatable and collects its values as strings. Any other option takes exactly one value.
-- `short` adds an alias, such as `-b`. `value` overrides the `<value>` label in the help, which defaults to the option name.
+- `short` adds an alias of one character, such as `-b`. `value` overrides the `<value>` label in the help, which defaults to the option name.
 - `bare` makes the value of an option optional. With `#[Opt('Worker count', bare: '1')] ?int $worker = null`, the command receives `null` without `--worker`, `1` for a bare `--worker`, and `4` for `--worker=4`. The bare value is written as on the command line.
 - A default known only at runtime, such as a port configured in the constructor, becomes a nullable parameter: `?int $port = null`, then `$port ?? $this->port`.
 

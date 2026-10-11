@@ -22,10 +22,10 @@ use ValueError;
  * - `array`: repeatable, `--tag=a --tag=b`, collecting the values as
  *   strings.
  *
- * `short` adds an alias like `-p`. `value` overrides the `<value>` label,
- * which defaults to the option name. `bare` makes the value optional: a
- * bare `--name` then stands for `--name=<bare>`, and the help renders
- * `--name[=<value>]`.
+ * `short` adds an alias of one character, like `-p`. `value` overrides the
+ * `<value>` label, which defaults to the option name. `bare` makes the
+ * value optional: a bare `--name` then stands for `--name=<bare>`, and the
+ * help renders `--name[=<value>]`.
  *
  * @api
  */
@@ -38,8 +38,8 @@ final class Opt
 		public readonly string $value = '',
 		public readonly ?string $bare = null,
 	) {
-		if ($short !== '' && preg_match('/^-[^-=\s][^=\s]*$/', $short) !== 1) {
-			throw new ValueError("Invalid short option name '{$short}'");
+		if ($short !== '' && preg_match('/^-[^-=\s]\z/u', $short) !== 1) {
+			throw new ValueError("Short option name '{$short}' must be a dash and one character");
 		}
 	}
 }

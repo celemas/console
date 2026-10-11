@@ -19,16 +19,27 @@ class OptTest extends TestCase
 		$this->assertSame('-w', $full->short);
 	}
 
+	public static function shortProvider(): array
+	{
+		return [['-w'], ['-W'], ['-1'], ['-?'], ['-ä']];
+	}
+
+	#[DataProvider('shortProvider')]
+	public function testShortNameIsOneCharacter(string $short): void
+	{
+		$this->assertSame($short, new Opt('Files', short: $short)->short);
+	}
+
 	public static function invalidShortProvider(): array
 	{
-		return [['w'], ['-'], ['--w'], ['-w=x'], ['-w space']];
+		return [['w'], ['-'], ['--'], ['--w'], ['-vv'], ['-='], ['- '], ["-w\n"]];
 	}
 
 	#[DataProvider('invalidShortProvider')]
 	public function testRejectInvalidShortName(string $short): void
 	{
 		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage("Invalid short option name '{$short}'");
+		$this->expectExceptionMessage("Short option name '{$short}' must be a dash and one character");
 
 		new Opt('Files', short: $short);
 	}
