@@ -138,6 +138,52 @@ class ParametersTest extends TestCase
 		$this->assertStringContainsString("Missing required argument '<target-dir>'", $out->errorOutput());
 	}
 
+	public function testNamesSplitAtUnderscoresAndAcronyms(): void
+	{
+		$command = new
+			#[Command('probe')]
+			class {
+				public array $seen = [];
+
+				// One parameter per spelling.
+				// @mago-expect lint:excessive-parameter-list
+				public function __invoke(
+					#[Arg]
+					string $source_file,
+					#[Opt]
+					bool $dry_run = false,
+					#[Opt]
+					bool $HTMLOnly = false,
+					#[Opt]
+					bool $parseURL = false,
+					#[Opt]
+					bool $utf8Mode = false,
+					#[Opt]
+					bool $_raw = false,
+				): int {
+					$this->seen = get_defined_vars();
+
+					return 0;
+				}
+			};
+		[$code] = $this->runProbe($command, 'x', '--dry-run', '--html-only', '--parse-url', '--utf8-mode', '--_raw');
+		[, $out] = $this->runProbe($command);
+
+		$this->assertSame(0, $code);
+		$this->assertSame(
+			[
+				'source_file' => 'x',
+				'dry_run' => true,
+				'HTMLOnly' => true,
+				'parseURL' => true,
+				'utf8Mode' => true,
+				'_raw' => true,
+			],
+			$command->seen,
+		);
+		$this->assertStringContainsString("Missing required argument '<source-file>'", $out->errorOutput());
+	}
+
 	public function testConvertsOptionsToTheDeclaredTypes(): void
 	{
 		$command = self::typed();

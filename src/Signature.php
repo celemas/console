@@ -100,10 +100,20 @@ final class Signature
 
 	/**
 	 * Converts a parameter name to the kebab-case of command-line names.
+	 *
+	 * A word ends at an underscore, at a capital after a lowercase letter
+	 * or digit, and at the last capital of an acronym: `HTMLOnly` is
+	 * `html-only`.
 	 */
 	public static function kebab(string $name): string
 	{
-		return strtolower(preg_replace('/(?<=[a-z0-9])[A-Z]/', '-$0', $name) ?? $name);
+		$words = preg_replace(
+			'/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|(?<=[a-zA-Z0-9])_+(?=[a-zA-Z0-9])/',
+			replacement: '-',
+			subject: $name,
+		);
+
+		return strtolower($words ?? $name);
 	}
 
 	/** @return list<Argument> */

@@ -320,7 +320,7 @@ class Import
 php run db:import data.csv json -b=100 --tag=news --tag=events --dry-run
 ```
 
-- Names derive from the parameter names in kebab-case: `$dryRun` is `--dry-run`, and `$targetDir` renders as `<target-dir>`.
+- Names derive from the parameter names in kebab-case: `$dryRun` is `--dry-run`, and `$targetDir` renders as `<target-dir>`. An underscore and an acronym end a word as well: `$dry_run` is `--dry-run`, `$HTMLOnly` is `--html-only`.
 - The supported types are `string`, `int`, `float`, `bool`, `array`, and backed enums, also nullable. An enum accepts its backing values. A value that does not convert, like `--batch=many` or `--format=xml`, aborts the command.
 - Positionals match the arguments in declaration order. An argument with a default is optional. An `array` argument must be the last one and takes the remaining positionals as strings: at least one, or any number when it has a default.
 - Every option needs a default, which the command receives when the option is absent; use a nullable type for "not given", like `?int $limit = null`. A `bool` option is a flag without value and must default to `false`. An `array` option is repeatable and collects its values as strings. Any other option takes exactly one value.
