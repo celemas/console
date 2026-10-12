@@ -177,6 +177,40 @@ class IoTest extends TestCase
 		$this->assertSame([['out', false], ["\033[31merr\033[0m\n", true]], $terminal->writes);
 	}
 
+	public function testStderrWritesToTheErrorOutput(): void
+	{
+		$buffer = new Buffer();
+		$io = new Io($buffer);
+		$stderr = $io->stderr();
+		$stderr->line('  - %s', 'a.sql');
+		$stderr->write('<strong>partial</strong>');
+		$stderr->success(' done');
+		$stderr->rule('-', max: 3);
+		$io->line('regular');
+
+		$this->assertSame("  - a.sql\npartial done\n---\n", $buffer->errorOutput());
+		$this->assertSame("regular\n", $buffer->output());
+	}
+
+	public function testStderrUsesTheColorsOfTheErrorOutput(): void
+	{
+		$terminal = new Fixtures\Recorder();
+		$stderr = new Io($terminal)->stderr();
+		$stderr->write('<red>err</red>');
+
+		$this->assertSame([["\033[31merr\033[0m", true]], $terminal->writes);
+	}
+
+	public function testStderrPromptsOnTheErrorOutput(): void
+	{
+		$buffer = new Buffer("Charly\n");
+		$name = new Io($buffer)->stderr()->ask('Name:');
+
+		$this->assertSame('Charly', $name);
+		$this->assertSame('Name: ', $buffer->errorOutput());
+		$this->assertSame('', $buffer->output());
+	}
+
 	public function testIndent(): void
 	{
 		$io = new Io(new Buffer());

@@ -240,6 +240,18 @@ Control characters other than newlines and tabs are dropped from arguments and t
 
 `success()`, `warn()`, and `error()` color the whole line; tags in the template style parts of it: `$io->success('Created <strong>%d</strong> files', $count)`.
 
+`warn()` and `error()` write to the error output, the other methods to the standard output. `stderr()` returns an `Io` whose methods all write to the error output — for the plain lines below an error message, or for a prompt while the standard output is piped:
+
+```php
+$io->error('Cannot apply %d migrations', count($failed));
+
+foreach ($failed as $path) {
+    $io->stderr()->line('  - %s', $path);
+}
+
+$name = $io->stderr()->ask('Name:');
+```
+
 ### Markup
 
 The templates render inline markup:

@@ -27,6 +27,7 @@ use ValueError;
 final class Io
 {
 	private readonly Markup $markup;
+	private bool $error = false;
 
 	public function __construct(
 		private readonly Terminal $terminal = new Stdio(),
@@ -66,6 +67,20 @@ final class Io
 	public function error(string $template, float|int|string|Stringable ...$args): void
 	{
 		$this->output($template, $args, PHP_EOL, error: true, style: 'red');
+	}
+
+	/**
+	 * An Io for the error output: whatever it writes goes there, plain
+	 * lines and the prompts' questions included.
+	 *
+	 *     $io->stderr()->line('  - %s', $path);
+	 */
+	public function stderr(): self
+	{
+		$io = clone $this;
+		$io->error = true;
+
+		return $io;
 	}
 
 	/**
@@ -233,6 +248,7 @@ final class Io
 	/** @param array<float|int|string|Stringable> $args */
 	private function output(string $template, array $args, string $end, bool $error = false, string $style = ''): void
 	{
+		$error = $error || $this->error;
 		$text = $this->markup->render($template, array_values($args), $this->terminal->colors($error), $style);
 		$this->terminal->write($text . $end, $error);
 	}
