@@ -23,9 +23,10 @@ interface Terminal
 	/**
 	 * Reads one line without its line break; null at the end of input.
 	 *
-	 * With `$hidden`, typing must not be visible. An implementation that
-	 * cannot hide it on a device that would show it must throw instead
-	 * of reading.
+	 * With `$hidden`, typing should not be visible. An implementation
+	 * that has a way to hide it must throw when that fails, instead of
+	 * reading visibly; one whose platform offers none reads the line as
+	 * is.
 	 */
 	public function read(bool $hidden = false): ?string;
 

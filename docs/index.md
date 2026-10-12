@@ -170,7 +170,7 @@ $io = new Io(new Stdio('build.log', 'build.log'));         // output and errors 
 $io = new Io(new Stdio(colors: $noColor ? false : null));  // a --no-color flag
 ```
 
-`Stdio` is interactive when both its input and its output are terminals. Its width comes from `COLUMNS`, else from the terminal (`tput cols`), else it is 80. Tests use `Buffer` instead (see [Testing Commands](#testing-commands)). Other devices implement the `Terminal` interface: `write()`, `read()` (one line, with `$hidden` input that must not show), `colors()`, `interactive()`, and `width()`.
+`Stdio` is interactive when both its input and its output are terminals. Its width comes from `COLUMNS`, else from the terminal (`tput cols`), else it is 80. Tests use `Buffer` instead (see [Testing Commands](#testing-commands)). Other devices implement the `Terminal` interface: `write()`, `read()` (one line, with `$hidden` input that should not show), `colors()`, `interactive()`, and `width()`.
 
 ### Prompts
 

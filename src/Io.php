@@ -138,8 +138,9 @@ final class Io
 	/**
 	 * Asks for input that must not show while typing, such as a password.
 	 *
-	 * The answer keeps its whitespace. Where the terminal cannot hide the
-	 * input, it throws rather than reading visibly; see Stdio::read().
+	 * The answer keeps its whitespace. A terminal that fails to hide the
+	 * input throws rather than reading visibly; Stdio has no way to hide
+	 * it on Windows and reads visibly there, see Stdio::read().
 	 */
 	public function secret(string $question): string
 	{
