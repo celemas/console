@@ -58,6 +58,69 @@ class MyCommand
 
 The constructor is yours: take whatever dependencies the command needs and register an instance or a factory (see below).
 
+Create a runner script, e. g. `run.php` or simply `run`:
+
+```php
+<?php
+
+require __DIR__ . '/vendor/autoload.php';
+
+use Celema\Console\Runner;
+
+$runner = new Runner([new MyCommand()]);
+
+exit($runner->run());
+```
+
+Run the command by its full name, or without the prefix as long as that is unambiguous:
+
+```bash
+$ php run mycommand Ada --conn=pgsql
+Run my command for Ada
+Imported 120 rows
+Skipped Ada
+Connection pgsql failed
+Working ...
+
+$ php run help
+Usage:
+  php run [prefix:]command [arguments]
+
+Prefixes are optional if the command is unambiguous.
+
+Available commands:
+
+General
+  commands       Lists all available commands
+  help           Displays this overview
+
+My Group
+  grp:mycommand  This is my command description
+
+$ php run help mycommand
+Description:
+  This is my command description
+
+Usage:
+  php run grp:mycommand [<name>] [options]
+
+Arguments:
+    <name>
+        Who to greet [default: world]
+
+Options:
+    -b=<batch>, --batch=<batch>
+        Rows per batch [default: 500]
+    --conn=<conn>
+        The database connection [default: sqlite]
+    -v, --verbose
+        Enable verbose output
+
+$ php run commands
+grp:mycommand
+mycommand
+```
+
 ## Features
 
 ### Registering Commands
@@ -138,7 +201,7 @@ $runner = new Runner(
 
 With a container-backed resolver, register that same `Io` instance in the container using its own registration API.
 
-The runner validates the signature of the invoked command: `__invoke()` must declare the return type `int` — the exit code. Parameters typed `Args` or `Io` are injected, each at most once and in any order; every other parameter must carry `#[Arg]` or `#[Opt]` or take an option group (see [Arguments and Options](#arguments-and-options)).
+The runner validates the signature of the invoked command: `__invoke()` must declare the return type `int` — the exit code. Parameters typed `Args` or `Io` are injected, each at most once; every other parameter must carry `#[Arg]` or `#[Opt]` or take an option group (see [Arguments and Options](#arguments-and-options)). Declare `Args` and `Io` before the first parameter with a default: PHP drops a default that a required parameter follows.
 
 ### Io Methods
 
@@ -147,6 +210,7 @@ The runner validates the signature of the invoked command: `__invoke()` must dec
 - `success(string $template, ...$args)` - Output a green line
 - `warn(string $template, ...$args)` - Output a yellow line to STDERR
 - `error(string $template, ...$args)` - Output a red line to STDERR
+- `stderr()` - An `Io` whose methods all write to STDERR: `$io->stderr()->line(...)`
 - `ask(string $question, string $default = '')` - Prompt for one line of input
 - `secret(string $question)` - Prompt for input that must not show while typing, e.g. a password
 - `confirm(string $question, bool $default = false)` - Ask a yes/no question, rendered as `[y/N]` or `[Y/n]`
@@ -200,20 +264,20 @@ public function __invoke(Io $io): int
 
 ### Testing Commands
 
-`Buffer` is a terminal in memory. It captures the output and the error output separately and disables colors, so assertions need no escape-code stripping. Its constructor accepts prompt answers, one line each:
+`Buffer` is a terminal in memory. It captures the output and the error output separately and disables colors, so assertions need no escape-code stripping:
 
 ```php
 use Celema\Console\{Buffer, Io};
 
-$buffer = new Buffer("yes\n");
+$buffer = new Buffer();
 $exitCode = new MyCommand()(io: new Io($buffer), name: 'Ada', verbose: true);
 
 $this->assertSame(0, $exitCode);
-$this->assertStringContainsString('done', $buffer->output());
-$this->assertSame('', $buffer->errorOutput());
+$this->assertStringContainsString('Run my command for Ada', $buffer->output());
+$this->assertStringContainsString('Skipped Ada', $buffer->errorOutput());
 ```
 
-A `Buffer` can also pretend to be an interactive terminal of a given width, or one with colors: `new Buffer(interactive: true, width: 120, colors: true)`.
+Its constructor accepts the answers to prompts, one line each: `new Buffer("unnamed\nyes\n")`. A `Buffer` can also pretend to be an interactive terminal of a given width, or one with colors: `new Buffer(interactive: true, width: 120, colors: true)`.
 
 A command is a plain callable, so a test passes its parameters by name, already converted, and leaves out those that keep their defaults. To test the command line itself — parsing, validation, and conversion — run the command through a `Runner`, which takes the `Io` as its second argument: `new Runner([new MyCommand()], new Io($buffer))`.
 
@@ -335,7 +399,7 @@ php run db:import data.csv json -b=100 --tag=news --tag=events --dry-run
 ```
 
 - Names derive from the parameter names in kebab-case: `$dryRun` is `--dry-run`, and `$targetDir` renders as `<target-dir>`. An underscore and an acronym end a word as well: `$dry_run` is `--dry-run`, `$HTMLOnly` is `--html-only`.
-- The supported types are `string`, `int`, `float`, `bool`, `array`, and backed enums, also nullable. An enum accepts its backing values. A value that does not convert, like `--batch=many` or `--format=xml`, aborts the command.
+- The supported types are `string`, `int`, `float`, `bool`, `array`, and backed enums, also nullable. An enum accepts its backing values. A value that does not convert, like `--batch=many` or `xml` for the format, aborts the command.
 - Positionals match the arguments in declaration order. An argument with a default is optional. An `array` argument must be the last one and takes the remaining positionals as strings: at least one, or any number when it has a default.
 - Every option needs a default, which the command receives when the option is absent; use a nullable type for "not given", like `?int $limit = null`. A `bool` option is a flag without value and must default to `false`. An `array` option is repeatable and collects its values as strings. Any other option takes exactly one value.
 - `short` adds an alias of one character, such as `-b`. `value` overrides the `<value>` label in the help, which defaults to the option name.
@@ -444,50 +508,13 @@ The runner only takes what a command leaves free:
 
 ### Debug Mode
 
-Enable debug mode in the Runner to display full stack traces when commands throw exceptions:
+A command that throws fails the run with exit code 1, and the runner prints the exception's message to the error output. In debug mode it adds the stack trace:
 
 ```php
 $runner = new Runner([new MyCommand()], debug: true);
 ```
 
-Create a runner script, e. g. `run.php` or simply `run`:
-
-```php
-<?php
-
-require __DIR__ . '/vendor/autoload.php';
-
-use Celema\Console\Runner;
-use MyCommand;
-
-// Optional: enable debug mode to show stack traces on errors
-$runner = new Runner([new MyCommand()], debug: false);
-
-exit($runner->run());
-```
-
-Run the command:
-
-```bash
-$ php run mycommand
-Run my command
-
-$ php run grp:mycommand
-Run my command
-
-$ php run help
-Available commands:
-
-My Group
-    grp:mycommand  This is my command description
-
-$ php run help mycommand
-Help entry for my command
-
-$ php run commands
-List all available command names (useful for shell
-autocomplete)
-```
+Usage errors print no trace: the input is at fault, not the code.
 
 ### Shell Completion
 
