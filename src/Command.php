@@ -19,6 +19,9 @@ use ValueError;
  * help overview under the capitalized prefix; `group` overrides that
  * displayed title.
  *
+ * The attribute and its properties are public API; the methods serve the
+ * runner.
+ *
  * @api
  */
 #[Attribute(Attribute::TARGET_CLASS)]
@@ -46,11 +49,13 @@ final class Command
 		$this->name = $parts[2];
 	}
 
+	/** @internal */
 	public function full(): string
 	{
 		return $this->prefix === '' ? $this->name : "{$this->prefix}:{$this->name}";
 	}
 
+	/** @internal */
 	public function title(): string
 	{
 		if ($this->group !== '') {
@@ -62,6 +67,8 @@ final class Command
 
 	/**
 	 * Reads the attribute off a command instance or class.
+	 *
+	 * @internal
 	 *
 	 * @param class-string|object $command
 	 */

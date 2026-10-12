@@ -65,6 +65,8 @@
 
 - A short option name is a dash and one character, like `-b`: a longer one, such as `#[Opt(short: '-vv')]`, throws a `ValueError` when the attribute is instantiated. Give such an option its long name only.
 
+- `Command::full()`, `Command::title()`, and `Command::of()` are internal; they serve the runner. The attribute's `name`, `prefix`, `description`, and `group` properties stay public.
+
 - `Help` is internal: the runner answers `--help` itself, see below. A command that declared the flag only to render the screen with `new Help($io)->showFor($this)` drops both.
 
 ### Fixed
