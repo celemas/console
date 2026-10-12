@@ -61,6 +61,8 @@
 
 - `Runner::showHelp()` and `Runner::showCommands()` are private: run the `help` and `commands` built-ins instead, e.g. `$runner->run(['run', 'commands'])`. `Args::bare()` is gone; it only served the runner's validation.
 
+- Command names are validated: a name, like its optional prefix, consists of ASCII letters, digits, `.`, `_`, and `-` and starts with a letter or digit. Any other name, such as `cache clear` or `--version`, throws a `ValueError` when the attribute is instantiated.
+
 - A short option name is a dash and one character, like `-b`: a longer one, such as `#[Opt(short: '-vv')]`, throws a `ValueError` when the attribute is instantiated. Give such an option its long name only.
 
 - `Help` is internal: the runner answers `--help` itself, see below. A command that declared the flag only to render the screen with `new Help($io)->showFor($this)` drops both.

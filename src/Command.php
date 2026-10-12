@@ -11,8 +11,10 @@ use ValueError;
 /**
  * Declares a class as a console command.
  *
- * The name may carry a group prefix separated by a single colon, e.g.
- * `db:migrate`; further colons are rejected.
+ * The name consists of letters, digits, `.`, `_`, and `-`, starts with a
+ * letter or digit, and is matched case-insensitively. It may carry a group
+ * prefix of the same form, separated by a single colon, e.g. `db:migrate`;
+ * any other name is rejected.
  * The prefix namespaces the command on the command line and groups it in the
  * help overview under the capitalized prefix; `group` overrides that
  * displayed title.
@@ -22,6 +24,12 @@ use ValueError;
 #[Attribute(Attribute::TARGET_CLASS)]
 final class Command
 {
+	/**
+	 * A single colon only: a second one would collide with the prefixed
+	 * lookup of another command.
+	 */
+	private const string NAME = '/^(?:([a-z0-9][a-z0-9._-]*):)?([a-z0-9][a-z0-9._-]*)\z/';
+
 	public readonly string $name;
 	public readonly string $prefix;
 
@@ -30,28 +38,12 @@ final class Command
 		public readonly string $description = '',
 		public readonly string $group = '',
 	) {
-		$lower = strtolower($name);
-		$prefix = '';
-		$bare = $lower;
-
-		if (str_contains($lower, ':')) {
-			/** @var array{0: string, 1: string} $parts */
-			$parts = explode(':', $lower, limit: 2);
-			[$prefix, $bare] = $parts;
-
-			// A single colon only: a second one would collide with the
-			// prefixed lookup of another command.
-			if ($prefix === '' || str_contains($bare, ':')) {
-				throw new ValueError("Invalid command name '{$name}'");
-			}
-		}
-
-		if ($bare === '') {
+		if (preg_match(self::NAME, strtolower($name), $parts) !== 1) {
 			throw new ValueError("Invalid command name '{$name}'");
 		}
 
-		$this->prefix = $prefix;
-		$this->name = $bare;
+		$this->prefix = $parts[1];
+		$this->name = $parts[2];
 	}
 
 	public function full(): string

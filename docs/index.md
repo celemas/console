@@ -85,6 +85,8 @@ $runner->add(new #[Command('cache:clear', 'Clears the cache')] class {
 
 `add()` returns the runner, so calls chain. Commands carry their metadata in the `#[Command]` attribute, which is read without instantiating the class. Factories run only when their command is actually invoked — listing the help never constructs a command.
 
+A command name consists of letters, digits, `.`, `_`, and `-` and starts with a letter or digit; an optional prefix of the same form precedes it, separated by one colon: `db:migrate`. Names are matched case-insensitively. Any other name, such as one with a space or a leading dash, throws a `ValueError`.
+
 A package ships its command set as a registration array, with factories for commands that need its own dependencies:
 
 ```php

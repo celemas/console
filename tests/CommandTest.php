@@ -7,6 +7,7 @@ namespace Celema\Console\Tests;
 use Celema\Console\Command;
 use Celema\Console\Tests\Fixtures\Erring;
 use Celema\Console\Tests\Fixtures\FooStuff;
+use PHPUnit\Framework\Attributes\DataProvider;
 use stdClass;
 use ValueError;
 
@@ -40,36 +41,50 @@ class CommandTest extends TestCase
 		$this->assertSame('General', $meta->title());
 	}
 
-	public function testEmptyNameFails(): void
+	public static function nameProvider(): array
 	{
-		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage('Invalid command name');
-
-		new Command('');
+		return [
+			['cache.clear', '', 'cache.clear'],
+			['2026', '', '2026'],
+			['db_v2:make_migration', 'db_v2', 'make_migration'],
+			['I18n:Status-All', 'i18n', 'status-all'],
+		];
 	}
 
-	public function testEmptyPrefixFails(): void
+	#[DataProvider('nameProvider')]
+	public function testNameCharacters(string $name, string $prefix, string $bare): void
 	{
-		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage('Invalid command name');
+		$meta = new Command($name);
 
-		new Command(':stuff');
+		$this->assertSame($prefix, $meta->prefix);
+		$this->assertSame($bare, $meta->name);
 	}
 
-	public function testEmptyNameWithPrefixFails(): void
+	public static function invalidNameProvider(): array
 	{
-		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage('Invalid command name');
-
-		new Command('foo:');
+		return [
+			'empty' => [''],
+			'empty prefix' => [':stuff'],
+			'empty name after prefix' => ['foo:'],
+			'second colon' => ['x:foo:bar'],
+			'space' => ['cache clear'],
+			'leading space' => [' foo'],
+			'line break' => ["foo\n"],
+			'equals sign' => ['a=b'],
+			'option-like' => ['--version'],
+			'dash-led prefix' => ['-db:up'],
+			'dash-led name after prefix' => ['db:-up'],
+			'non-ASCII letter' => ['über'],
+		];
 	}
 
-	public function testMultipleColonsFail(): void
+	#[DataProvider('invalidNameProvider')]
+	public function testRejectInvalidName(string $name): void
 	{
 		$this->expectException(ValueError::class);
-		$this->expectExceptionMessage("Invalid command name 'x:foo:bar'");
+		$this->expectExceptionMessage("Invalid command name '{$name}'");
 
-		new Command('x:foo:bar');
+		new Command($name);
 	}
 
 	public function testReadAttributeFromInstance(): void
