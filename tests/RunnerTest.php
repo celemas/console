@@ -1129,14 +1129,20 @@ class RunnerTest extends TestCase
 
 		$this->assertSame(1, $runner->run(['run', 'probe']));
 		$this->assertSame(
-			"Error while running command 'probe':\n\nImport failed\n"
-				. "\nTraceback:\n"
-				. sprintf("RuntimeException in %s:%d\n", __FILE__, $error->getLine())
-				. $error->getTraceAsString()
-				. "\n\nCaused by: Root cause\n"
-				. sprintf("LogicException in %s:%d\n", __FILE__, $cause->getLine())
-				. $cause->getTraceAsString()
-				. "\n",
+			implode("\n", [
+				"Error while running command 'probe':",
+				'',
+				'Import failed',
+				'',
+				'Traceback:',
+				'RuntimeException in ' . __FILE__ . ':' . $error->getLine(),
+				$error->getTraceAsString(),
+				'',
+				'Caused by: Root cause',
+				'LogicException in ' . __FILE__ . ':' . $cause->getLine(),
+				$cause->getTraceAsString(),
+				'',
+			]),
 			$buffer->errorOutput(),
 		);
 	}
