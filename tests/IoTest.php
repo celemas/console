@@ -75,6 +75,31 @@ class IoTest extends TestCase
 		$this->assertSame("evil ]0;pwned message\nraw [31mred\tand tab\nspoofedline\n", $buffer->output());
 	}
 
+	public function testC1ControlCharactersAreDropped(): void
+	{
+		$buffer = new Buffer();
+		$io = new Io($buffer);
+		$io->line('%s', "clear \u{9b}2J screen");
+		$io->line("title \u{9d}0;pwned\u{9c} set");
+		$io->line('%s', "ä, € and \u{a0} stay");
+
+		$this->assertSame("clear 2J screen\ntitle 0;pwned set\nä, € and \u{a0} stay\n", $buffer->output());
+	}
+
+	public function testC1ControlCharactersCannotBeAssembled(): void
+	{
+		$buffer = new Buffer();
+		$io = new Io($buffer);
+
+		// U+009B is the bytes C2 9B: around a dropped ESC, split over
+		// two arguments, and around another U+009B.
+		$io->line('%s', "a\xC2\033\x9B2Jb");
+		$io->line('%s%s', "a\xC2", "\x9B2Jb");
+		$io->line('%s', "a\xC2\xC2\x9B\x9B2Jb");
+
+		$this->assertSame("a2Jb\na2Jb\na2Jb\n", $buffer->output());
+	}
+
 	public function testTemplatesKeepCarriageReturns(): void
 	{
 		$buffer = new Buffer();

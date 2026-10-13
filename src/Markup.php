@@ -47,6 +47,14 @@ final class Markup
 	/** Like CONTROLS, but keeps carriage returns and the boundaries of escaped text. */
 	private const string TEMPLATE_CONTROLS = '/[\x00-\x08\x0B\x0C\x0E-\x1E\x7F]/';
 
+	/**
+	 * The C1 controls U+0080 to U+009F as UTF-8: U+009B opens an escape
+	 * sequence like `ESC [`. A whole run matches, so that no removal
+	 * joins the bytes around it to another one; the lookbehind keeps a
+	 * long run from being scanned at each of its bytes.
+	 */
+	private const string C1 = '/(?<!\xC2)\xC2+[\x80-\x9F]+/';
+
 	/** A sprintf() conversion, `%1$s` and `%%` included. */
 	private const string CONVERSION = '/%(?:%|(?:(\d+)\$)?((?:[-+ 0]|\'.)*\d*(?:\.\d+)?[bcdeEfFgGhHosuxX]))/';
 
@@ -127,7 +135,8 @@ final class Markup
 			$out .= $values[$i] . $part;
 		}
 
-		return $out;
+		// On the finished text: its parts could join to a C1 control.
+		return (string) preg_replace(self::C1, replacement: '', subject: $out);
 	}
 
 	/**
@@ -265,13 +274,14 @@ final class Markup
 	 * Escapes known tags and strips control characters so the text
 	 * prints literally.
 	 *
-	 * Everything C0 except newline and tab is removed, DEL included, so
-	 * arbitrary text cannot inject terminal escape sequences (ESC, BEL,
-	 * carriage returns, ...).
+	 * Everything C0 except newline and tab is removed, DEL and the C1
+	 * controls included, so arbitrary text cannot inject terminal escape
+	 * sequences (ESC, BEL, carriage returns, ...).
 	 */
 	public function escape(string $text): string
 	{
 		$text = (string) preg_replace(self::CONTROLS, replacement: '', subject: $text);
+		$text = (string) preg_replace(self::C1, replacement: '', subject: $text);
 		$text = (string) preg_replace($this->split, replacement: '\\\\$0', subject: $text);
 
 		return str_ends_with($text, '\\') ? $text . self::BOUNDARY : $text;

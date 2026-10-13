@@ -189,6 +189,7 @@ class MarkupTest extends TestCase
 		$this->assertSame(5, $markup->width('<foo>'));
 		$this->assertSame(8, $markup->width('<green>a'));
 		$this->assertSame(1, $markup->width("\033a"));
+		$this->assertSame(2, $markup->width("a\u{9b}b"));
 	}
 
 	public function testPadsToTheVisibleWidth(): void
@@ -216,6 +217,10 @@ class MarkupTest extends TestCase
 		// The control bytes are removed; the harmless payload stays text.
 		$this->assertSame(']0;eviltitle', $markup->escape("\033]0;evil\007title"));
 		$this->assertSame("keep\nlines\tandtabs", $markup->escape("keep\nlines\tand\rtabs\x7f"));
+		$this->assertSame('a2Jb', $markup->escape("a\u{9b}2Jb"));
+
+		// Without the ESC the two bytes around it form U+009B.
+		$this->assertSame('a2Jb', $markup->escape("a\xC2\033\x9B2Jb"));
 	}
 
 	public function testEscapedTextRendersAsItsInput(): void
