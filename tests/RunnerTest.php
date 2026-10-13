@@ -16,10 +16,12 @@ use Celema\Console\Stdio;
 use Celema\Console\Tests\Fixtures\Greet;
 use Celema\Console\Tests\Fixtures\HelpVariants;
 use Celema\Console\Tests\Fixtures\OptionAliases;
+use LogicException;
 use PHPUnit\Framework\Attributes\BackupGlobals;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use stdClass;
+use Throwable;
 use ValueError;
 
 class RunnerTest extends TestCase
@@ -30,6 +32,22 @@ class RunnerTest extends TestCase
 		$out = new Buffer();
 
 		return [new Runner([$command], new Io($out))->run(['run', 'probe', ...$args]), $out];
+	}
+
+	private function throwing(Throwable $error): object
+	{
+		return new
+			#[Command('probe', 'Throws the given error')]
+			class($error) {
+				public function __construct(
+					private readonly Throwable $error,
+				) {}
+
+				public function __invoke(): int
+				{
+					throw $this->error;
+				}
+			};
 	}
 
 	private function runVariants(string ...$args): array
@@ -1098,8 +1116,57 @@ class RunnerTest extends TestCase
 			debug: true,
 		);
 
-		$this->expectOutputRegex("/Error while.*'err'.*Red herring.*Traceback:\n#0 /s");
+		$this->expectOutputRegex("/Error while.*'err'.*Red herring.*Traceback:\nException in .*Erring\.php:\d+\n#0 /s");
 		$runner->run(['run', 'err']);
+	}
+
+	public function testDebugTracebackFollowsPreviousExceptions(): void
+	{
+		$cause = new LogicException('Root cause');
+		$error = new RuntimeException('Import failed', previous: $cause);
+		$buffer = new Buffer();
+		$runner = new Runner([$this->throwing($error)], new Io($buffer), debug: true);
+
+		$this->assertSame(1, $runner->run(['run', 'probe']));
+		$this->assertSame(
+			"Error while running command 'probe':\n\nImport failed\n"
+				. "\nTraceback:\n"
+				. sprintf("RuntimeException in %s:%d\n", __FILE__, $error->getLine())
+				. $error->getTraceAsString()
+				. "\n\nCaused by: Root cause\n"
+				. sprintf("LogicException in %s:%d\n", __FILE__, $cause->getLine())
+				. $cause->getTraceAsString()
+				. "\n",
+			$buffer->errorOutput(),
+		);
+	}
+
+	public function testDebugTracebackPrintsPlain(): void
+	{
+		$buffer = new Buffer(colors: true);
+		$runner = new Runner([$this->throwing(new RuntimeException('Import failed'))], new Io($buffer), debug: true);
+		$runner->run(['run', 'probe']);
+
+		$this->assertStringStartsWith("\033[31mError while running command 'probe':", $buffer->errorOutput());
+		$this->assertStringContainsString(
+			"\033[33mTraceback:\033[0m\nRuntimeException in " . __FILE__,
+			$buffer->errorOutput(),
+		);
+	}
+
+	public function testExceptionWithoutMessageIsReportedByItsClass(): void
+	{
+		$error = new RuntimeException('Import failed', previous: new LogicException());
+		$buffer = new Buffer();
+		$runner = new Runner([$this->throwing($error)], new Io($buffer), debug: true);
+		$runner->run(['run', 'probe']);
+
+		$this->assertStringContainsString("\nCaused by: LogicException\n", $buffer->errorOutput());
+
+		[$code, $out] = $this->runProbe($this->throwing(new LogicException()));
+
+		$this->assertSame(1, $code);
+		$this->assertSame("Error while running command 'probe':\n\nLogicException\n", $out->errorOutput());
 	}
 
 	public function testDebugShowsNoTracebackForUsageErrors(): void

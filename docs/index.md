@@ -508,7 +508,7 @@ The runner only takes what a command leaves free:
 
 ### Debug Mode
 
-A command that throws fails the run with exit code 1, and the runner prints the exception's message to the error output. In debug mode it adds the stack trace:
+A command that throws fails the run with exit code 1, and the runner prints the exception's message to the error output, or its class if it has no message. In debug mode it adds the exception's class, the file and line that threw it, and the stack trace, then the same for each previous exception:
 
 ```php
 $runner = new Runner([new MyCommand()], debug: true);

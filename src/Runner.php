@@ -214,15 +214,45 @@ final class Runner
 			$this->io->error(
 				"Error while running command '%s':\n\n%s",
 				$arg ?? '<no command given>',
-				$e->getMessage(),
+				$this->message($e),
 			);
 
 			// A usage error is the input's fault; its trace shows nothing.
 			if ($this->debug && !$e instanceof InvalidUsage) {
-				$this->io->error("\n<yellow>Traceback:</yellow>\n%s", $e->getTraceAsString());
+				$this->showTraceback($e);
 			}
 
 			return $e instanceof InvalidUsage ? 2 : 1;
+		}
+	}
+
+	/**
+	 * The class stands in for a missing message.
+	 */
+	private function message(Throwable $e): string
+	{
+		return $e->getMessage() === '' ? $e::class : $e->getMessage();
+	}
+
+	/**
+	 * Lists where the exception was thrown and its stack trace, then
+	 * the same for each previous exception.
+	 */
+	private function showTraceback(Throwable $e): void
+	{
+		$io = $this->io->stderr();
+		$io->line("\n<yellow>Traceback:</yellow>");
+
+		while (true) {
+			$io->line('%s in %s:%d', $e::class, $e->getFile(), $e->getLine());
+			$io->line('%s', $e->getTraceAsString());
+			$e = $e->getPrevious();
+
+			if ($e === null) {
+				return;
+			}
+
+			$io->line("\n<yellow>Caused by:</yellow> %s", $this->message($e));
 		}
 	}
 

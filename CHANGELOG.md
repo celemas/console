@@ -72,12 +72,14 @@
 ### Fixed
 
 - The same file as output and error target, `new Stdio('build.log', 'build.log')`, receives both in the order written. Each target had its own stream, also in `Io` before, so the first error emptied the file and later output overwrote the errors or left NUL bytes.
+- An exception without a message is reported by its class name instead of an empty line.
 - A numeric token like `-5` is reported as an unknown option, with exit code 2, instead of failing with a `TypeError`: `Args::names()` returned such a name as an integer and now returns strings only. An unknown option on a command declaring a numeric short name, like `short: '-1'`, failed the same way while looking for a suggestion.
 
 ### Added
 
 - Built-in `--help`: `php run db:import --help`, or `-h`, shows the command's help screen like `php run help db:import`; both were usage errors unless the command declared them. The runner looks for the flag before it validates the input, so it works without the required arguments. A leading flag acts as the `help` command: `php run --help` shows the overview. A `-h` declared as the short name of another option, like `--host`, stays that option's, and a command that declares `--help` itself still receives it; the runner then answers neither flag.
 - `Io::stderr()` returns an `Io` that writes to the error output: `$io->stderr()->line('  - %s', $path)` prints a plain line there. `write()`, `rule()`, and the questions of the prompts go there as well.
+- The debug traceback names the exception's class and the file and line that threw it, and lists each previous exception the same way under `Caused by:`. The trace prints without color below the red message.
 - `Io::interactive()` tells whether someone can see and answer prompts, `Io::width()` the terminal width; `new Buffer(interactive: true, width: 120)` pretends to be such a terminal. `Stdio` takes `colors:` to switch colors on or off regardless of the environment, for example for a `--no-color` flag. Other devices implement the `Terminal` interface.
 - Optional class resolver: `new Runner([Import::class], resolve: $container->get(...))` lazily constructs class-string registrations through any callable, without a container dependency. It also applies to classes added later; instances and explicit factories bypass it. Resolved commands are cached per registration, and help and command listings never invoke the resolver.
 - `Runner::run()` takes an optional argument vector in place of `$_SERVER['argv']`, starting with the script name like it, so tests and embedding code need not change the global. Its script name reaches the help screens.
