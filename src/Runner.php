@@ -150,6 +150,10 @@ final class Runner
 			}
 		}
 
+		// The built-ins resolve before a command sharing their name.
+		$list['commands'] = 1;
+		$list['help'] = 1;
+
 		ksort($list);
 
 		foreach ($list as $name => $count) {

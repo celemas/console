@@ -117,7 +117,9 @@ Options:
         Enable verbose output
 
 $ php run commands
+commands
 grp:mycommand
+help
 mycommand
 ```
 
@@ -518,7 +520,7 @@ Usage errors print no trace: the input is at fault, not the code.
 
 ### Shell Completion
 
-The `commands` built-in lists exactly the invocable names — full `prefix:name` forms, unprefixed names, and bare aliases only when they are unambiguous — one per line, so it doubles as the completion source.
+The `commands` built-in lists exactly the invocable names — full `prefix:name` forms, unprefixed names, the built-ins, and bare aliases only when they are unambiguous — one per line, so it doubles as the completion source.
 
 Give the runner script a shebang and make it executable, so it is invoked as `./run` instead of `php run`:
 

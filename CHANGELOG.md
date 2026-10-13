@@ -74,6 +74,7 @@
 - The same file as output and error target, `new Stdio('build.log', 'build.log')`, receives both in the order written. Each target had its own stream, also in `Io` before, so the first error emptied the file and later output overwrote the errors or left NUL bytes.
 - The C1 control characters U+0080 to U+009F are dropped from all output and from escaped text, like the other control characters. U+009B opens an escape sequence like `ESC [` on terminals that honor it, so text could still inject one.
 - An exception without a message is reported by its class name instead of an empty line.
+- `php run commands` lists the built-in `commands` and `help` too. They were missing from the names it prints for shell completion.
 - The "Did you mean" hint for an unknown option fits what was typed. It allowed three typos whatever the length, so `--foo` suggested `--bar` and every unknown one-letter name suggested the first declared one. Now it allows one typo per three characters, counts a swapped pair of letters as one, and recognizes the beginning of a name (`--dry` for `--dry-run`), a wrong number of dashes (`-verbose`), and the built-in `--help`.
 - A numeric token like `-5` is reported as an unknown option, with exit code 2, instead of failing with a `TypeError`: `Args::names()` returned such a name as an integer and now returns strings only. An unknown option on a command declaring a numeric short name, like `short: '-1'`, failed the same way while looking for a suggestion.
 

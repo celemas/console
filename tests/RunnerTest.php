@@ -615,7 +615,7 @@ class RunnerTest extends TestCase
 		$runner->run(['run', 'commands']);
 
 		$this->assertSame(0, $runner->run(['run', 'greet', 'Ada']));
-		$this->assertSame("bar:stuff\nfoo:stuff\ngreet\nplain\nHello, Ada", $out->output());
+		$this->assertSame("bar:stuff\ncommands\nfoo:stuff\ngreet\nhelp\nplain\nHello, Ada", $out->output());
 	}
 
 	public function testHelpSortsCommandsAddedOutOfOrder(): void
@@ -715,7 +715,7 @@ class RunnerTest extends TestCase
 		}
 
 		$runner->run(['run', 'commands']);
-		$this->assertSame("plain\n", $out->output());
+		$this->assertSame("commands\nhelp\nplain\n", $out->output());
 	}
 
 	public function testRunnerResolverConstructsItsClassStringsOnInvocation(): void
@@ -936,8 +936,35 @@ class RunnerTest extends TestCase
 	{
 		$runner = $this->getRunner();
 
-		$this->expectOutputString("bar:stuff\ndrivel\nerr\nerr:err\nfoo:drivel\nfoo:stuff\n");
+		$this->expectOutputString("bar:stuff\ncommands\ndrivel\nerr\nerr:err\nfoo:drivel\nfoo:stuff\nhelp\n");
 		$runner->run(['run', 'commands']);
+	}
+
+	public function testListsABuiltinBesideItsPrefixedNamesakes(): void
+	{
+		$commands = [
+			new
+				#[Command('db:help', 'Database help')]
+				class {
+					public function __invoke(): int
+					{
+						return 0;
+					}
+				},
+			new
+				#[Command('queue:help', 'Queue help')]
+				class {
+					public function __invoke(): int
+					{
+						return 0;
+					}
+				},
+		];
+		$out = new Buffer();
+		new Runner($commands, new Io($out))->run(['run', 'commands']);
+
+		// The bare `help` is the built-in, not an alias of the two.
+		$this->assertSame("commands\ndb:help\nhelp\nqueue:help\n", $out->output());
 	}
 
 	public function testShowCommandSpecificHelp(): void
@@ -1051,7 +1078,7 @@ class RunnerTest extends TestCase
 		// Both stay invocable, so both appear in the listing.
 		$out = new Buffer();
 		new Runner($commands, new Io($out))->run(['run', 'commands']);
-		$this->assertSame("deploy\nops:deploy\n", $out->output());
+		$this->assertSame("commands\ndeploy\nhelp\nops:deploy\n", $out->output());
 	}
 
 	public function testRunGroupNameCommand(): void
