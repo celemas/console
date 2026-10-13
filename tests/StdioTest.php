@@ -50,6 +50,24 @@ class StdioTest extends TestCase
 		$this->assertSame('error again', file_get_contents($err));
 	}
 
+	public function testSameTargetKeepsOutputAndErrorsInOrder(): void
+	{
+		$file = $this->file();
+		$stdio = new Stdio($file, $file);
+		$stdio->write("one\n");
+		$stdio->write("error\n", error: true);
+		$stdio->write("two\n");
+
+		$this->assertSame("one\nerror\ntwo\n", file_get_contents($file));
+
+		$file = $this->file();
+		$stdio = new Stdio($file, $file);
+		$stdio->write("error\n", error: true);
+		$stdio->write("one\n");
+
+		$this->assertSame("error\none\n", file_get_contents($file));
+	}
+
 	public function testReadsLinesFromTheInputTarget(): void
 	{
 		$stdio = new Stdio(input: $this->file("Charly\r\n\nlast"));

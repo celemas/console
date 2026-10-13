@@ -71,6 +71,7 @@
 
 ### Fixed
 
+- The same file as output and error target, `new Stdio('build.log', 'build.log')`, receives both in the order written. Each target had its own stream, also in `Io` before, so the first error emptied the file and later output overwrote the errors or left NUL bytes.
 - A numeric token like `-5` is reported as an unknown option, with exit code 2, instead of failing with a `TypeError`: `Args::names()` returned such a name as an integer and now returns strings only. An unknown option on a command declaring a numeric short name, like `short: '-1'`, failed the same way while looking for a suggestion.
 
 ### Added

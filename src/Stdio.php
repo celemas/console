@@ -11,8 +11,9 @@ use RuntimeException;
  * The process streams, or other targets such as files or `/dev/tty`.
  *
  * Targets open on first use; one that cannot be opened throws a
- * RuntimeException then. Colors are detected per stream unless
- * `$colors` decides for both.
+ * RuntimeException then. The output and the error output share one
+ * stream when their targets are the same. Colors are detected per
+ * stream unless `$colors` decides for both.
  *
  * @api
  */
@@ -199,7 +200,11 @@ final class Stdio implements Terminal
 
 	private function stderr(): mixed
 	{
-		return $this->errorStream ??= $this->open($this->errorOutput, 'w');
+		// One stream for a shared target: a second one would truncate
+		// the file and overwrite what the first wrote.
+		return $this->errorStream ??= $this->errorOutput === $this->output
+			? $this->stdout()
+			: $this->open($this->errorOutput, 'w');
 	}
 
 	private function stdin(): mixed
