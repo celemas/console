@@ -34,22 +34,31 @@ final class Help
 		$arguments = $signature->arguments();
 		$options = $signature->options();
 
-		if ($meta->description !== '') {
-			$this->io->line('<yellow>Description:</yellow>');
-			$this->io->line('  ' . $meta->description . "\n");
-		}
-
-		$usage = "php {$this->script} {$meta->full()}";
+		$usage = $meta->full();
 
 		foreach ($arguments as $argument) {
 			$name = $this->argumentName($argument);
 			$usage .= $argument->optional() ? " [{$name}]" : " {$name}";
 		}
 
-		$this->io->line('<yellow>Usage:</yellow>');
-		$this->io->line('  %s', $usage . ($options === [] ? '' : ' [options]'));
+		$this->showSummary($meta->description, $usage . ($options === [] ? '' : ' [options]'));
 		$this->showArguments($arguments);
 		$this->showOptions($options);
+	}
+
+	/**
+	 * Renders the description, which is markup, and the usage line: the
+	 * top of a help screen, and all of it for the runner's built-ins.
+	 */
+	public function showSummary(string $description, string $usage): void
+	{
+		if ($description !== '') {
+			$this->io->line('<yellow>Description:</yellow>');
+			$this->io->line('  ' . $description . "\n");
+		}
+
+		$this->io->line('<yellow>Usage:</yellow>');
+		$this->io->line('  php %s %s', $this->script, $usage);
 	}
 
 	/** @param list<Argument> $arguments */

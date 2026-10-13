@@ -16,6 +16,12 @@ final class Runner
 {
 	private const AMBIGUOUS = 1;
 
+	/** The built-in commands: the description and usage of their help screen. */
+	private const array BUILTINS = [
+		'commands' => ['Lists all available commands', 'commands'],
+		'help' => ['Displays the overview of all commands, or the help of a command', 'help [<command>]'],
+	];
+
 	/**
 	 * The commands indexed by group and name.
 	 *
@@ -166,49 +172,17 @@ final class Runner
 	{
 		$argv ??= $_SERVER['argv'] ?? [];
 		$script = $argv[0] ?? '';
+		$arg = $argv[1] ?? null;
+		$isHelpCall = $arg === '--help' || $arg === '-h' || strtolower($arg ?? '') === 'help';
+
+		if ($isHelpCall) {
+			$arg = $argv[2] ?? null;
+		}
 
 		try {
-			$arg = $argv[1] ?? null;
-
-			if ($arg === null) {
-				return $this->showHelp($script);
-			}
-
-			$cmd = strtolower($arg);
-			$isHelpCall = false;
-
-			if ($cmd === 'help' || $arg === '--help' || $arg === '-h') {
-				$isHelpCall = true;
-				$arg = $argv[2] ?? null;
-
-				if ($arg === null) {
-					return $this->showHelp($script);
-				}
-
-				$cmd = strtolower($arg);
-			}
-
-			if ($cmd === 'commands') {
-				return $this->showCommands();
-			}
-
-			$tokens = array_slice($argv, offset: 2);
-
-			try {
-				$entry = $this->getCommand($cmd);
-			} catch (InvalidUsage $e) {
-				if ($e->getCode() === self::AMBIGUOUS) {
-					return $this->showAmbiguousMessage($cmd);
-				}
-
-				throw $e;
-			}
-
-			if ($isHelpCall) {
-				return $this->showCommandHelp($entry, $script);
-			}
-
-			return $this->runCommand($entry, $tokens, $script);
+			return $arg === null
+				? $this->showHelp($script)
+				: $this->dispatch($arg, $isHelpCall, array_slice($argv, offset: 2), $script);
 		} catch (Throwable $e) {
 			// `$arg` names the effective target, e.g. `x` for `help x`.
 			$this->io->error(
@@ -224,6 +198,41 @@ final class Runner
 
 			return $e instanceof InvalidUsage ? 2 : 1;
 		}
+	}
+
+	/**
+	 * Runs the command `$arg` names, or shows its help in a help call.
+	 *
+	 * @param list<string> $tokens
+	 */
+	private function dispatch(string $arg, bool $isHelpCall, array $tokens, string $script): int
+	{
+		// `help --help` asks for the help of `help`.
+		$cmd = $arg === '--help' || $arg === '-h' ? 'help' : strtolower($arg);
+		$builtin = self::BUILTINS[$cmd] ?? null;
+
+		if ($builtin !== null) {
+			// Only `commands` gets here without a help call.
+			if ($isHelpCall || in_array('--help', $tokens, strict: true) || in_array('-h', $tokens, strict: true)) {
+				new Help($this->io, $script)->showSummary(...$builtin);
+
+				return 0;
+			}
+
+			return $this->showCommands();
+		}
+
+		try {
+			$entry = $this->getCommand($cmd);
+		} catch (InvalidUsage $e) {
+			if ($e->getCode() === self::AMBIGUOUS) {
+				return $this->showAmbiguousMessage($cmd);
+			}
+
+			throw $e;
+		}
+
+		return $isHelpCall ? $this->showCommandHelp($entry, $script) : $this->runCommand($entry, $tokens, $script);
 	}
 
 	/**

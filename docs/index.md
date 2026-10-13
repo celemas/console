@@ -499,7 +499,7 @@ The descriptions are followed by `[choices: csv, json]` for an enum and `[defaul
 
 The unprefixed names `help` and `commands` are reserved, and duplicate full command names are rejected: registering either throws a `ValueError`, and the rejected call registers none of its commands.
 
-Every command also answers `--help` and `-h` with its help screen: `php run db:import --help` shows the same as `php run help db:import`. The runner looks for the flag before it validates the input, so it works without the required arguments and next to a mistyped option. A leading flag acts as the `help` command: `php run --help` shows the overview. After a `--` separator, `--help` is a positional like any other token.
+Every command also answers `--help` and `-h` with its help screen, the built-ins included: `php run db:import --help` shows the same as `php run help db:import`, and `php run help --help` the same as `php run help help`. The runner looks for the flag before it validates the input, so it works without the required arguments and next to a mistyped option. A leading flag acts as the `help` command: `php run --help` shows the overview. After a `--` separator, `--help` is a positional like any other token.
 
 The runner only takes what a command leaves free:
 

@@ -191,6 +191,47 @@ class RunnerTest extends TestCase
 		}
 	}
 
+	/** @return iterable<string, array{list<string>, string}> */
+	public static function builtinHelpProvider(): iterable
+	{
+		yield 'help --help' => [['help', '--help'], 'help [<command>]'];
+		yield 'help -h' => [['help', '-h'], 'help [<command>]'];
+		yield '--help --help' => [['--help', '--help'], 'help [<command>]'];
+		yield 'help help' => [['help', 'HELP'], 'help [<command>]'];
+		yield 'commands --help' => [['commands', '--help'], 'commands'];
+		yield 'commands -h' => [['commands', '-h'], 'commands'];
+		yield 'help commands' => [['help', 'commands'], 'commands'];
+	}
+
+	/** @param list<string> $args */
+	#[DataProvider('builtinHelpProvider')]
+	public function testBuiltinCommandsShowTheirHelp(array $args, string $usage): void
+	{
+		$out = new Buffer();
+
+		$this->assertSame(0, new Runner([new Greet()], new Io($out))->run(['run', ...$args]));
+		$this->assertStringEndsWith("Usage:\n  php run {$usage}\n", $out->output());
+		$this->assertSame('', $out->errorOutput());
+	}
+
+	public function testHelpCommandDescribesItself(): void
+	{
+		$out = new Buffer();
+		new Runner(io: new Io($out))->run(['bin/console', 'help', '--help']);
+
+		$this->assertSame(
+			<<<'TEXT'
+				Description:
+				  Displays the overview of all commands, or the help of a command
+
+				Usage:
+				  php bin/console help [<command>]
+
+				TEXT,
+			$out->output(),
+		);
+	}
+
 	public function testRejectValueOnBooleanOption(): void
 	{
 		[$code, $errors] = $this->runVariants('--prune=now');
