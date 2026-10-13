@@ -104,7 +104,7 @@ class HelpTest extends TestCase
 				    --prefix=<prefix>
 				        Prefix
 				    --tag=<tag>
-				        Tags
+				        Tags [repeatable]
 				    --worker[=<worker>]
 				        Worker count
 				    --force

@@ -96,7 +96,12 @@ final class Help
 			$flags = $short === '' ? $option->name . $suffix : "{$short}{$suffix}, {$option->name}{$suffix}";
 
 			$this->io->line('    <green>%s</green>', $flags);
-			$this->showDescription($option->opt->description, $option->parameter, $option->type);
+			$this->showDescription(
+				$option->opt->description,
+				$option->parameter,
+				$option->type,
+				repeatable: $option->type->name === 'array',
+			);
 		}
 	}
 
@@ -106,16 +111,24 @@ final class Help
 	}
 
 	/**
-	 * Renders the description, which is markup, followed by the choices
-	 * and the default.
+	 * Renders the description, which is markup, followed by the choices,
+	 * the mark of a repeatable option, and the default.
 	 */
-	private function showDescription(string $description, ReflectionParameter $parameter, Type $type): void
-	{
+	private function showDescription(
+		string $description,
+		ReflectionParameter $parameter,
+		Type $type,
+		bool $repeatable = false,
+	): void {
 		$parts = $description === '' ? [] : [$description];
 		$choices = $type->choices();
 
 		if ($choices !== []) {
 			$parts[] = '[choices: ' . $this->io->escape(implode(', ', $choices)) . ']';
+		}
+
+		if ($repeatable) {
+			$parts[] = '[repeatable]';
 		}
 
 		$default = $parameter->isDefaultValueAvailable() ? $this->text($parameter->getDefaultValue()) : '';

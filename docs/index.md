@@ -492,7 +492,7 @@ $args->names();                  // names of all provided options
 - `#[Opt(short: '-v')] bool $verbose = false` renders `-v, --verbose`.
 - `#[Opt(bare: '.')] string $watch = ''` renders `--watch[=<watch>]`.
 
-The descriptions are followed by `[choices: csv, json]` for an enum and `[default: sqlite]` for a string, number, or enum default. `null`, `false`, empty strings, and arrays render no default.
+The descriptions are followed by `[choices: csv, json]` for an enum, `[repeatable]` for an `array` option, and `[default: sqlite]` for a string, number, or enum default. `null`, `false`, empty strings, and arrays render no default.
 
 ### Built-in Commands
 
