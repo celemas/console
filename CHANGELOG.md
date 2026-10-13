@@ -73,6 +73,7 @@
 
 - The same file as output and error target, `new Stdio('build.log', 'build.log')`, receives both in the order written. Each target had its own stream, also in `Io` before, so the first error emptied the file and later output overwrote the errors or left NUL bytes.
 - An exception without a message is reported by its class name instead of an empty line.
+- The "Did you mean" hint for an unknown option fits what was typed. It allowed three typos whatever the length, so `--foo` suggested `--bar` and every unknown one-letter name suggested the first declared one. Now it allows one typo per three characters, counts a swapped pair of letters as one, and recognizes the beginning of a name (`--dry` for `--dry-run`), a wrong number of dashes (`-verbose`), and the built-in `--help`.
 - A numeric token like `-5` is reported as an unknown option, with exit code 2, instead of failing with a `TypeError`: `Args::names()` returned such a name as an integer and now returns strings only. An unknown option on a command declaring a numeric short name, like `short: '-1'`, failed the same way while looking for a suggestion.
 
 ### Added

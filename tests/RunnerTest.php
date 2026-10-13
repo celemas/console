@@ -58,38 +58,63 @@ class RunnerTest extends TestCase
 		return [$runner->run(['run', 'help:variants', ...$args]), $out->errorOutput()];
 	}
 
-	public function testRejectUnknownOptionWithSuggestion(): void
+	public static function suggestionProvider(): iterable
 	{
-		[$code, $errors] = $this->runVariants('--verbos');
-
-		$this->assertSame(2, $code);
-		$this->assertStringContainsString(
-			"Unknown option '--verbos'. Did you mean '--verbose'?",
-			$errors,
-		);
+		yield 'one typo' => ['--verbos', '--verbose'];
+		yield 'two typos in a long name' => ['--realese', '--release'];
+		yield 'swapped letters' => ['--prnue', '--prune'];
+		yield 'beginning of a name' => ['--verb', '--verbose'];
+		yield 'beginning of two characters' => ['--ve', '--verbose'];
+		yield 'one dash too few' => ['-verbose', '--verbose'];
+		yield 'one dash too many' => ['--v', '-v'];
+		yield 'built-in help' => ['--hel', '--help'];
 	}
 
-	public function testSuggestionAcceptsADistanceOfThree(): void
+	#[DataProvider('suggestionProvider')]
+	public function testRejectUnknownOptionWithSuggestion(string $typed, string $suggestion): void
 	{
-		[, $errors] = $this->runVariants('--verb');
+		[$code, $errors] = $this->runVariants($typed);
 
-		$this->assertStringContainsString("Unknown option '--verb'. Did you mean '--verbose'?", $errors);
+		$this->assertSame(2, $code);
+		$this->assertStringContainsString("Unknown option '{$typed}'. Did you mean '{$suggestion}'?", $errors);
+	}
+
+	public static function noSuggestionProvider(): iterable
+	{
+		yield 'another word of the same length' => ['--port'];
+		yield 'three typos' => ['--versio'];
+		yield 'another letter' => ['-x'];
+		yield 'nothing alike' => ['--completely-different'];
+	}
+
+	#[DataProvider('noSuggestionProvider')]
+	public function testRejectUnknownOptionWithoutSuggestion(string $typed): void
+	{
+		[$code, $errors] = $this->runVariants($typed);
+
+		$this->assertSame(2, $code);
+		$this->assertSame("Error while running command 'help:variants':\n\nUnknown option '{$typed}'\n", $errors);
 	}
 
 	public function testSuggestionPrefersTheFirstDeclaredOptionOnTies(): void
 	{
-		[, $errors] = $this->runVariants('-x');
+		[, $out] = $this->runProbe(
+			new
+				#[Command('probe', 'Similar names')]
+				class {
+					public function __invoke(
+						#[Opt('The tag')]
+						string $tag = '',
+						#[Opt('The archive')]
+						string $tar = '',
+					): int {
+						return 0;
+					}
+				},
+			'--tab',
+		);
 
-		$this->assertStringContainsString("Unknown option '-x'. Did you mean '-v'?", $errors);
-	}
-
-	public function testRejectUnknownOptionWithoutSuggestion(): void
-	{
-		[$code, $errors] = $this->runVariants('--completely-different');
-
-		$this->assertSame(2, $code);
-		$this->assertStringContainsString("Unknown option '--completely-different'", $errors);
-		$this->assertStringNotContainsString('Did you mean', $errors);
+		$this->assertStringContainsString("Unknown option '--tab'. Did you mean '--tag'?", $out->errorOutput());
 	}
 
 	public function testHelpFlagShowsTheCommandHelp(): void
@@ -460,11 +485,11 @@ class RunnerTest extends TestCase
 						return 0;
 					}
 				},
-			'-2',
+			'--1',
 		);
 
 		$this->assertSame(2, $code);
-		$this->assertStringContainsString("Unknown option '-2'. Did you mean '-1'?", $out->errorOutput());
+		$this->assertStringContainsString("Unknown option '--1'. Did you mean '-1'?", $out->errorOutput());
 	}
 
 	public function testRejectUndeclaredPositional(): void
