@@ -14,7 +14,7 @@ use ValueError;
  */
 final class Runner
 {
-	private const AMBIGUOUS = 1;
+	private const int AMBIGUOUS = 1;
 
 	/** The built-in commands: the description and usage of their help screen. */
 	private const array BUILTINS = [
@@ -430,7 +430,7 @@ final class Runner
 
 		return $resolve === null
 			? Entry::fromClass($class)
-			: Entry::fromFactory($class, static fn() => $resolve($class));
+			: Entry::fromFactory($class, static fn(): mixed => $resolve($class));
 	}
 
 	/** @return class-string */
