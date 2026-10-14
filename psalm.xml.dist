@@ -2,7 +2,6 @@
 <psalm
     errorLevel="1"
     resolveFromConfigFile="true"
-    allowStringToStandInForClass="true"
     reportMixedIssues="false"
 
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
