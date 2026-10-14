@@ -149,7 +149,7 @@ final class Stdio implements Terminal
 		// No tput on Windows; shell_exec would leak its error output.
 		if ($columns < 1 && DIRECTORY_SEPARATOR !== '\\' && stream_isatty($this->stdout())) {
 			// @codeCoverageIgnoreStart
-			/** @psalm-suppress ForbiddenCode */
+			/** @psalm-suppress ForbiddenCode A constant command; no input reaches the shell */
 			$columns = (int) shell_exec('tput cols 2>/dev/null');
 
 			// @codeCoverageIgnoreEnd
