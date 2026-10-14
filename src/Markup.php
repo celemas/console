@@ -39,13 +39,20 @@ final class Markup
 	 */
 	private const string BOUNDARY = "\x1F";
 
+	/**
+	 * Stands in for a `%` of escaped text, which a template with
+	 * arguments would read as a conversion. Like BOUNDARY, it cannot be
+	 * forged and render() turns it back.
+	 */
+	private const string PERCENT = "\x1E";
+
 	/** Stands in for a formatted argument while the markup is parsed. */
 	private const string SLOT = "\x00";
 
 	private const string CONTROLS = '/[\x00-\x08\x0B-\x1F\x7F]/';
 
-	/** Like CONTROLS, but keeps carriage returns and the boundaries of escaped text. */
-	private const string TEMPLATE_CONTROLS = '/[\x00-\x08\x0B\x0C\x0E-\x1E\x7F]/';
+	/** Like CONTROLS, but keeps carriage returns and the markers of escaped text. */
+	private const string TEMPLATE_CONTROLS = '/[\x00-\x08\x0B\x0C\x0E-\x1D\x7F]/';
 
 	/**
 	 * The C1 controls U+0080 to U+009F as UTF-8: U+009B opens an escape
@@ -128,7 +135,10 @@ final class Markup
 			[$text, $values] = $this->format($text, $args);
 		}
 
-		$parts = explode(self::SLOT, str_replace(self::BOUNDARY, '', $this->markup($text, $colors, $style)));
+		$parts = explode(
+			self::SLOT,
+			str_replace([self::BOUNDARY, self::PERCENT], ['', '%'], $this->markup($text, $colors, $style)),
+		);
 		$out = array_shift($parts);
 
 		foreach ($parts as $i => $part) {
@@ -271,8 +281,8 @@ final class Markup
 	}
 
 	/**
-	 * Escapes known tags and strips control characters so the text
-	 * prints literally.
+	 * Escapes known tags and `%` and strips control characters so the
+	 * text prints literally.
 	 *
 	 * Everything C0 except newline and tab is removed, DEL and the C1
 	 * controls included, so arbitrary text cannot inject terminal escape
@@ -283,6 +293,7 @@ final class Markup
 		$text = (string) preg_replace(self::CONTROLS, replacement: '', subject: $text);
 		$text = (string) preg_replace(self::C1, replacement: '', subject: $text);
 		$text = (string) preg_replace($this->split, replacement: '\\\\$0', subject: $text);
+		$text = str_replace('%', self::PERCENT, $text);
 
 		return str_ends_with($text, '\\') ? $text . self::BOUNDARY : $text;
 	}

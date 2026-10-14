@@ -190,6 +190,7 @@ class MarkupTest extends TestCase
 		$this->assertSame(8, $markup->width('<green>a'));
 		$this->assertSame(1, $markup->width("\033a"));
 		$this->assertSame(2, $markup->width("a\u{9b}b"));
+		$this->assertSame(3, $markup->width($markup->escape('50%')));
 	}
 
 	public function testPadsToTheVisibleWidth(): void
@@ -226,7 +227,7 @@ class MarkupTest extends TestCase
 	public function testEscapedTextRendersAsItsInput(): void
 	{
 		$markup = new Markup();
-		$text = 'broken </em> markup <green>and\<red> escapes';
+		$text = 'broken </em> markup <green>and\<red> escapes, 100% %s';
 
 		$this->assertSame($text, $markup->render($markup->escape($text), colors: true));
 		$this->assertSame($text, $markup->render('%s', [$text], colors: true));

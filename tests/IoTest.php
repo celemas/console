@@ -149,6 +149,15 @@ class IoTest extends TestCase
 		$this->assertSame('keep <green>this</green> plain', $buffer->output());
 	}
 
+	public function testEscapedPercentSignsPrintLiterallyBesideArguments(): void
+	{
+		$buffer = new Buffer();
+		$io = new Io($buffer);
+		$io->line('<strong>' . $io->escape('report%20final 50% %s') . '</strong>: %d files', 3);
+
+		$this->assertSame("report%20final 50% %s: 3 files\n", $buffer->output());
+	}
+
 	public function testMessageHelpers(): void
 	{
 		$buffer = new Buffer(colors: true);

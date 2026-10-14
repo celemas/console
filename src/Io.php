@@ -88,9 +88,9 @@ final class Io
 	 * newlines and tabs) so the text prints literally where it is
 	 * concatenated into a template; arguments need no escaping.
 	 *
-	 * The result is meant for the output methods: text ending in a
-	 * backslash gets an invisible marker that keeps a following tag
-	 * from reading as escaped.
+	 * The result is meant for the output methods: it carries invisible
+	 * markers that keep a `%` from reading as a sprintf() conversion and
+	 * a tag after a trailing backslash from reading as escaped.
 	 */
 	public function escape(string $text): string
 	{

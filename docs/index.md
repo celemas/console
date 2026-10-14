@@ -218,7 +218,7 @@ The runner validates the signature of the invoked command: `__invoke()` must dec
 - `secret(string $question)` - Prompt for input that must not show while typing, e.g. a password
 - `confirm(string $question, bool $default = false)` - Ask a yes/no question, rendered as `[y/N]` or `[Y/n]`
 - `choice(string $question, array $options, int|string|null $default = null)` - Prompt to pick one of the options; returns its key
-- `escape(string $text)` - Escape markup tags so the text prints literally where it is concatenated into a template
+- `escape(string $text)` - Escape markup tags and `%` so the text prints literally where it is concatenated into a template
 - `rule(string $char = '─', ?int $max = null)` - Output a horizontal rule spanning the terminal width; `max` caps it. The char may be a multi-char pattern and carry markup — the repeat count uses its visible width: `$io->rule('<dim>─</dim>')` draws a dim line
 - `pad(string $text, int $width, Align $align = Align::Left)` - Pad the text with spaces to the visible width `width`; markup tags and multibyte characters don't count, wider text is returned unchanged. `Align::Left`, `Align::Right`, or `Align::Center`
 - `indent(string $text, int $indent, ?int $max = null)` Indent and wrap text on its visible width; `max` caps the total line width, indent included
@@ -334,7 +334,7 @@ $io->line('Made <strong>bold</strong>, <green>green</green>, and <u>underlined</
 
 Tags compose by nesting, and the innermost tag wins on conflict. Only exact known tags are parsed: `<info@example.com>`, generics, and unknown names pass through untouched. A backslash prints a known tag literally: `\<green>`. A closing tag pairs with the innermost open tag if that has its name; a tag without a partner — dangling, mismatched, or unclosed — prints as it is.
 
-Arguments need no escaping. Text you concatenate into a template yourself does: `$io->escape()` escapes known tags and strips control characters (keeping newlines and tabs). Its result is meant for the `Io` output methods: escaped text ending in a backslash carries an invisible marker so that a tag right after it, as in `'<red>' . $io->escape($path) . '</red>'`, stays a tag.
+Arguments need no escaping. Text you concatenate into a template yourself does: `$io->escape()` escapes known tags and `%` and strips control characters (keeping newlines and tabs), so the text prints literally even in a template with arguments. Its result is meant for the `Io` output methods: a `%` turns into an invisible marker, and escaped text ending in a backslash carries one so that a tag right after it, as in `'<red>' . $io->escape($path) . '</red>'`, stays a tag.
 
 Whether `Stdio` emits codes is decided per stream: a non-empty `NO_COLOR` disables colors, `FORCE_COLOR` forces them on (`FORCE_COLOR=0` or `false` forces them off), and otherwise codes are only written when the stream is a terminal. `COLORTERM` alone does not color redirected output, so redirecting one stream to a file never garbles it while the other stays colored. Its `colors` argument overrides all of this for both streams.
 
