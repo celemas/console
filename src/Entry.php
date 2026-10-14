@@ -29,7 +29,11 @@ final class Entry
 		return new self(Command::of($command), $command::class, static fn(): object => $command);
 	}
 
-	/** @param class-string $class */
+	/**
+	 * @param class-string $class
+	 *
+	 * @psalm-suppress MixedMethodCall The command class is known only at runtime
+	 */
 	public static function fromClass(string $class): self
 	{
 		return new self(Command::of($class), $class, static fn(): object => new $class());
@@ -41,6 +45,10 @@ final class Entry
 		return new self(Command::of($class), $class, $factory);
 	}
 
+	/**
+	 * @psalm-suppress MixedAssignment, MixedReturnStatement Psalm does not narrow the
+	 *     factory's result by instanceof against a class-string; PHPStan and Mago do
+	 */
 	public function command(): object
 	{
 		if ($this->command === null) {

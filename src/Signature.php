@@ -199,6 +199,7 @@ final class Signature
 		}
 
 		foreach ($this->groups as $name => $class) {
+			/** @psalm-suppress MixedMethodCall The group class is known only at runtime */
 			$values[$name] = new $class(...$grouped[$name] ?? []);
 		}
 
@@ -214,6 +215,8 @@ final class Signature
 	 *
 	 * @param array<string, mixed> $values
 	 * @return array<string, mixed>
+	 *
+	 * @psalm-suppress MixedAssignment The values are of any parameter type
 	 */
 	public function match(array $values, object $command): array
 	{
