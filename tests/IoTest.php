@@ -308,6 +308,13 @@ class IoTest extends TestCase
 		);
 	}
 
+	public function testIndentCountsANegativeIndentAsZero(): void
+	{
+		$io = new Io(new Buffer(width: 12));
+
+		$this->assertSame("Lorem ipsum\ndolor", $io->indent('Lorem ipsum dolor', -2));
+	}
+
 	public function testPadDefaultsToLeftAlignment(): void
 	{
 		$io = new Io(new Buffer());
@@ -340,6 +347,14 @@ class IoTest extends TestCase
 		$io->rule('=', max: 40);
 
 		$this->assertSame(str_repeat('─', 10) . PHP_EOL . str_repeat('=', 20) . PHP_EOL, $buffer->output());
+	}
+
+	public function testRuleCountsANegativeMaxAsZero(): void
+	{
+		$buffer = new Buffer(width: 20);
+		new Io($buffer)->rule(max: -5);
+
+		$this->assertSame(PHP_EOL, $buffer->output());
 	}
 
 	public function testRuleRepeatsOnTheVisibleWidth(): void

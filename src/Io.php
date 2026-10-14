@@ -110,16 +110,17 @@ final class Io
 	/**
 	 * Writes a horizontal rule: the char repeated across the terminal.
 	 *
-	 * `$max` caps the width like in `indent()`. The char may be a
-	 * multi-char pattern and may carry markup — the repeat count uses
-	 * its visible width: `$io->rule('<dim>─</dim>')` draws a dim line.
+	 * `$max` caps the width like in `indent()`; a negative one counts as
+	 * 0. The char may be a multi-char pattern and may carry markup — the
+	 * repeat count uses its visible width: `$io->rule('<dim>─</dim>')`
+	 * draws a dim line.
 	 */
 	public function rule(string $char = '─', ?int $max = null): void
 	{
 		$width = $this->terminal->width();
 
 		if ($max !== null && $max < $width) {
-			$width = $max;
+			$width = max(0, $max);
 		}
 
 		$unit = $this->markup->width($char);
@@ -257,12 +258,14 @@ final class Io
 	 * Indents the text and wraps it on its visible width; markup tags
 	 * and multibyte characters don't count. `$max` caps the total line
 	 * width: the text wraps as if the terminal were at most that wide.
+	 * A negative `$indent` counts as 0.
 	 */
 	public function indent(
 		string $text,
 		int $indent,
 		?int $max = null,
 	): string {
+		$indent = max(0, $indent);
 		$spaces = str_repeat(' ', $indent);
 		$terminal = $this->terminal->width();
 
