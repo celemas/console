@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Celema\Console;
 
+use BackedEnum;
 use Celema\Console\Exception\InvalidUsage;
 use ReflectionParameter;
 
@@ -44,8 +45,9 @@ final class Option
 	 * @param int $occurrences How often the option occurs, bare or with a
 	 *     value; Args merges the occurrences
 	 * @param bool $bare Whether one of them has no value
+	 * @return true|list<string>|string|int|float|BackedEnum
 	 */
-	public function value(Args $args, int $occurrences, bool $bare): mixed
+	public function value(Args $args, int $occurrences, bool $bare): bool|array|string|int|float|BackedEnum
 	{
 		$values = $args->opts($this->name);
 

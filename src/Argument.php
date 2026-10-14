@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Celema\Console;
 
+use BackedEnum;
 use Celema\Console\Exception\InvalidUsage;
 use ReflectionParameter;
 
@@ -34,7 +35,7 @@ final class Argument
 		return $this->type->name === 'array';
 	}
 
-	public function convert(string $value): mixed
+	public function convert(string $value): string|int|float|BackedEnum
 	{
 		return (
 			$this->type->convert($value)
