@@ -13,6 +13,7 @@ use Celema\Console\Io;
 use Celema\Console\Opt;
 use Celema\Console\Runner;
 use Celema\Console\Stdio;
+use Celema\Console\Terminal;
 use Celema\Console\Tests\Fixtures\Greet;
 use Celema\Console\Tests\Fixtures\HelpVariants;
 use Celema\Console\Tests\Fixtures\OptionAliases;
@@ -1531,7 +1532,7 @@ class RunnerTest extends TestCase
 		[$code, $out] = $this->runProbe(new
 			#[Command('probe', 'Signature probe')]
 			class {
-				public function __invoke(BufferedIo $io): int
+				public function __invoke(Terminal $io): int
 				{
 					return 0;
 				}
