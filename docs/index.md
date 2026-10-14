@@ -336,7 +336,7 @@ Tags compose by nesting, and the innermost tag wins on conflict. Only exact know
 
 Arguments need no escaping. Text you concatenate into a template yourself does: `$io->escape()` escapes known tags and `%` and strips control characters (keeping newlines and tabs), so the text prints literally even in a template with arguments. Its result is meant for the `Io` output methods: a `%` turns into an invisible marker, and escaped text ending in a backslash carries one so that a tag right after it, as in `'<red>' . $io->escape($path) . '</red>'`, stays a tag.
 
-Whether `Stdio` emits codes is decided per stream: a non-empty `NO_COLOR` disables colors, `FORCE_COLOR` forces them on (`FORCE_COLOR=0` or `false` forces them off), and otherwise codes are only written when the stream is a terminal. `COLORTERM` alone does not color redirected output, so redirecting one stream to a file never garbles it while the other stays colored. Its `colors` argument overrides all of this for both streams.
+Whether `Stdio` emits codes is decided per stream: a non-empty `NO_COLOR` disables colors, `FORCE_COLOR` forces them on (`FORCE_COLOR=0` or `false` forces them off), and otherwise codes are only written when the stream is a terminal and `TERM` is not `dumb`. `COLORTERM` alone does not color redirected output, so redirecting one stream to a file never garbles it while the other stays colored. Its `colors` argument overrides all of this for both streams.
 
 ### Tables
 

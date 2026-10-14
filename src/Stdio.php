@@ -83,7 +83,7 @@ final class Stdio implements Terminal
 
 	/**
 	 * `NO_COLOR` turns colors off, `FORCE_COLOR` on (`0` or `false` off);
-	 * otherwise only a terminal gets them.
+	 * otherwise only a terminal gets them, unless `TERM` is `dumb`.
 	 */
 	#[Override]
 	public function colors(bool $error = false): bool
@@ -105,7 +105,7 @@ final class Stdio implements Terminal
 		}
 
 		$stream = $this->stream($error);
-		$terminal = stream_isatty($stream);
+		$terminal = stream_isatty($stream) && getenv('TERM') !== 'dumb';
 
 		// @codeCoverageIgnoreStart
 		if (DIRECTORY_SEPARATOR === '\\' && $terminal) {
@@ -144,7 +144,7 @@ final class Stdio implements Terminal
 		if ($columns < 1 && DIRECTORY_SEPARATOR !== '\\' && stream_isatty($this->stdout())) {
 			// @codeCoverageIgnoreStart
 			/** @psalm-suppress ForbiddenCode */
-			$columns = (int) shell_exec('tput cols');
+			$columns = (int) shell_exec('tput cols 2>/dev/null');
 
 			// @codeCoverageIgnoreEnd
 		}

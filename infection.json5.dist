@@ -26,12 +26,20 @@
 
 		// Terminal-only branches: the tests have no TTY, so these conditions
 		// can only be exercised against a real terminal. Scoped per mutator
-		// because the negated hidden-input condition is caught by tests.
+		// because the negated hidden-input condition is caught by tests. The
+		// `TERM` check is tested on a PTY, in a child process the mutants do
+		// not reach.
 		NotIdentical: {
-			ignoreSourceCodeByRegex: ['if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
+			ignoreSourceCodeByRegex: [
+				'if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{',
+				'\\$terminal = stream_isatty\\(\\$stream\\) && getenv\\(\'TERM\'\\) !== \'dumb\';',
+			],
 		},
 		LogicalAndAllSubExprNegation: {
-			ignoreSourceCodeByRegex: ['if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
+			ignoreSourceCodeByRegex: [
+				'if \\(\\$(hidden|columns < 1) && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{',
+				'\\$terminal = stream_isatty\\(\\$stream\\) && getenv\\(\'TERM\'\\) !== \'dumb\';',
+			],
 		},
 		LogicalAndNegation: {
 			ignoreSourceCodeByRegex: ['if \\(\\$columns < 1 && DIRECTORY_SEPARATOR .+ && stream_isatty\\(.+\\)\\) \\{'],
