@@ -19,9 +19,15 @@ use RuntimeException;
  */
 final class Stdio implements Terminal
 {
+	/** @var null|resource */
 	private mixed $stream = null;
+
+	/** @var null|resource */
 	private mixed $errorStream = null;
+
+	/** @var null|resource */
 	private mixed $inputStream = null;
+
 	private ?int $width = null;
 
 	public function __construct(
@@ -172,6 +178,8 @@ final class Stdio implements Terminal
 	 * throw, so a hidden prompt never reads while echo is still on.
 	 *
 	 * @codeCoverageIgnore
+	 *
+	 * @param resource $stream
 	 */
 	private function stty(mixed $stream, string $arg): string
 	{
@@ -197,16 +205,19 @@ final class Stdio implements Terminal
 		return trim($output);
 	}
 
+	/** @return resource */
 	private function stream(bool $error): mixed
 	{
 		return $error ? $this->stderr() : $this->stdout();
 	}
 
+	/** @return resource */
 	private function stdout(): mixed
 	{
 		return $this->stream ??= $this->open($this->output, 'w');
 	}
 
+	/** @return resource */
 	private function stderr(): mixed
 	{
 		// One stream for a shared target: a second one would truncate
@@ -216,11 +227,13 @@ final class Stdio implements Terminal
 			: $this->open($this->errorOutput, 'w');
 	}
 
+	/** @return resource */
 	private function stdin(): mixed
 	{
 		return $this->inputStream ??= $this->open($this->input, 'r');
 	}
 
+	/** @return resource */
 	private function open(string $target, string $mode): mixed
 	{
 		set_error_handler(static fn(): bool => true);
