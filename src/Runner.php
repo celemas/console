@@ -128,14 +128,29 @@ final class Runner
 
 	/**
 	 * Displays a list of all available commands.
-	 *
-	 * With and without namespace/group. If a bare name is shared, e. g.
-	 * by foo:cmd and bar:cmd, only the namespaced forms are displayed —
-	 * unless the bare name belongs to an unprefixed command, which always
-	 * shows since it resolves exactly.
 	 */
 	private function showCommands(): int
 	{
+		foreach ($this->names() as $name) {
+			$this->io->line('%s', $name);
+		}
+
+		return 0;
+	}
+
+	/**
+	 * The names that resolve to a command, sorted.
+	 *
+	 * With and without namespace/group. If a bare name is shared, e. g.
+	 * by foo:cmd and bar:cmd, only the namespaced forms are included —
+	 * unless the bare name belongs to an unprefixed command, which always
+	 * resolves exactly.
+	 *
+	 * @return list<string>
+	 */
+	private function names(): array
+	{
+		/** @var array<array-key, int> $list */
 		$list = [];
 
 		foreach ($this->toc as $commands) {
@@ -156,14 +171,16 @@ final class Runner
 		$list['help'] = 1;
 
 		ksort($list);
+		$names = [];
 
 		foreach ($list as $name => $count) {
 			if ($count === 1 || array_key_exists($name, $this->toc[''] ?? [])) {
-				$this->io->line('%s', $name);
+				// PHP turns numeric keys like '2026' into integers.
+				$names[] = (string) $name;
 			}
 		}
 
-		return 0;
+		return $names;
 	}
 
 	/**
@@ -339,7 +356,7 @@ final class Runner
 			/** @var array{0: string, 1: string} $parts */
 			$parts = explode(':', $cmd, limit: 2);
 
-			return $this->toc[$parts[0]][$parts[1]] ?? throw new InvalidUsage('Command not found');
+			return $this->toc[$parts[0]][$parts[1]] ?? throw $this->notFound($cmd);
 		}
 
 		if (array_key_exists($cmd, $this->toc[''] ?? [])) {
@@ -354,7 +371,14 @@ final class Runner
 			throw new InvalidUsage('Ambiguous command', self::AMBIGUOUS);
 		}
 
-		throw new InvalidUsage('Command not found');
+		throw $this->notFound($cmd);
+	}
+
+	private function notFound(string $cmd): InvalidUsage
+	{
+		$name = Suggestion::find($cmd, $this->names());
+
+		return new InvalidUsage($name === null ? 'Command not found' : "Command not found. Did you mean '{$name}'?");
 	}
 
 	/** @return list<Entry> */

@@ -84,6 +84,7 @@
 
 ### Added
 
+- An unknown command name gets a "Did you mean" suggestion by the rule that serves unknown options, also as the target of `help`: `php run db:imprt` reports `Command not found. Did you mean 'db:import'?`. The suggestion is one of the names `php run commands` lists, so an ambiguous bare name is never offered.
 - Built-in `--help`: `php run db:import --help`, or `-h`, shows the command's help screen like `php run help db:import`; both were usage errors unless the command declared them. The runner looks for the flag before it validates the input, so it works without the required arguments. A leading flag acts as the `help` command: `php run --help` shows the overview. The built-in `help` and `commands` have a help screen as well: `php run help --help` and `php run help help` show the one of `help`, which failed with "Command not found", and `php run commands --help` and `php run help commands` the one of `commands` instead of the list. A `-h` declared as the short name of another option, like `--host`, stays that option's, and a command that declares `--help` itself still receives it; the runner then answers neither flag.
 - `Io::stderr()` returns an `Io` that writes to the error output: `$io->stderr()->line('  - %s', $path)` prints a plain line there. `write()`, `rule()`, and the questions of the prompts go there as well.
 - The debug traceback names the exception's class and the file and line that threw it, and lists each previous exception the same way under `Caused by:`. The trace prints without color below the red message.

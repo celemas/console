@@ -497,10 +497,6 @@ final class Signature
 	private function unknownOption(string $name): string
 	{
 		$message = "Unknown option '{$name}'";
-		$typed = ltrim($name, '-');
-		$length = strlen($typed);
-		$best = '';
-		$bestDistance = PHP_INT_MAX;
 
 		// PHP turns a numeric short name like '-1' into an integer key.
 		$shorts = array_map(strval(...), array_keys($this->aliases));
@@ -511,35 +507,8 @@ final class Signature
 			array_push($candidates, '--help', '-h');
 		}
 
-		foreach ($candidates as $candidate) {
-			$distance = self::distance($typed, ltrim($candidate, '-'));
+		$best = Suggestion::find($name, $candidates, ignore: '-');
 
-			if ($distance < $bestDistance) {
-				$bestDistance = $distance;
-				$best = $candidate;
-			}
-		}
-
-		// One typo per three characters, at least one. A single character
-		// has to match: every other one is just a typo away.
-		$limit = $length > 1 ? max(1, intdiv($length, 3)) : 0;
-
-		return $bestDistance <= $limit ? "{$message}. Did you mean '{$best}'?" : $message;
-	}
-
-	/**
-	 * The number of typos between two names without their dashes. The
-	 * beginning of a name and a swapped pair of neighbours count as
-	 * one, where levenshtein() sees more.
-	 */
-	private static function distance(string $typed, string $name): int
-	{
-		$distance = levenshtein($typed, $name);
-
-		// The XOR is zero up to the first difference.
-		$at = strspn($typed ^ $name, "\0");
-		$swapped = substr_replace($typed, strrev(substr($typed, $at, 2)), $at, 2);
-
-		return $swapped === $name || str_starts_with($name, $typed) ? min($distance, 1) : $distance;
+		return $best === null ? $message : "{$message}. Did you mean '{$best}'?";
 	}
 }

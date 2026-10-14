@@ -1181,6 +1181,64 @@ class RunnerTest extends TestCase
 		$runner->run(['run', 'foo:stuff:extra']);
 	}
 
+	public static function commandSuggestionProvider(): iterable
+	{
+		yield 'one typo' => [['drivl'], 'drivel'];
+		yield 'prefixed name' => [['foo:stuf'], 'foo:stuff'];
+		yield 'swapped letters' => [['foo:dirvel'], 'foo:drivel'];
+		yield 'built-in' => [['hepl'], 'help'];
+		yield 'help target' => [['help', 'drivl'], 'drivel'];
+	}
+
+	/** @param list<string> $args */
+	#[DataProvider('commandSuggestionProvider')]
+	public function testRejectUnknownCommandWithSuggestion(array $args, string $suggestion): void
+	{
+		$out = new Buffer();
+		$code = new Runner($this->getCommands(), new Io($out))->run(['run', ...$args]);
+		$typed = $args[count($args) - 1];
+
+		$this->assertSame(2, $code);
+		$this->assertSame(
+			"Error while running command '{$typed}':\n\nCommand not found. Did you mean '{$suggestion}'?\n",
+			$out->errorOutput(),
+		);
+	}
+
+	public static function noCommandSuggestionProvider(): iterable
+	{
+		yield 'nothing alike' => ['unknown'];
+		yield 'unknown name under a prefix' => ['foo:unknown'];
+		yield 'ambiguous bare name' => ['stuf'];
+	}
+
+	#[DataProvider('noCommandSuggestionProvider')]
+	public function testRejectUnknownCommandWithoutSuggestion(string $typed): void
+	{
+		$out = new Buffer();
+		$code = new Runner($this->getCommands(), new Io($out))->run(['run', $typed]);
+
+		$this->assertSame(2, $code);
+		$this->assertSame("Error while running command '{$typed}':\n\nCommand not found\n", $out->errorOutput());
+	}
+
+	public function testUnknownCommandSuggestsANumericName(): void
+	{
+		$out = new Buffer();
+		$command = new
+			#[Command('7', 'Numbered')]
+			class {
+				public function __invoke(): int
+				{
+					return 0;
+				}
+			};
+		$code = new Runner([$command], new Io($out))->run(['run', '77']);
+
+		$this->assertSame(2, $code);
+		$this->assertStringContainsString("Command not found. Did you mean '7'?", $out->errorOutput());
+	}
+
 	public function testUngroupedCommandsShareSingleGeneralHeader(): void
 	{
 		$runner = new Runner(
