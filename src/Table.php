@@ -9,7 +9,7 @@ use ValueError;
 /**
  * Renders rows of columns aligned on their visible width — markup
  * tags and multibyte characters don't count, so cells may carry
- * markup: `<green>1,075</green>`.
+ * markup: `<green>1,075</green>`. Data needs Io::escape().
  *
  * Columns size to their widest cell and are separated by two spaces;
  * `rule()` inserts a separator line spanning the table. Cells don't

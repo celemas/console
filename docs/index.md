@@ -356,6 +356,8 @@ $io->write($table->render());
 
 Columns size to their widest cell and are separated by two spaces; alignment is per column (`Align::Left` for unlisted columns), and `rule()` inserts a separator line spanning the table, with the same char handling as `Io::rule()`. A short row leaves its remaining cells empty. Cells don't wrap — a table wider than the terminal simply overflows — so keep cells short.
 
+The cells are markup, and the rendered table is written as a template, so escape the data you put into them: `$table->row([$io->escape($user->name), (string) $user->logins])`.
+
 ### Background Blocks
 
 Box-like highlights need no box feature: pad each line to a uniform width, wrap it in a `bg-` tag (backgrounds color the padding spaces), and indent for margin. Empty lines become the vertical padding:
