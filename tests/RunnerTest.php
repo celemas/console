@@ -902,6 +902,65 @@ class RunnerTest extends TestCase
 		);
 	}
 
+	public function testHelpOverviewListsCommandsUnderTheirGroup(): void
+	{
+		$out = new Buffer();
+		$commands = [
+			new
+				#[Command('db:seed', 'Seeds', group: 'Seeding')]
+				class {
+					public function __invoke(): int
+					{
+						return 0;
+					}
+				},
+			new
+				#[Command('recreate-db', 'Recreates the database', group: 'Database')]
+				class {
+					public function __invoke(): int
+					{
+						return 0;
+					}
+				},
+			new
+				#[Command('db:migrate', 'Migrates', group: 'Database')]
+				class {
+					public function __invoke(): int
+					{
+						return 0;
+					}
+				},
+			new
+				#[Command('migrations:add', 'Adds a migration', group: 'Database')]
+				class {
+					public function __invoke(): int
+					{
+						return 0;
+					}
+				},
+		];
+		$code = new Runner($commands, new Io($out))->run(['bin/console']);
+
+		$this->assertSame(0, $code);
+		$this->assertStringEndsWith(
+			<<<'TEXT'
+				General
+				  commands        Lists all available commands
+				  help            Displays this overview
+
+				Database
+				  db:migrate      Migrates
+				  migrations:add  Adds a migration
+				  recreate-db     Recreates the database
+
+				Seeding
+				  db:seed         Seeds
+
+				TEXT,
+			$out->output(),
+		);
+	}
+
 	public function testCommandNamesAreCaseInsensitive(): void
 	{
 		$out = new Buffer();

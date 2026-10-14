@@ -18,8 +18,9 @@ A command is a plain class with a `#[Command]` attribute and an `__invoke()` met
 use Celema\Console\{Arg, Command, Opt, Io};
 
 // The first argument is the name by which the command is invoked from the
-// command line. An optional `grp:` prefix namespaces the command and groups
-// it in the help overview; `group` overrides the displayed group title.
+// command line. An optional `grp:` prefix namespaces the command. The help
+// overview lists it under `group`, by default the capitalized prefix or,
+// without one, General.
 #[Command('grp:mycommand', 'This is my command description', group: 'My Group')]
 class MyCommand
 {

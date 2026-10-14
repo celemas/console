@@ -23,9 +23,9 @@ final class Runner
 	];
 
 	/**
-	 * The commands indexed by group and name.
+	 * The commands indexed by prefix and name.
 	 *
-	 * @var array<string, array{title: string, commands: array<string, Entry>}>
+	 * @var array<string, array<string, Entry>>
 	 */
 	private array $toc = [];
 
@@ -67,14 +67,11 @@ final class Runner
 				throw new ValueError("Command name '{$meta->name}' is reserved");
 			}
 
-			$group = $toc[$meta->prefix] ?? ['title' => $meta->title(), 'commands' => []];
-
-			if (array_key_exists($meta->name, $group['commands'])) {
+			if (array_key_exists($meta->name, $toc[$meta->prefix] ?? [])) {
 				throw new ValueError("Duplicate command '{$meta->full()}'");
 			}
 
-			$group['commands'][$meta->name] = $entry;
-			$toc[$meta->prefix] = $group;
+			$toc[$meta->prefix][$meta->name] = $entry;
 			$list[$meta->name][] = $entry;
 			$longestName = max($longestName, strlen($meta->full()));
 		}
@@ -92,37 +89,41 @@ final class Runner
 		$this->io->line("  php %s [prefix:]command [arguments]\n", $script);
 		$this->io->line("Prefixes are optional if the command is unambiguous.\n");
 		$this->io->line('Available commands:');
+
+		/** @var array<array-key, array<string, Entry>> $sections */
+		$sections = [];
+
+		foreach ($this->toc as $commands) {
+			foreach ($commands as $entry) {
+				$sections[$entry->meta->title()][$entry->meta->full()] = $entry;
+			}
+		}
+
 		$this->showGroup('General');
 		$this->showCommand('', 'commands', 'Lists all available commands');
 		$this->showCommand('', 'help', 'Displays this overview');
+		$this->showSection($sections['General'] ?? []);
+		unset($sections['General']);
 
-		// Render from the metadata, not the keys: PHP turns numeric
-		// keys like '2026' into integers.
-		$general = $this->toc['']['commands'] ?? [];
-		ksort($general);
+		// PHP turns numeric keys like '2026' into integers.
+		uksort($sections, static fn(int|string $a, int|string $b): int => strcasecmp((string) $a, (string) $b));
 
-		foreach ($general as $entry) {
-			$this->showCommand('', $entry->meta->name, $entry->meta->description);
-		}
-
-		$toc = $this->toc;
-		ksort($toc);
-
-		foreach ($toc as $prefix => $group) {
-			if ($prefix === '') {
-				continue;
-			}
-
-			$this->showGroup($group['title']);
-			$commands = $group['commands'];
-			ksort($commands);
-
-			foreach ($commands as $entry) {
-				$this->showCommand($entry->meta->prefix, $entry->meta->name, $entry->meta->description);
-			}
+		foreach ($sections as $title => $entries) {
+			$this->showGroup((string) $title);
+			$this->showSection($entries);
 		}
 
 		return 0;
+	}
+
+	/** @param array<string, Entry> $entries Keyed by full name */
+	private function showSection(array $entries): void
+	{
+		ksort($entries, SORT_STRING);
+
+		foreach ($entries as $entry) {
+			$this->showCommand($entry->meta->prefix, $entry->meta->name, $entry->meta->description);
+		}
 	}
 
 	/**
@@ -137,8 +138,8 @@ final class Runner
 	{
 		$list = [];
 
-		foreach ($this->toc as $group) {
-			foreach ($group['commands'] as $entry) {
+		foreach ($this->toc as $commands) {
+			foreach ($commands as $entry) {
 				$meta = $entry->meta;
 
 				// Full names are unique; only bare names can be shared.
@@ -157,7 +158,7 @@ final class Runner
 		ksort($list);
 
 		foreach ($list as $name => $count) {
-			if ($count === 1 || array_key_exists($name, $this->toc['']['commands'] ?? [])) {
+			if ($count === 1 || array_key_exists($name, $this->toc[''] ?? [])) {
 				$this->io->line('%s', $name);
 			}
 		}
@@ -338,11 +339,11 @@ final class Runner
 			/** @var array{0: string, 1: string} $parts */
 			$parts = explode(':', $cmd, limit: 2);
 
-			return $this->toc[$parts[0]]['commands'][$parts[1]] ?? throw new InvalidUsage('Command not found');
+			return $this->toc[$parts[0]][$parts[1]] ?? throw new InvalidUsage('Command not found');
 		}
 
-		if (array_key_exists($cmd, $this->toc['']['commands'] ?? [])) {
-			return $this->toc['']['commands'][$cmd];
+		if (array_key_exists($cmd, $this->toc[''] ?? [])) {
+			return $this->toc[''][$cmd];
 		}
 
 		if (array_key_exists($cmd, $this->list)) {

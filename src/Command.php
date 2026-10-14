@@ -15,9 +15,9 @@ use ValueError;
  * letter or digit, and is matched case-insensitively. It may carry a group
  * prefix of the same form, separated by a single colon, e.g. `db:migrate`;
  * any other name is rejected.
- * The prefix namespaces the command on the command line and groups it in the
- * help overview under the capitalized prefix; `group` overrides that
- * displayed title.
+ * The prefix namespaces the command on the command line. The help overview
+ * lists the command under its `group`, by default the capitalized prefix or,
+ * without one, General; commands with the same group share a section.
  *
  * The attribute and its properties are public API; the methods serve the
  * runner.
