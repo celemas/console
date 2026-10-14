@@ -189,12 +189,17 @@ final class Markup
 
 	private function markup(string $text, bool $colors, string $style): string
 	{
-		/** @var list<string> $parts */
-		$parts = (array) preg_split(
+		$parts = preg_split(
 			$this->split,
 			$text,
 			flags: PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY,
 		);
+
+		// Like a failed preg_replace() in render(), a failed split drops the text.
+		if ($parts === false) {
+			return '';
+		}
+
 		$paired = $this->paired($parts);
 		$stack = $style === '' ? [] : [$style];
 		$out = $colors ? $this->codes($stack) : '';

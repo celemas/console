@@ -81,6 +81,7 @@
 - `php run commands` lists the built-in `commands` and `help` too. They were missing from the names it prints for shell completion.
 - The "Did you mean" hint for an unknown option fits what was typed. It allowed three typos whatever the length, so `--foo` suggested `--bar` and every unknown one-letter name suggested the first declared one. Now it allows one typo per three characters, counts a swapped pair of letters as one, and recognizes the beginning of a name (`--dry` for `--dry-run`), a wrong number of dashes (`-verbose`), and the built-in `--help`.
 - A numeric token like `-5` is reported as an unknown option, with exit code 2, instead of failing with a `TypeError`: `Args::names()` returned such a name as an integer and now returns strings only. An unknown option on a command declaring a numeric short name, like `short: '-1'`, failed the same way while looking for a suggestion.
+- When PCRE gives up on a text, for example at `pcre.backtrack_limit`, rendering it prints nothing instead of failing with a `TypeError`.
 
 ### Added
 

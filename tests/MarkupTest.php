@@ -156,6 +156,18 @@ class MarkupTest extends TestCase
 		$this->assertSame("<em>a</green> \033[1mb\033[0m", $this->render('<em>a</green> <strong>b</strong>'));
 	}
 
+	public function testFailedMatchDropsTheTextInsteadOfThrowing(): void
+	{
+		$limit = (string) ini_get('pcre.backtrack_limit');
+		ini_set('pcre.backtrack_limit', '1');
+
+		try {
+			$this->assertSame('', $this->render('plain <red>x</red> text'));
+		} finally {
+			ini_set('pcre.backtrack_limit', $limit);
+		}
+	}
+
 	public function testStyleEnclosesTheText(): void
 	{
 		$markup = new Markup();
