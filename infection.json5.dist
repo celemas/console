@@ -109,9 +109,9 @@
 		Concat: {
 			ignoreSourceCodeByRegex: ['\\$pad = str_repeat\\(\' \', \\$this->longestName \\+ 2 - strlen\\(\\$prefix \\. \\$name\\)\\);'],
 		},
-		// fopen() reports failures through the handler and does not throw.
+		// fopen() and fwrite() report failures through the handler and do not throw.
 		UnwrapFinally: {
-			ignore: ['Celema\\Console\\Stdio::open'],
+			ignore: ['Celema\\Console\\Stdio::open', 'Celema\\Console\\Stdio::write'],
 		},
 	},
 }

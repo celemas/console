@@ -35,8 +35,17 @@ final class Stdio implements Terminal
 	public function write(string $text, bool $error = false): void
 	{
 		$stream = $this->stream($error);
-		fwrite($stream, $text);
-		fflush($stream);
+
+		// A reader that went away, like `| head -1`, fails every write; the
+		// output is lost anyway and must not add a notice per line.
+		set_error_handler(static fn(): bool => true);
+
+		try {
+			fwrite($stream, $text);
+			fflush($stream);
+		} finally {
+			restore_error_handler();
+		}
 	}
 
 	/**

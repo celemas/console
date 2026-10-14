@@ -68,6 +68,30 @@ class StdioTest extends TestCase
 		$this->assertSame("error\none\n", file_get_contents($file));
 	}
 
+	public function testWriteToAClosedPipeRaisesNoNotice(): void
+	{
+		stream_wrapper_register('closed-pipe', Fixtures\ClosedPipe::class);
+		error_clear_last();
+		$errors = [];
+		set_error_handler(static function (int $level, string $message) use (&$errors): bool {
+			$errors[] = $message;
+
+			return true;
+		});
+
+		try {
+			$stdio = new Stdio('closed-pipe://out');
+			$stdio->write("lost\n");
+			$stdio->write("lost\n");
+		} finally {
+			restore_error_handler();
+			stream_wrapper_unregister('closed-pipe');
+		}
+
+		$this->assertSame([], $errors);
+		$this->assertNull(error_get_last());
+	}
+
 	public function testReadsLinesFromTheInputTarget(): void
 	{
 		$stdio = new Stdio(input: $this->file("Charly\r\n\nlast"));

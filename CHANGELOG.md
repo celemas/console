@@ -72,6 +72,7 @@
 ### Fixed
 
 - The same file as output and error target, `new Stdio('build.log', 'build.log')`, receives both in the order written. Each target had its own stream, also in `Io` before, so the first error emptied the file and later output overwrote the errors or left NUL bytes.
+- Output into a pipe whose reader quit early, like `php run commands | head -1`, raises no PHP notice. Depending on the PHP settings, the first failed write ended the process with exit code 255, or each further line printed a notice. The command now runs to its end, and the output nobody reads is dropped.
 - The C1 control characters U+0080 to U+009F are dropped from all output and from escaped text, like the other control characters. U+009B opens an escape sequence like `ESC [` on terminals that honor it, so text could still inject one.
 - An exception without a message is reported by its class name instead of an empty line.
 - The help overview lists each command under its own `group`. A command without a prefix ignored it and appeared under General, two prefixes with the same group got a section each, and the first command registered for a prefix set the title for all of them. Commands with the same group now share a section, which may list several prefixes and unprefixed commands, sorted by full name.
