@@ -359,8 +359,10 @@ final class Runner
 			return $this->toc[$parts[0]][$parts[1]] ?? throw $this->notFound($cmd);
 		}
 
-		if (array_key_exists($cmd, $this->toc[''] ?? [])) {
-			return $this->toc[''][$cmd];
+		$entry = $this->toc[''][$cmd] ?? null;
+
+		if ($entry !== null) {
+			return $entry;
 		}
 
 		if (array_key_exists($cmd, $this->list)) {
