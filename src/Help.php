@@ -93,7 +93,8 @@ final class Help
 			};
 
 			$short = $option->opt->short;
-			$flags = $short === '' ? $option->name . $suffix : "{$short}{$suffix}, {$option->name}{$suffix}";
+			$long = $option->negation === null ? $option->name : '--[no-]' . substr($option->name, offset: 2);
+			$flags = $short === '' ? $long . $suffix : "{$short}{$suffix}, {$long}{$suffix}";
 
 			$this->io->line('    <green>%s</green>', $flags);
 			$this->showDescription(
@@ -143,7 +144,7 @@ final class Help
 	}
 
 	/**
-	 * Renders a default value; null, booleans, and arrays render empty.
+	 * Renders a default value; null, false, and arrays render empty.
 	 */
 	private function text(mixed $value): string
 	{
@@ -151,6 +152,10 @@ final class Help
 			$value = $value->value;
 		}
 
-		return is_string($value) || is_int($value) || is_float($value) ? (string) $value : '';
+		return match (true) {
+			$value === true => 'true',
+			is_string($value) || is_int($value) || is_float($value) => (string) $value,
+			default => '',
+		};
 	}
 }

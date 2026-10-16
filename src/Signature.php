@@ -42,6 +42,13 @@ final class Signature
 	private array $aliases = [];
 
 	/**
+	 * The long names of negatable flags keyed by their `--no-` name.
+	 *
+	 * @var array<string, string>
+	 */
+	private array $negations = [];
+
+	/**
 	 * The names of the injected parameters, keyed by class.
 	 *
 	 * @var array<string, string>
@@ -187,9 +194,14 @@ final class Signature
 		$grouped = [];
 
 		foreach ($args->names() as $name) {
-			$option = $this->options[$name] ?? throw new InvalidUsage($this->unknownOption($name));
+			$long = $this->negations[$name] ?? $name;
+			$option = $this->options[$long] ?? throw new InvalidUsage($this->unknownOption($name));
 
-			$value = $option->value($args, $counts[$name], array_key_exists($name, $bare));
+			if ($long !== $name && $args->has($long)) {
+				throw new InvalidUsage("Option '{$long}' cannot be combined with '{$name}'");
+			}
+
+			$value = $option->value($args, $name, $counts[$name], array_key_exists($name, $bare));
 
 			if ($option->group === null) {
 				$values[$option->parameter->name] = $value;
@@ -291,8 +303,12 @@ final class Signature
 	{
 		$this->checkOption($option);
 
-		foreach ([$option->name, $option->opt->short] as $name) {
-			if (array_key_exists($name, $this->options) || array_key_exists($name, $this->aliases)) {
+		foreach ([$option->name, $option->opt->short, $option->negation ?? ''] as $name) {
+			if (
+				array_key_exists($name, $this->options)
+				|| array_key_exists($name, $this->aliases)
+				|| array_key_exists($name, $this->negations)
+			) {
 				throw new ValueError("Command '{$this->full}' declares the option name '{$name}' twice");
 			}
 		}
@@ -301,6 +317,10 @@ final class Signature
 
 		if ($option->opt->short !== '') {
 			$this->aliases[$option->opt->short] = $option->name;
+		}
+
+		if ($option->negation !== null) {
+			$this->negations[$option->negation] = $option->name;
 		}
 	}
 
@@ -318,10 +338,6 @@ final class Signature
 		$bare = $option->opt->bare;
 
 		if ($option->type->name === 'bool') {
-			if ($parameter->getDefaultValue() !== false) {
-				throw new ValueError("{$prefix} flag '{$option->name}' must default to false");
-			}
-
 			if ($option->opt->value !== '' || $bare !== null) {
 				throw new ValueError("{$prefix} flag '{$option->name}' takes no value");
 			}
@@ -503,7 +519,7 @@ final class Signature
 
 		// PHP turns a numeric short name like '-1' into an integer key.
 		$shorts = array_map(strval(...), array_keys($this->aliases));
-		$candidates = [...array_keys($this->options), ...$shorts];
+		$candidates = [...array_keys($this->options), ...array_keys($this->negations), ...$shorts];
 
 		// The runner answers these unless the command declares `--help`.
 		if (!array_key_exists('--help', $this->options)) {

@@ -108,6 +108,10 @@ class HelpTest extends TestCase
 				    --worker[=<worker>]
 				        Worker count
 				    --force
+				    -w, --[no-]watch
+				        Watch files [default: true]
+				    --[no-]color
+				        Colored output
 
 				TEXT,
 			$buffer->output(),

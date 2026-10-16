@@ -234,7 +234,7 @@ use Celema\Console\{Io, Stdio};
 
 $io = new Io(new Stdio(input: '/dev/tty'));               // prompts read from the terminal device
 $io = new Io(new Stdio('build.log', 'build.log'));         // output and errors to a file
-$io = new Io(new Stdio(colors: $noColor ? false : null));  // a --no-color flag
+$io = new Io(new Stdio(colors: $color));                   // from ?bool $color = null, a --[no-]color flag
 ```
 
 With the same target for the output and the errors, both go through one stream and keep their order. `Stdio` is interactive when both its input and its output are terminals. Its width comes from `COLUMNS`, else from the terminal (`tput cols`), else it is 80. Tests use `Buffer` instead (see [Testing Commands](#testing-commands)). Other devices implement the `Terminal` interface: `write()`, `read()` (one line, with `$hidden` input that should not show), `colors()`, `interactive()`, and `width()`.
@@ -406,8 +406,9 @@ php run db:import data.csv json -b=100 --tag=news --tag=events --dry-run
 - Names derive from the parameter names in kebab-case: `$dryRun` is `--dry-run`, and `$targetDir` renders as `<target-dir>`. An underscore and an acronym end a word as well: `$dry_run` is `--dry-run`, `$HTMLOnly` is `--html-only`.
 - The supported types are `string`, `int`, `float`, `bool`, `array`, and backed enums, also nullable. An enum accepts its backing values. A value that does not convert, like `--batch=many` or `xml` for the format, aborts the command.
 - Positionals match the arguments in declaration order. An argument with a default is optional. An `array` argument must be the last one and takes the remaining positionals as strings: at least one, or any number when it has a default.
-- Every option needs a default, which the command receives when the option is absent; use a nullable type for "not given", like `?int $limit = null`. A `bool` option is a flag without value and must default to `false`. An `array` option is repeatable and collects its values as strings. Any other option takes exactly one value.
+- Every option needs a default, which the command receives when the option is absent; use a nullable type for "not given", like `?int $limit = null`. A `bool` option is a flag without value. An `array` option is repeatable and collects its values as strings. Any other option takes exactly one value.
 - `short` adds an alias of one character, such as `-b`. `value` overrides the `<value>` label in the help, which defaults to the option name.
+- A flag defaulting to `true` or `null` is negatable: its `--no-` form sets it to `false`. `bool $watch = true` turns off with `--no-watch`, and `?bool $color = null` receives `true` for `--color`, `false` for `--no-color`, and `null` without either, so the command can fall back to a configured value. A flag defaulting to `false` has no `--no-` form, and no other option may take the name of a negation.
 - `bare` makes the value of an option optional. With `#[Opt('Worker count', bare: '1')] ?int $worker = null`, the command receives `null` without `--worker`, `1` for a bare `--worker`, and `4` for `--worker=4`. The bare value is written as on the command line.
 - A default known only at runtime, such as a port configured in the constructor, becomes a nullable parameter: `?int $port = null`, then `$port ?? $this->port`.
 
@@ -457,7 +458,7 @@ The group's options behave like the command's own: they are validated and conver
 
 #### Validation
 
-The parameters are a command's complete interface; the runner validates every invocation against them before the command runs. An unknown option (with a "Did you mean" suggestion for near misses), a value on a flag, a missing value, a repeated single-value option, a value that does not convert, a missing required argument, or an undeclared positional aborts with exit code 2. So a typo like `--forec` — or an option on a command that takes none — fails loudly instead of being silently ignored. A near miss is a name with few typos for its length — one per three characters, a swapped pair of letters counting as one —, the beginning of a name, such as `--dry` for `--dry-run`, or a name with the wrong number of dashes. An unknown command name gets the same suggestion, picked from the names the `commands` built-in lists: `php run mycomand` suggests `mycommand`.
+The parameters are a command's complete interface; the runner validates every invocation against them before the command runs. An unknown option (with a "Did you mean" suggestion for near misses), a value on a flag, a flag together with its negation, a missing value, a repeated single-value option, a value that does not convert, a missing required argument, or an undeclared positional aborts with exit code 2. So a typo like `--forec` — or an option on a command that takes none — fails loudly instead of being silently ignored. A near miss is a name with few typos for its length — one per three characters, a swapped pair of letters counting as one —, the beginning of a name, such as `--dry` for `--dry-run`, or a name with the wrong number of dashes. An unknown command name gets the same suggestion, picked from the names the `commands` built-in lists: `php run mycomand` suggests `mycommand`.
 
 Exit code 2 marks every wrong invocation, also an unknown or ambiguous command name, while 1 remains the code of a failed run. Scripts and cron jobs can so tell "called wrong" from "job failed". A command reports its own usage checks the same way by throwing `InvalidUsage`:
 
@@ -469,7 +470,7 @@ if ($apply && $testRun) {
 }
 ```
 
-Declarations are checked when the command runs or renders its help: an option without a default, a flag defaulting to `true`, an unsupported type, a variadic (`...`) parameter, or an argument after the `array` argument is reported as an error with exit code 1.
+Declarations are checked when the command runs or renders its help: an option without a default, an option name declared twice, an unsupported type, a variadic (`...`) parameter, or an argument after the `array` argument is reported as an error with exit code 1.
 
 #### Raw Input
 
@@ -484,7 +485,7 @@ $args->has('--verbose');         // true
 $args->names();                  // names of all provided options
 ```
 
-`Args` holds the raw strings after validation, with short names normalized to long ones.
+`Args` holds the raw strings after validation, with short names normalized to long ones. A negation keeps its name: `--no-color` is `$args->has('--no-color')`.
 
 ### Command Help
 
@@ -493,9 +494,10 @@ $args->names();                  // names of all provided options
 - `#[Arg] string $file` renders `<file>` in the usage line and under "Arguments:". With a default, it renders `[<file>]`; as an `array`, `<file>...`.
 - `#[Opt(short: '-s')] string $stuff = ''` renders `-s=<stuff>, --stuff=<stuff>`; `value: 'path'` changes the label to `<path>`.
 - `#[Opt(short: '-v')] bool $verbose = false` renders `-v, --verbose`.
+- `#[Opt] ?bool $color = null` renders `--[no-]color`.
 - `#[Opt(bare: '.')] string $watch = ''` renders `--watch[=<watch>]`.
 
-The descriptions are followed by `[choices: csv, json]` for an enum, `[repeatable]` for an `array` option, and `[default: sqlite]` for a string, number, or enum default. `null`, `false`, empty strings, and arrays render no default.
+The descriptions are followed by `[choices: csv, json]` for an enum, `[repeatable]` for an `array` option, and `[default: sqlite]` for a string, number, enum, or `true` default. `null`, `false`, empty strings, and arrays render no default.
 
 ### Built-in Commands
 

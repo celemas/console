@@ -15,8 +15,8 @@ use ValueError;
  * command receives when the option is absent and which the help renders
  * as `[default: ...]`. The declared type decides the form:
  *
- * - `bool`: a flag without value, such as `--force`; it must default to
- *   `false`.
+ * - `bool`: a flag without value, such as `--force`. With a default of
+ *   `true` or `null`, `--no-force` sets it to `false`.
  * - `string`, `int`, `float`, or a backed enum: one `--name=<value>`,
  *   converted to the type.
  * - `array`: repeatable, `--tag=a --tag=b`, collecting the values as

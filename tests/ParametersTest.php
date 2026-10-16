@@ -321,6 +321,78 @@ class ParametersTest extends TestCase
 		$this->assertStringContainsString("Option '--worker' accepts only one value", $out->errorOutput());
 	}
 
+	private static function negatable(): object
+	{
+		return new
+			#[Command('probe')]
+			class {
+				/** @var list<array{?bool, bool}> */
+				public array $seen = [];
+
+				public function __invoke(
+					#[Opt(short: '-c')]
+					?bool $color = null,
+					#[Opt]
+					bool $watch = true,
+				): int {
+					$this->seen[] = [$color, $watch];
+
+					return 0;
+				}
+			};
+	}
+
+	public function testNegatableFlagsTakeTheirNoPrefix(): void
+	{
+		$command = self::negatable();
+
+		$this->runProbe($command);
+		$this->runProbe($command, '--color', '--watch');
+		$this->runProbe($command, '-c', '--color');
+		$this->runProbe($command, '--no-color', '--no-watch');
+		$this->runProbe($command, '--no-color', '--no-color');
+
+		$this->assertSame([[null, true], [true, true], [true, true], [false, false], [false, true]], $command->seen);
+	}
+
+	public static function invalidNegationProvider(): array
+	{
+		return [
+			'flag and negation' => [['--color', '--no-color'], "Option '--color' cannot be combined with '--no-color'"],
+			'negation and flag' => [['--no-watch', '--watch'], "Option '--watch' cannot be combined with '--no-watch'"],
+			'short name and negation' => [
+				['-c', '--no-color'],
+				"Option '--color' cannot be combined with '--no-color'",
+			],
+			'negation with value' => [['--no-color=1'], "Option '--no-color' does not accept a value"],
+			'negation of a plain flag' => [['--no-force'], "Unknown option '--no-force'"],
+			'misspelled negation' => [['--no-colr'], "Unknown option '--no-colr'. Did you mean '--no-color'?"],
+		];
+	}
+
+	/** @param list<string> $args */
+	#[DataProvider('invalidNegationProvider')]
+	public function testRejectInvalidNegations(array $args, string $message): void
+	{
+		[$code, $out] = $this->runProbe(new
+			#[Command('probe')]
+			class {
+				public function __invoke(
+					#[Opt(short: '-c')]
+					?bool $color = null,
+					#[Opt]
+					bool $watch = true,
+					#[Opt]
+					bool $force = false,
+				): int {
+					return 0;
+				}
+			}, ...$args);
+
+		$this->assertSame(2, $code);
+		$this->assertStringContainsString($message, $out->errorOutput());
+	}
+
 	public function testVariadicArgumentKeepsItsDefaultWithoutPositionals(): void
 	{
 		$command = new
@@ -448,16 +520,27 @@ class ParametersTest extends TestCase
 					},
 				"Command 'probe' option '--batch' needs a default value",
 			],
-			'flag defaulting to true' => [
+			'negation after an option of its name' => [
 				new
 					#[Command('probe')]
 					class {
-						public function __invoke(#[Opt] bool $watch = true): int
+						public function __invoke(#[Opt] bool $noWatch = false, #[Opt] bool $watch = true): int
 						{
 							return 0;
 						}
 					},
-				"Command 'probe' flag '--watch' must default to false",
+				"Command 'probe' declares the option name '--no-watch' twice",
+			],
+			'option after a negation of its name' => [
+				new
+					#[Command('probe')]
+					class {
+						public function __invoke(#[Opt] ?bool $watch = null, #[Opt] bool $noWatch = false): int
+						{
+							return 0;
+						}
+					},
+				"Command 'probe' declares the option name '--no-watch' twice",
 			],
 			'flag with value label' => [
 				new

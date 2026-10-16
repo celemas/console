@@ -23,7 +23,7 @@ A command line interface helper.
 - Built-in color support with per-stream terminal detection and `NO_COLOR`/`FORCE_COLOR` handling
 - Command help with `php run help <command>` or `php run <command> --help`
 - Built-in `commands` command for shell autocomplete
-- `--key=value` options (repeatable) and boolean `--flag` / `-h` flags; `--` ends option parsing
+- `--key=value` options (repeatable) and boolean `--flag` / `-h` flags, negatable as `--no-flag`; `--` ends option parsing
 - Output from markup templates and data arguments: `$io->error('Cannot read <strong>%s</strong>', $path)` needs no escaping; `line()`, `write()`, `success()`, `warn()`, and `error()` (warnings and errors go to STDERR, as does everything written through `$io->stderr()`)
 - Inline markup for styled output: `<strong>`, `<em>`, `<dim>`, `<u>`, the ANSI colors — `<green>`, `<bright-red>`, `<bg-blue>`, ... — and truecolor hex tags: `<#ff7313>`, `<bg-#ff7313>`
 - Interactive prompts: `ask()`, `secret()` for hidden input, `confirm()`, and `choice()`

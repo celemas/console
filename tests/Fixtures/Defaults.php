@@ -40,6 +40,10 @@ class Defaults
 		?int $worker = null,
 		#[Opt]
 		bool $force = false,
+		#[Opt('Watch files', short: '-w')]
+		bool $watch = true,
+		#[Opt('Colored output')]
+		?bool $color = null,
 	): int {
 		return 0;
 	}
