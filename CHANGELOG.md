@@ -1,10 +1,14 @@
 # Changelog
 
-## [Unreleased](https://codefloe.com/celema/console/compare/0.6.0...HEAD)
+## [Unreleased](https://codefloe.com/celema/console/compare/0.7.0...HEAD)
+
+No notable changes since the last release.
+
+## [0.7.0](https://codefloe.com/celema/console/src/tag/0.7.0) (2026-10-16)
 
 ### Added
 
-- Negatable flags: a `bool` option defaulting to `true` or `null` also takes a `--no-` form that sets it to `false`. Such a default was a declaration error before. `bool $watch = true` turns off with `--no-watch`, and `?bool $color = null` tells `--color` and `--no-color` apart from neither, for example to fall back to a configured value. The help renders `--[no-]color` and `[default: true]`. A flag together with its negation is a usage error.
+- Negatable flags: a `bool` option defaulting to `true` or `null` also takes a `--no-` form that sets it to `false`. Such a default was a declaration error before. `bool $watch = true` turns off with `--no-watch`, and `?bool $color = null` tells `--color` and `--no-color` apart from neither, for example to fall back to a configured value. The help renders `--[no-]color` and `[default: true]`. A flag together with its negation is a usage error, and the `--no-` form of any other option reports that it cannot be negated.
 
 ## [0.6.0](https://codefloe.com/celema/console/src/tag/0.6.0) (2026-10-14)
 
