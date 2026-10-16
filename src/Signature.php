@@ -515,6 +515,12 @@ final class Signature
 
 	private function unknownOption(string $name): string
 	{
+		$negated = str_starts_with($name, '--no-') ? '--' . substr($name, offset: 5) : '';
+
+		if (array_key_exists($negated, $this->options)) {
+			return "Option '{$negated}' cannot be negated";
+		}
+
 		$message = "Unknown option '{$name}'";
 
 		// PHP turns a numeric short name like '-1' into an integer key.

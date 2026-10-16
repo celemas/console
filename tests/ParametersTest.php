@@ -365,7 +365,7 @@ class ParametersTest extends TestCase
 				"Option '--color' cannot be combined with '--no-color'",
 			],
 			'negation with value' => [['--no-color=1'], "Option '--no-color' does not accept a value"],
-			'negation of a plain flag' => [['--no-force'], "Unknown option '--no-force'"],
+			'negation of a plain flag' => [['--no-force'], "Option '--force' cannot be negated"],
 			'misspelled negation' => [['--no-colr'], "Unknown option '--no-colr'. Did you mean '--no-color'?"],
 		];
 	}
