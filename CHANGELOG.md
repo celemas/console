@@ -4,7 +4,7 @@
 
 ### Added
 
-- Negatable flags: a `bool` option defaulting to `true` or `null` also takes a `--no-` form that sets it to `false`, which was a declaration error before. `bool $watch = true` turns off with `--no-watch`, and `?bool $color = null` tells `--color` and `--no-color` apart from neither, for example to fall back to a configured value. The help renders `--[no-]color` and `[default: true]`. A flag together with its negation is a usage error.
+- Negatable flags: a `bool` option defaulting to `true` or `null` also takes a `--no-` form that sets it to `false`. Such a default was a declaration error before. `bool $watch = true` turns off with `--no-watch`, and `?bool $color = null` tells `--color` and `--no-color` apart from neither, for example to fall back to a configured value. The help renders `--[no-]color` and `[default: true]`. A flag together with its negation is a usage error.
 
 ## [0.6.0](https://codefloe.com/celema/console/src/tag/0.6.0) (2026-10-14)
 
